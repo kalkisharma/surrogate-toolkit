@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.2.1
+// Version: 0.4.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, handles the single data-
 //              type gate, and navigates to the exploration view.
@@ -14,6 +14,8 @@ import { refreshState } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
 import { initExploration } from "./modules/data_explorer.js";
+import { initDesignation } from "./modules/column_designation.js";
+import { initNormalization } from "./modules/normalization.js";
 import { el, clearEl } from "./utils.js";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -283,6 +285,44 @@ async function _renderExploration(uploadResponse) {
   const exploreSection = el("div", { cls: "card", id: "explore-section" });
   app.appendChild(exploreSection);
   await initExploration(exploreSection, uploadResponse);
+
+  // ── Column designation ────────────────────────────────────────────────────
+  const meta2         = uploadResponse.metadata;
+  const designCard    = el("div", { cls: "card", id: "designation-section",
+    style: "margin-top: var(--space-6);" });
+  app.appendChild(designCard);
+
+  // Normalization card — hidden until designation is confirmed
+  const normCard = el("div", { cls: "card hidden", id: "normalization-section",
+    style: "margin-top: var(--space-6);" });
+  app.appendChild(normCard);
+
+  const initInputs  = meta2.input_columns  || [];
+  const initOutputs = meta2.output_columns || [];
+  const currentNorm = meta2.normalization_method || null;
+
+  // If designation already exists, also render normalization immediately
+  if (initInputs.length > 0) {
+    normCard.classList.remove("hidden");
+    initNormalization(normCard, currentNorm, initInputs.length);
+  }
+
+  initDesignation(
+    designCard,
+    meta2.columns || uploadResponse.preview.columns,
+    meta2.dtypes || {},
+    meta2.null_counts || {},
+    meta2.n_rows,
+    initInputs,
+    initOutputs,
+    ({ input_columns }) => {
+      // Reveal and refresh normalization section on first confirmation
+      normCard.classList.remove("hidden");
+      clearEl(normCard);
+      initNormalization(normCard, null, input_columns.length);
+      normCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    },
+  );
 }
 
 // ── Reusable helpers ──────────────────────────────────────────────────────────
@@ -447,12 +487,17 @@ async function _refreshDatasetSwitcher() {
         // Re-render exploration with refreshed data
         const uploadMeta = {
           metadata: {
-            filename:         active.filename,
-            n_rows:           active.n_rows,
-            n_cols:           active.n_cols,
-            upload_timestamp: new Date().toISOString(),
-            null_counts:      active.null_counts || {},
-            coercion_warnings: [],
+            filename:             active.filename,
+            n_rows:               active.n_rows,
+            n_cols:               active.n_cols,
+            upload_timestamp:     new Date().toISOString(),
+            null_counts:          active.null_counts    || {},
+            dtypes:               active.dtypes         || {},
+            coercion_warnings:    [],
+            input_columns:        active.input_columns  || [],
+            output_columns:       active.output_columns || [],
+            normalization_method: active.normalization_method || null,
+            columns:              active.columns || [],
           },
           preview: {
             columns:    active.columns     || [],
@@ -475,10 +520,18 @@ async function _refreshDatasetSwitcher() {
   nav.insertBefore(switcher, themeBtn);
 }
 
-/** Wire global header controls: theme toggle, level select, cores select, clear session. */
+/** Wire global header controls: theme toggle, level select, classification, cores, clear session. */
 function _initGlobalHeader() {
   const themeBtn  = document.getElementById("theme-toggle");
   const levelSel  = document.getElementById("level-select");
+  const classSel  = document.getElementById("classification-select");
+  if (classSel) {
+    classSel.addEventListener("change", async () => {
+      await put("/api/state/session", { classification: classSel.value });
+      await refreshState();
+      showSuccess(`Classification set to ${classSel.value}.`);
+    });
+  }
 
   // Clear session
   document.getElementById("clear-session-btn").addEventListener("click", async () => {

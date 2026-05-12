@@ -13,7 +13,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.3.0
+VERSION: 0.4.0
 ================================================================================
 """
 
@@ -28,7 +28,14 @@ from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
 from app.data.ingestion import ingest_csv
-from config.settings import MAX_DATASETS, MAX_DATASETS_MEMORY_MB, MAX_PLOT_ROWS
+from app.data.normalization import normalize_dataframe
+from app.state.schema import append_audit_event
+from config.settings import (
+    CORRELATION_WARNING_THRESHOLD,
+    MAX_DATASETS,
+    MAX_DATASETS_MEMORY_MB,
+    MAX_PLOT_ROWS,
+)
 
 bp = Blueprint("data", __name__)
 
@@ -51,6 +58,12 @@ _ERROR_HTTP_STATUS = {
     "NO_FILE": 400,
     "NO_FILENAME": 400,
     "NO_DATA": 400,
+    "NO_DESIGNATION": 400,
+    "NO_INPUTS": 422,
+    "NO_OUTPUTS": 422,
+    "COLUMN_OVERLAP": 422,
+    "INVALID_COLUMNS": 422,
+    "UNKNOWN_METHOD": 422,
 }
 
 
@@ -255,6 +268,12 @@ def upload():
     primary["clean"] = ds_entry["clean"]
     primary["metadata"].update(ds_meta)
 
+    append_audit_event(state, "upload", {
+        "filename": safe_name,
+        "n_rows":   meta["n_rows_original"],
+        "n_cols":   meta["n_cols"],
+    })
+
     current_app.logger.info(
         f"Dataset loaded: '{safe_name}' ({mem_bytes // 1024} KB, "
         f"{len(_datasets)} dataset(s) in session)"
@@ -273,9 +292,13 @@ def upload():
                 "n_rows":            meta["n_rows_original"],
                 "n_cols":            meta["n_cols"],
                 "columns":           meta["columns"],
+                "dtypes":            meta["dtypes"],
                 "null_counts":       meta["null_counts"],
                 "coercion_warnings": meta["coercion_warnings"],
                 "upload_timestamp":  meta["upload_timestamp"],
+                "input_columns":     [],
+                "output_columns":    [],
+                "normalization_method": None,
             },
             "preview": {
                 "columns":    meta["columns"],
@@ -456,16 +479,20 @@ def datasets():
     for key, ds in _datasets.items():
         m = ds["metadata"]
         result.append({
-            "key":          key,
-            "filename":     m.get("filename", key),
-            "n_rows":        m.get("n_rows_original", 0),
-            "n_cols":        m.get("n_cols", 0),
-            "data_type":     m.get("data_type"),
-            "memory_bytes":  ds.get("memory_bytes", 0),
-            "columns":       m.get("columns", []),
-            "null_counts":   m.get("null_counts", {}),
-            "preview_rows":  m.get("preview_rows", []),
-            "active":        key == active_key,
+            "key":                  key,
+            "filename":             m.get("filename", key),
+            "n_rows":               m.get("n_rows_original", 0),
+            "n_cols":               m.get("n_cols", 0),
+            "data_type":            m.get("data_type"),
+            "memory_bytes":         ds.get("memory_bytes", 0),
+            "columns":              m.get("columns", []),
+            "dtypes":               m.get("dtypes", {}),
+            "null_counts":          m.get("null_counts", {}),
+            "preview_rows":         m.get("preview_rows", []),
+            "input_columns":        m.get("input_columns", []),
+            "output_columns":       m.get("output_columns", []),
+            "normalization_method": m.get("normalization_method"),
+            "active":               key == active_key,
         })
 
     return jsonify({
@@ -473,6 +500,296 @@ def datasets():
         "active_key": active_key,
         "count":      len(result),
         "datasets":   result,
+    }), 200
+
+
+@bp.route("/designate", methods=["POST"])
+def designate():
+    """
+    Designate input and output columns for the active dataset.
+
+    Args (JSON body):
+        input_columns  (list[str]): Column names to use as model inputs.
+        output_columns (list[str]): Column names to use as model outputs.
+
+    Returns:
+        JSON 200: {"success": true, "input_columns": [...], "output_columns": [...]}
+        JSON 4xx: Standard error envelope.
+
+    Notes:
+        Columns not listed in either list are treated as Unused. Designation is
+        stored per-dataset and mirrored to primary["metadata"] on every switch.
+    """
+    state     = current_app.config["STATE"]
+    active_key = state["datasets"]["active_dataset_key"]
+    _datasets  = state["datasets"]["_datasets"]
+
+    if not active_key or active_key not in _datasets:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_DATA",
+                "message": "No dataset is loaded. Upload a CSV file first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            400,
+        )
+
+    data           = request.get_json(silent=True) or {}
+    input_columns  = data.get("input_columns", [])
+    output_columns = data.get("output_columns", [])
+
+    ds          = _datasets[active_key]
+    meta        = ds["metadata"]
+    all_columns = meta.get("columns", [])
+
+    if not input_columns:
+        return (
+            jsonify({"success": False, "error_code": "NO_INPUTS",
+                     "message": "At least one input column is required.",
+                     "detail": "", "recoverable": True, "allowed_actions": ["retry"]}),
+            422,
+        )
+    if not output_columns:
+        return (
+            jsonify({"success": False, "error_code": "NO_OUTPUTS",
+                     "message": "At least one output column is required.",
+                     "detail": "", "recoverable": True, "allowed_actions": ["retry"]}),
+            422,
+        )
+
+    overlap = sorted(set(input_columns) & set(output_columns))
+    if overlap:
+        return (
+            jsonify({"success": False, "error_code": "COLUMN_OVERLAP",
+                     "message": f"Columns cannot be both input and output: {overlap}",
+                     "detail": "", "recoverable": True, "allowed_actions": ["retry"]}),
+            422,
+        )
+
+    invalid = [c for c in input_columns + output_columns if c not in all_columns]
+    if invalid:
+        return (
+            jsonify({"success": False, "error_code": "INVALID_COLUMNS",
+                     "message": f"Unknown column(s): {invalid}",
+                     "detail": "", "recoverable": True, "allowed_actions": ["retry"]}),
+            422,
+        )
+
+    # Store designation in dataset metadata
+    meta["input_columns"]  = input_columns
+    meta["output_columns"] = output_columns
+    meta["n_inputs"]       = len(input_columns)
+    meta["n_outputs"]      = len(output_columns)
+
+    # Mirror to primary
+    primary_meta = state["datasets"]["primary"]["metadata"]
+    primary_meta["input_columns"]  = input_columns
+    primary_meta["output_columns"] = output_columns
+    primary_meta["n_inputs"]       = len(input_columns)
+    primary_meta["n_outputs"]      = len(output_columns)
+
+    append_audit_event(state, "designation", {
+        "dataset":   active_key,
+        "n_inputs":  len(input_columns),
+        "n_outputs": len(output_columns),
+    })
+
+    current_app.logger.info(
+        f"Designation saved: '{active_key}' — "
+        f"{len(input_columns)} input(s), {len(output_columns)} output(s)"
+    )
+
+    return jsonify({
+        "success":        True,
+        "input_columns":  input_columns,
+        "output_columns": output_columns,
+    }), 200
+
+
+@bp.route("/correlate", methods=["GET"])
+def correlate():
+    """
+    Compute and return the Pearson correlation matrix for the active dataset.
+
+    Result is cached in _datasets[key]["metadata"]["correlation_matrix"] after
+    the first computation. Subsequent calls return the cache.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "matrix": {"col_a": {"col_a": 1.0, "col_b": 0.87, ...}, ...},
+              "high_corr_pairs": [{"col_a": "x1", "col_b": "x2", "r": 0.97}, ...],
+              "threshold": 0.90,
+              "columns": [...]
+            }
+        JSON 400: No data loaded.
+    """
+    state     = current_app.config["STATE"]
+    active_key = state["datasets"]["active_dataset_key"]
+    _datasets  = state["datasets"]["_datasets"]
+    df         = state["datasets"]["primary"]["clean"]
+
+    if df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_DATA",
+                "message": "No dataset is loaded. Upload a CSV file first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            400,
+        )
+
+    # Serve from cache if already computed
+    cached = _datasets.get(active_key, {}).get("metadata", {}).get("correlation_matrix")
+    if cached:
+        high_pairs = _high_corr_pairs(cached, list(df.columns))
+        return jsonify({
+            "success":        True,
+            "matrix":         cached,
+            "high_corr_pairs": high_pairs,
+            "threshold":      CORRELATION_WARNING_THRESHOLD,
+            "columns":        list(df.columns),
+        }), 200
+
+    # Compute Pearson correlation and round to 4 dp for payload size
+    import numpy as np
+    corr_df = df.corr(numeric_only=True)
+    matrix  = {}
+    for col in corr_df.columns:
+        row = {}
+        for col2 in corr_df.columns:
+            val = corr_df.loc[col, col2]
+            row[col2] = None if (isinstance(val, float) and np.isnan(val)) else round(float(val), 4)
+        matrix[col] = row
+
+    # Cache
+    if active_key and active_key in _datasets:
+        _datasets[active_key]["metadata"]["correlation_matrix"] = matrix
+        state["datasets"]["primary"]["metadata"]["correlation_matrix"] = matrix
+
+    high_pairs = _high_corr_pairs(matrix, list(df.columns))
+
+    return jsonify({
+        "success":         True,
+        "matrix":          matrix,
+        "high_corr_pairs": high_pairs,
+        "threshold":       CORRELATION_WARNING_THRESHOLD,
+        "columns":         list(df.columns),
+    }), 200
+
+
+def _high_corr_pairs(matrix: dict, columns: list) -> list:
+    """Return list of {col_a, col_b, r} for |r| >= threshold (upper triangle only)."""
+    pairs = []
+    cols  = [c for c in columns if c in matrix]
+    for i, ca in enumerate(cols):
+        for cb in cols[i + 1:]:
+            r = matrix[ca].get(cb)
+            if r is not None and abs(r) >= CORRELATION_WARNING_THRESHOLD:
+                pairs.append({"col_a": ca, "col_b": cb, "r": r})
+    return sorted(pairs, key=lambda p: -abs(p["r"]))
+
+
+@bp.route("/normalize", methods=["POST"])
+def normalize():
+    """
+    Normalize input columns of the active dataset.
+
+    Args (JSON body):
+        method (str): "minmax" | "zscore" | "none"
+
+    Returns:
+        JSON 200: {"success": true, "method": "...", "n_columns": N}
+        JSON 4xx: Standard error envelope.
+
+    Notes:
+        Normalization applies only to designated input columns. Output columns
+        and unused columns are copied to primary["normalized"] unchanged.
+        primary["clean"] is never mutated.
+    """
+    state     = current_app.config["STATE"]
+    active_key = state["datasets"]["active_dataset_key"]
+    _datasets  = state["datasets"]["_datasets"]
+
+    if not active_key or active_key not in _datasets:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_DATA",
+                "message": "No dataset is loaded. Upload a CSV file first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            400,
+        )
+
+    ds            = _datasets[active_key]
+    meta          = ds["metadata"]
+    input_columns = meta.get("input_columns", [])
+
+    if not input_columns:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_DESIGNATION",
+                "message": "Designate input columns before normalizing.",
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            400,
+        )
+
+    data   = request.get_json(silent=True) or {}
+    method = data.get("method", "none")
+
+    if method not in ("minmax", "zscore", "none"):
+        return (
+            jsonify({
+                "success": False, "error_code": "UNKNOWN_METHOD",
+                "message": f"Unknown normalization method '{method}'. Use minmax, zscore, or none.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    clean_df = ds["raw"]   # normalize from clean; ds["clean"] is the validated DF
+    # Use primary clean DF for normalization
+    clean_df = state["datasets"]["primary"]["clean"]
+
+    try:
+        normalized_df, params = normalize_dataframe(clean_df, input_columns, method)
+    except Exception as exc:
+        current_app.logger.error(f"Normalization error: {exc}")
+        return (
+            jsonify({
+                "success": False, "error_code": "FILE_READ_ERROR",
+                "message": "Normalization failed. See server log for details.",
+                "detail": str(exc), "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            400,
+        )
+
+    # Store normalized DataFrame
+    ds["normalized"] = normalized_df
+    state["datasets"]["primary"]["normalized"] = normalized_df
+
+    # Persist method and params in metadata
+    meta["normalization_method"] = method
+    meta["normalization_params"] = params
+    state["datasets"]["primary"]["metadata"]["normalization_method"] = method
+    state["datasets"]["primary"]["metadata"]["normalization_params"] = params
+
+    append_audit_event(state, "normalization", {
+        "dataset":   active_key,
+        "method":    method,
+        "n_columns": len(input_columns),
+    })
+
+    current_app.logger.info(
+        f"Normalization applied: '{active_key}' — method={method}, {len(input_columns)} column(s)"
+    )
+
+    return jsonify({
+        "success":   True,
+        "method":    method,
+        "n_columns": len(input_columns),
     }), 200
 
 

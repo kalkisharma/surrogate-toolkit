@@ -20,12 +20,14 @@ VERSION: 0.1.0
 # See LICENSE.md for full terms.
 
 import copy
+from datetime import datetime, timezone
 
 from config.settings import (
     DEFAULT_CLASSIFICATION,
     DEFAULT_EXPERIENCE_LEVEL,
     DEFAULT_LEARNING_MODE,
     DEFAULT_PROCESSOR_MODE,
+    MAX_AUDIT_EVENTS,
 )
 
 # ─── CANONICAL TEMPLATE ────────────────────────────────────────────────────────
@@ -184,6 +186,18 @@ STATE = copy.deepcopy(_CANONICAL_STATE)
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+def append_audit_event(state: dict, event_type: str, detail: dict) -> None:
+    """Append a timestamped audit event to state["audit"]["events"], capped at MAX_AUDIT_EVENTS."""
+    events = state["audit"]["events"]
+    events.append({
+        "timestamp":  datetime.now(timezone.utc).isoformat(),
+        "event_type": event_type,
+        "detail":     detail,
+    })
+    while len(events) > MAX_AUDIT_EVENTS:
+        events.pop(0)
+
 
 def reset_state() -> None:
     """

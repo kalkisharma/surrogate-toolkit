@@ -9,8 +9,8 @@ FUTURE EXTENSIONS: Tests for /api/model/*, /api/predict/*, authentication tests.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.4.0
 ================================================================================
 """
 
@@ -363,3 +363,238 @@ def test_state_reset_clears_primary(client, csv_clean):
     assert resp.status_code == 200
     rows_resp = json.loads(client.get("/api/data/rows").data)
     assert rows_resp["success"] is False
+
+
+# ─── COLUMN DESIGNATION ───────────────────────────────────────────────────────
+
+
+def test_designate_happy_path(client, csv_clean):
+    """POST /api/data/designate stores input/output columns."""
+    _upload(client, csv_clean, "test.csv")
+    # csv_clean has columns x1..x5 and y1..y5 (10 cols)
+    resp = client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach", "alpha"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["input_columns"] == ["mach", "alpha"]
+    assert data["output_columns"] == ["cl"]
+
+
+def test_designate_no_data(client):
+    """POST /api/data/designate without a loaded dataset returns 400."""
+    resp = client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_designate_no_inputs(client, csv_clean):
+    """POST /api/data/designate with empty input_columns returns 422."""
+    _upload(client, csv_clean)
+    resp = client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": [], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "NO_INPUTS"
+
+
+def test_designate_no_outputs(client, csv_clean):
+    """POST /api/data/designate with empty output_columns returns 422."""
+    _upload(client, csv_clean)
+    resp = client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["x1"], "output_columns": []}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "NO_OUTPUTS"
+
+
+def test_designate_overlap(client, csv_clean):
+    """POST /api/data/designate with overlapping columns returns 422."""
+    _upload(client, csv_clean)
+    resp = client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach", "cl"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "COLUMN_OVERLAP"
+
+
+def test_designate_persisted_in_datasets_endpoint(client, csv_clean):
+    """After designation, GET /api/data/datasets reflects input/output columns."""
+    _upload(client, csv_clean, "test.csv")
+    client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach", "alpha"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    ds_resp = json.loads(client.get("/api/data/datasets").data)
+    active  = next(d for d in ds_resp["datasets"] if d["active"])
+    assert active["input_columns"] == ["mach", "alpha"]
+    assert active["output_columns"] == ["cl"]
+
+
+# ─── CORRELATION ──────────────────────────────────────────────────────────────
+
+
+def test_correlate_no_data(client):
+    """GET /api/data/correlate without a loaded dataset returns 400."""
+    resp = client.get("/api/data/correlate")
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_correlate_after_upload(client, csv_clean):
+    """GET /api/data/correlate returns a correlation matrix."""
+    _upload(client, csv_clean, "test.csv")
+    resp = client.get("/api/data/correlate")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert "matrix" in data
+    assert "high_corr_pairs" in data
+    assert "columns" in data
+    # Diagonal should be 1.0
+    for col in data["columns"]:
+        assert data["matrix"][col][col] == 1.0
+
+
+def test_correlate_cached(client, csv_clean):
+    """Second GET /api/data/correlate returns cached result (same matrix)."""
+    _upload(client, csv_clean, "test.csv")
+    resp1 = json.loads(client.get("/api/data/correlate").data)
+    resp2 = json.loads(client.get("/api/data/correlate").data)
+    assert resp1["matrix"] == resp2["matrix"]
+
+
+# ─── NORMALIZATION ────────────────────────────────────────────────────────────
+
+
+def test_normalize_no_data(client):
+    """POST /api/data/normalize without a loaded dataset returns 400."""
+    resp = client.post(
+        "/api/data/normalize",
+        data=json.dumps({"method": "minmax"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_normalize_no_designation(client, csv_clean):
+    """POST /api/data/normalize without designation returns 400 NO_DESIGNATION."""
+    _upload(client, csv_clean)
+    resp = client.post(
+        "/api/data/normalize",
+        data=json.dumps({"method": "minmax"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DESIGNATION"
+
+
+def test_normalize_minmax(client, csv_clean):
+    """POST /api/data/normalize with minmax succeeds after designation."""
+    _upload(client, csv_clean, "test.csv")
+    client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach", "alpha"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    resp = client.post(
+        "/api/data/normalize",
+        data=json.dumps({"method": "minmax"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["method"] == "minmax"
+    assert data["n_columns"] == 2  # mach and alpha
+
+
+def test_normalize_zscore(client, csv_clean):
+    """POST /api/data/normalize with zscore succeeds after designation."""
+    _upload(client, csv_clean, "test.csv")
+    client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    resp = client.post(
+        "/api/data/normalize",
+        data=json.dumps({"method": "zscore"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert json.loads(resp.data)["method"] == "zscore"
+
+
+def test_normalize_unknown_method(client, csv_clean):
+    """POST /api/data/normalize with unknown method returns 422."""
+    _upload(client, csv_clean)
+    client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    resp = client.post(
+        "/api/data/normalize",
+        data=json.dumps({"method": "pca"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "UNKNOWN_METHOD"
+
+
+# ─── AUDIT TRAIL ──────────────────────────────────────────────────────────────
+
+
+def test_audit_event_on_upload(client, csv_clean):
+    """Upload creates an 'upload' audit event in STATE."""
+    _upload(client, csv_clean, "test.csv")
+    state = json.loads(client.get("/api/state/").data)["state"]
+    events = state["audit"]["events"]
+    assert any(e["event_type"] == "upload" for e in events)
+
+
+def test_audit_event_on_designation(client, csv_clean):
+    """Designation creates a 'designation' audit event."""
+    _upload(client, csv_clean, "test.csv")
+    client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    state = json.loads(client.get("/api/state/").data)["state"]
+    events = state["audit"]["events"]
+    assert any(e["event_type"] == "designation" for e in events)
+
+
+def test_audit_event_on_normalization(client, csv_clean):
+    """Normalization creates a 'normalization' audit event."""
+    _upload(client, csv_clean, "test.csv")
+    client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": ["mach"], "output_columns": ["cl"]}),
+        content_type="application/json",
+    )
+    client.post(
+        "/api/data/normalize",
+        data=json.dumps({"method": "minmax"}),
+        content_type="application/json",
+    )
+    state = json.loads(client.get("/api/state/").data)["state"]
+    events = state["audit"]["events"]
+    assert any(e["event_type"] == "normalization" for e in events)

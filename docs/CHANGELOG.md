@@ -6,6 +6,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.4.0] — 2026-05-12
+
+### Phase 2 — Core Data Preparation (v0.4.0)
+
+#### Added
+
+- **Column designation (A1)** — new "Step 3" section below stats. Renders a table of all columns with dtype, null %, and a radio-button role selector (Input / Output / Unused). "Quick-select" helpers available. `POST /api/data/designate` validates ≥1 input, ≥1 output, no overlap, valid column names; stores designation in `_datasets` metadata per-dataset. Designation is preserved on dataset switch. New module: `static/js/modules/column_designation.js`.
+- **Correlation matrix (A2)** — `GET /api/data/correlate` computes Pearson correlation on `primary["clean"]` using `df.corr()`, caches result in `_datasets[key]["metadata"]["correlation_matrix"]`, and returns the matrix plus high-correlation pairs where `|r| ≥ 0.90` (`CORRELATION_WARNING_THRESHOLD`).
+- **Normalization (A3)** — new "Step 4" section revealed after designation. Options: None (passthrough), Min-Max (scales inputs to [0, 1]), Z-Score (mean=0, std=1). Applied only to designated input columns; `primary["clean"]` is never mutated. `POST /api/data/normalize` writes `primary["normalized"]`; scaler params stored in `metadata.normalization_params` for Phase 4 inverse transform. `app/data/normalization.py` implemented (was a TODO stub). Dataset switch now mirrors `normalized` DataFrame to `primary["normalized"]`. New module: `static/js/modules/normalization.js`.
+- **Audit trail (A4)** — `append_audit_event(state, event_type, detail)` added to `app/state/schema.py`. Respects `MAX_AUDIT_EVENTS = 1000` cap. Events captured at: upload, dataset switch, session reset, data-type confirm, column designation, normalization. Schema: `{timestamp (ISO 8601 UTC), event_type, detail}`.
+- **Skew flag (A5 / P1)** — stats cards in the exploration view show an amber top-border (`stats-col-card--skew`) and amber skew value (`stat-pair__val--skew`) when `|skew| > 1`. Tooltip reads: "consider a log-transform before training". `_buildStatsSection` in `data_explorer.js`.
+- **Classification selector (A6 / P4)** — `<select id="classification-select">` added to global header (label: "Class"). Options: Unclassified / CUI / ITAR / EAR. On change: `PUT /api/state/session { classification }` + success toast. Session-level; not affected by dataset switch. `PUT /api/state/session` already accepted `classification` — only frontend wiring was needed.
+- **SPLOM column selector for >10-column datasets (A7 / P6)** — when a dataset has more than 10 columns, a collapsible checkbox panel appears above the scatter matrix. Users select up to 10 columns; SPLOM re-renders on change (same debounce pattern as plot settings). Selection stored in `_selectedCols` module-level state; cleared on dataset switch. Replaces the Phase 1 limitation notice.
+- **17 new integration tests** — designate (happy path, no data, no inputs, no outputs, overlap, persisted in datasets endpoint); correlate (no data, after upload, cached); normalize (no data, no designation, minmax, zscore, unknown method); audit (upload, designation, normalization events).
+
+#### Changed
+
+- `GET /api/data/datasets` now returns `dtypes`, `input_columns`, `output_columns`, `normalization_method` per dataset — required by frontend to restore designation state on dataset switch.
+- Upload response `metadata` now includes `dtypes`, `input_columns: []`, `output_columns: []`, `normalization_method: null` — consistent with the datasets endpoint shape.
+- `PUT /api/state/session` dataset switch now mirrors `primary["normalized"]` in addition to `raw` and `clean`.
+- `data_explorer.js` module vars reorganized: `_allColumns` and `_selectedCols` added alongside existing vars; `_buildColumnSelector` replaces the old "Column selector coming in Phase 2" limitation notice.
+
+---
+
 ## [0.3.0] — 2026-05-12
 
 ### Phase 1 completion release

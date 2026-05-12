@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 0.3.0
+// Version: 0.4.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -16,6 +16,8 @@ import { showSpinner, hideSpinner } from "../loading.js";
 
 let _currentRows    = [];
 let _currentColumns = [];
+let _allColumns     = [];       // full column list before any selector filtering
+let _selectedCols   = [];       // user-selected subset when > 10 columns
 let _outlierIndices = new Set();
 let _showOutliers   = false;
 let _chartEl        = null;
@@ -123,9 +125,20 @@ export async function initExploration(containerEl, uploadResponse) {
 
   hideSpinner(containerEl);
 
+  _allColumns = columns;
+
+  if (columns.length > 10) {
+    // Preserve existing selection if the same dataset is re-rendered; otherwise default to first 10.
+    const prevValid = _selectedCols.length > 0 && _selectedCols.every(c => columns.includes(c));
+    if (!prevValid) _selectedCols = columns.slice(0, 10);
+    _currentColumns = _selectedCols;
+  } else {
+    _selectedCols   = [];
+    _currentColumns = columns;
+  }
+
   _currentRows    = plotRows;
-  _currentColumns = columns;
-  _outlierIndices = detectOutliers(plotRows, columns);
+  _outlierIndices = detectOutliers(plotRows, _currentColumns);
 
   // Pre-compute auto values needed by the settings panel and initial render
   const displayedCount = Math.min(columns.length, 10);
@@ -170,9 +183,10 @@ export async function initExploration(containerEl, uploadResponse) {
   }
 
   if (columns.length > 10) {
-    containerEl.appendChild(el("div", {
-      cls: "limitation-notice",
-      html: `<strong>Note:</strong> Showing first 10 of ${columns.length} columns in the scatter matrix. Column selector coming in Phase 2.`,
+    containerEl.appendChild(_buildColumnSelector(columns, () => {
+      _currentColumns = _selectedCols;
+      _outlierIndices = detectOutliers(plotRows, _currentColumns);
+      _rerender();
     }));
   }
 
@@ -211,12 +225,12 @@ export async function initExploration(containerEl, uploadResponse) {
   containerEl.appendChild(chartWrap);
 
   // ── Stats section (below chart) ───────────────────────────────────────────
-  const statsEl = _buildStatsSection(columns, plotRows, usingFullStats ? _fullStats : null, totalRows);
+  const statsEl = _buildStatsSection(_allColumns, plotRows, usingFullStats ? _fullStats : null, totalRows);
   containerEl.appendChild(statsEl);
 
   // ── Initial render ────────────────────────────────────────────────────────
   _applyWidth();
-  renderScatterMatrix(chartWrap, columns, plotRows, {
+  renderScatterMatrix(chartWrap, _currentColumns, plotRows, {
     outlierIndices: _showOutliers ? _outlierIndices : new Set(),
     ..._chartSettings,
     markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
@@ -617,8 +631,9 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
     const qualCls  = nc === 0 ? "stats-col-card--ok"
                    : parseFloat(nullPct) <= 10 ? "stats-col-card--warn"
                    : "stats-col-card--bad";
+    const highSkew = skew !== null && Math.abs(skew) > 1;
 
-    const card   = el("div", { cls: `stats-col-card ${qualCls}` });
+    const card   = el("div", { cls: `stats-col-card ${qualCls}${highSkew ? " stats-col-card--skew" : ""}` });
     const nameEl = el("div", { cls: "stats-col-card__name", text: col });
     nameEl.title = col;
 
@@ -637,10 +652,14 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
       </div>`;
 
     // Secondary tier: median, nulls %, skew
-    const secondary = el("div", { cls: "stat-tier stat-tier--secondary" });
-    const nullsStr  = `${nc} / ${N} (${nullPct}%)`;
-    const skewStr   = skew !== null ? formatNum(skew, 2) : "—";
-    const medStr    = formatNum(stats.median);
+    const secondary  = el("div", { cls: "stat-tier stat-tier--secondary" });
+    const nullsStr   = `${nc} / ${N} (${nullPct}%)`;
+    const skewStr    = skew !== null ? formatNum(skew, 2) : "—";
+    const medStr     = formatNum(stats.median);
+    const skewTitle  = highSkew
+      ? `${skewStr} — |skew| > 1, consider a log-transform before training`
+      : skewStr;
+    const skewValCls = highSkew ? " stat-pair__val--skew" : "";
     secondary.innerHTML = `
       <div class="stat-pair">
         <span class="stat-pair__key">median</span>
@@ -652,7 +671,7 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
       </div>
       <div class="stat-pair">
         <span class="stat-pair__key">skew</span>
-        <span class="stat-pair__val" title="${skewStr}">${skewStr}</span>
+        <span class="stat-pair__val${skewValCls}" title="${skewTitle}">${skewStr}${highSkew ? ' <span class="skew-badge">⚠</span>' : ''}</span>
       </div>`;
 
     card.appendChild(nameEl);
@@ -663,4 +682,55 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
 
   section.appendChild(grid);
   return section;
+}
+
+// ── Column selector (> 10 columns) ────────────────────────────────────────────
+
+function _buildColumnSelector(columns, onchange) {
+  const MAX_SPLOM = 10;
+
+  const panel   = document.createElement("details");
+  panel.className = "col-selector-panel";
+  panel.open    = true;
+
+  const summary = el("summary", { cls: "col-selector-panel__summary" });
+  summary.textContent = `SPLOM column selector — ${_selectedCols.length}/${MAX_SPLOM} selected (${columns.length} total)`;
+  panel.appendChild(summary);
+
+  const grid = el("div", { cls: "col-selector-grid" });
+
+  function refresh() {
+    summary.textContent = `SPLOM column selector — ${_selectedCols.length}/${MAX_SPLOM} selected (${columns.length} total)`;
+    // Disable unchecked boxes when at the limit
+    grid.querySelectorAll("input[type=checkbox]").forEach((cb) => {
+      if (!cb.checked) cb.disabled = _selectedCols.length >= MAX_SPLOM;
+    });
+  }
+
+  for (const col of columns) {
+    const wrap = el("div", { cls: "col-selector-item" });
+    const cb   = el("input", { type: "checkbox", id: `cs-col-${CSS.escape(col)}` });
+    cb.checked  = _selectedCols.includes(col);
+
+    cb.addEventListener("change", () => {
+      if (cb.checked) {
+        if (_selectedCols.length < MAX_SPLOM) _selectedCols.push(col);
+        else { cb.checked = false; return; }
+      } else {
+        _selectedCols = _selectedCols.filter(c => c !== col);
+      }
+      refresh();
+      onchange();
+    });
+
+    const lbl = el("label", { cls: "col-selector-label", for: `cs-col-${CSS.escape(col)}`, text: col });
+    lbl.title = col;
+    wrap.appendChild(cb);
+    wrap.appendChild(lbl);
+    grid.appendChild(wrap);
+  }
+
+  panel.appendChild(grid);
+  refresh();
+  return panel;
 }

@@ -11,8 +11,8 @@ FUTURE EXTENSIONS: Partial STATE updates via PATCH, STATE diff endpoint,
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.4.0
 ================================================================================
 """
 
@@ -22,7 +22,7 @@ VERSION: 0.1.0
 
 from flask import Blueprint, jsonify
 
-from app.state.schema import get_state_json_safe, reset_state
+from app.state.schema import append_audit_event, get_state_json_safe, reset_state
 
 bp = Blueprint("state", __name__)
 
@@ -106,6 +106,10 @@ def update_session():
         if active_key and active_key in state["datasets"]["_datasets"]:
             state["datasets"]["_datasets"][active_key]["metadata"]["data_type"] = data["data_type"]
         state["datasets"]["primary"]["metadata"]["data_type"] = data["data_type"]
+        append_audit_event(state, "data_type_set", {
+            "data_type": data["data_type"],
+            "dataset":   active_key,
+        })
 
     # ── Active dataset switch ─────────────────────────────────────────────────
     if "active_dataset_key" in data:
@@ -121,18 +125,24 @@ def update_session():
                 }),
                 404,
             )
+        prev_key = state["datasets"]["active_dataset_key"]
         # Mirror selected dataset to primary
         ds = _datasets[new_key]
         ds["last_accessed"] = datetime.now(timezone.utc).isoformat()
         state["datasets"]["active_dataset_key"] = new_key
         primary = state["datasets"]["primary"]
-        primary["raw"]   = ds["raw"]
-        primary["clean"] = ds["clean"]
+        primary["raw"]        = ds["raw"]
+        primary["clean"]      = ds["clean"]
+        primary["normalized"] = ds.get("normalized")  # may be None if not yet normalized
         primary["metadata"].update(ds["metadata"])
         # Sync data_type to session
         session["data_type"] = ds["metadata"].get("data_type")
         from flask import current_app
         current_app.logger.info(f"Active dataset switched to '{new_key}'")
+        append_audit_event(state, "dataset_switch", {
+            "from": prev_key,
+            "to":   new_key,
+        })
 
     return jsonify({"success": True, "session": session})
 
@@ -146,6 +156,8 @@ def reset():
         JSON: {"success": True}
     """
     from flask import current_app
-    reset_state()  # modifies STATE in-place; app.config["STATE"] reference remains valid
+    from app.state.schema import STATE
+    reset_state()
+    append_audit_event(STATE, "reset", {})  # first event of the new session
     current_app.logger.info("Session reset via POST /api/state/reset")
     return jsonify({"success": True})
