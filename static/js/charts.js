@@ -12,6 +12,19 @@
 const SPLOM_MAX_COLS = 10;
 
 /**
+ * Return theme-aware color/font values for the scatter matrix.
+ * Called at render time so toggling theme between renders picks up correctly.
+ */
+function _getThemeColors() {
+  const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  return {
+    normal:  dark ? "rgba(75,110,245,0.65)"  : "rgba(59,93,217,0.75)",
+    outlier: dark ? "rgba(239,68,68,0.85)"   : "rgba(220,38,38,0.90)",
+    font:    dark ? "#8b94b3"                : "#4b5478",
+  };
+}
+
+/**
  * Render a scatter plot matrix (SPLOM) for the given data.
  *
  * If more than SPLOM_MAX_COLS columns are provided, only the first
@@ -34,39 +47,45 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
   }
 
   const { outlierIndices = new Set() } = options;
+  const theme = _getThemeColors();
 
   // Build per-column value arrays
   const colData = displayedColumns.map((col) => rows.map((r) => r[col] ?? null));
 
   // Point colours: accent for normal, error red for outliers
   const colors = rows.map((_, i) =>
-    outlierIndices.has(i)
-      ? "rgba(239,68,68,0.8)"
-      : "rgba(75,110,245,0.55)"
+    outlierIndices.has(i) ? theme.outlier : theme.normal
   );
+
+  // Scale marker size by row count — larger dots for sparse datasets
+  const markerSize = Math.max(4, Math.min(8, 400 / rows.length));
+
+  // Truncate long column names so labels don't overlap in SPLOM cells
+  const truncate = (name) => name.length > 9 ? name.slice(0, 8) + "…" : name;
 
   const trace = {
     type: "splom",
     dimensions: displayedColumns.map((col, i) => ({
-      label: col,
+      label:  truncate(col),
       values: colData[i],
     })),
     marker: {
-      color: colors,
-      size: 4,
-      line: { width: 0 },
+      color:   colors,
+      size:    markerSize,
+      opacity: 0.8,
+      line:    { width: 0 },
     },
-    diagonal: { visible: true },
-    showupperhalf: true,
+    diagonal:      { visible: true },
+    showupperhalf: false,
     showlowerhalf: true,
   };
 
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
-    font: { color: "#8b94b3", family: "Inter, system-ui, sans-serif", size: 11 },
-    margin: { t: 20, b: 20, l: 20, r: 20 },
-    height: Math.max(400, displayedColumns.length * 90),
+    font: { color: theme.font, family: "Inter, system-ui, sans-serif", size: 11 },
+    margin:   { t: 20, b: 20, l: 20, r: 20 },
+    height:   Math.max(400, displayedColumns.length * 90),
     dragmode: "select",
   };
 
@@ -94,10 +113,9 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
 export function updateScatterMatrixOutliers(containerEl, rows, outlierIndices) {
   if (!containerEl._fullLayout) return; // not yet rendered
 
+  const theme = _getThemeColors();
   const colors = rows.map((_, i) =>
-    outlierIndices.has(i)
-      ? "rgba(239,68,68,0.8)"
-      : "rgba(75,110,245,0.55)"
+    outlierIndices.has(i) ? theme.outlier : theme.normal
   );
 
   // eslint-disable-next-line no-undef

@@ -6,6 +6,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.4] — 2026-05-12
+
+### Pair plot (SPLOM) cleanup
+
+#### Changed
+
+- **Theme-aware colors** — `charts.js` now calls `_getThemeColors()` at render time so scatter matrix marker and font colors adapt to the active theme. Normal points use a stronger blue in light mode (`rgba(59,93,217,0.75)`) and a softer blue in dark mode (`rgba(75,110,245,0.65)`); outlier red similarly adjusted per theme. `updateScatterMatrixOutliers` also reads theme colors so a restyle after a theme toggle picks up the correct palette.
+- **Upper half hidden** — `showupperhalf: false` removes the redundant mirror triangles from the SPLOM, halving visual noise and making the lower-half cells larger.
+- **Marker size scaled by row count** — size is now `Math.max(4, Math.min(8, 400 / rows.length))`, giving larger dots for sparse datasets and smaller dots for dense ones. Replaces the fixed `size: 4`.
+- **Marker opacity** — added `marker.opacity: 0.8` for slight transparency, reducing overplotting on dense datasets.
+- **Label truncation** — column names longer than 9 characters are truncated to 8 characters with a `…` suffix so dimension labels do not overlap in SPLOM cells.
+
+---
+
 ## [0.1.3] — 2026-05-12
 
 ### Bug fixes
