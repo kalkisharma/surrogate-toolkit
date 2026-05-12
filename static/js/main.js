@@ -97,41 +97,48 @@ function renderUploadView() {
 
   // ── Wire upload events ────────────────────────────────────────────────────
   const fileInput = uploadSection.querySelector("#file-input");
+  let dropEnabled = true;
   _wireDropZone(dropZone, fileInput, uploadSection, (response) => {
+    dropEnabled = false;
+    dropZone.classList.add("upload-zone--queued");
+    dropZone.querySelector(".upload-zone__title").textContent = "1 file queued — make a selection below";
+    dropZone.querySelector(".upload-zone__subtitle").textContent = "";
+    const browseLabel = dropZone.querySelector(".upload-zone__browse");
+    if (browseLabel) browseLabel.style.display = "none";
     _renderGates(app, response);
-  });
+  }, () => dropEnabled);
 }
 
 /**
- * Compact inline gate for additional file uploads (from the exploration view).
- * Inserts a dismissible banner above #explore-section; re-renders exploration
- * with the new active dataset once the data type is confirmed.
+ * Modal gate for additional file uploads (from the exploration view).
+ * Opens a <dialog> overlay; blocks interaction until the user selects a
+ * data type and confirms, or cancels. The underlying exploration view stays
+ * visible behind the backdrop.
  */
 function _renderAdditionalFileGate(app, uploadResponse) {
-  // Remove any existing additional gate
   const existing = document.getElementById("additional-gate");
-  if (existing) existing.remove();
+  if (existing) { existing.close(); existing.remove(); }
 
-  const gate = el("div", {
-    cls: "additional-gate card",
-    id: "additional-gate",
-    style: "margin-bottom: var(--space-4);",
-  });
+  const dialog = document.createElement("dialog");
+  dialog.id        = "additional-gate";
+  dialog.className = "gate-modal";
+
   const meta = uploadResponse.metadata;
-  gate.innerHTML = `
-    <p class="section-desc" style="margin-bottom:var(--space-3);">
-      <strong>${meta.filename}</strong> loaded — select data type to continue.
-    </p>
-    <div class="gate-options" id="ag-options"></div>
-    <div style="display:flex;gap:var(--space-3);margin-top:var(--space-4);">
+  dialog.innerHTML = `
+    <div class="gate-modal__header">
+      <strong class="gate-modal__filename">${meta.filename}</strong>
+      <span class="gate-modal__subtitle">Select data type to continue</span>
+    </div>
+    <div class="gate-options gate-modal__options" id="ag-options"></div>
+    <div class="gate-modal__actions">
       <button class="btn btn-primary" id="ag-confirm" disabled>Confirm →</button>
       <button class="btn btn-secondary" id="ag-cancel">Cancel</button>
     </div>
   `;
 
   let selectedType = null;
-  const confirmBtn = gate.querySelector("#ag-confirm");
-  const optionsWrap = gate.querySelector("#ag-options");
+  const confirmBtn  = dialog.querySelector("#ag-confirm");
+  const optionsWrap = dialog.querySelector("#ag-options");
 
   for (const opt of [
     { value: "simulation",   label: "Simulation / CFD output" },
@@ -148,25 +155,23 @@ function _renderAdditionalFileGate(app, uploadResponse) {
   }
 
   confirmBtn.addEventListener("click", async () => {
-    confirmBtn.disabled = true;
+    confirmBtn.disabled    = true;
     confirmBtn.textContent = "Saving…";
     await put("/api/state/session", { data_type: selectedType });
     await refreshState();
-    gate.remove();
-    // Re-render exploration with the new active dataset
+    dialog.close();
+    dialog.remove();
     _renderExploration(uploadResponse);
     _refreshDatasetSwitcher();
   });
 
-  gate.querySelector("#ag-cancel").addEventListener("click", () => gate.remove());
+  const closeModal = () => { dialog.close(); dialog.remove(); };
+  dialog.querySelector("#ag-cancel").addEventListener("click", closeModal);
+  // Backdrop click dismisses
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) closeModal(); });
 
-  // Insert above the data preview table so it's visible without scrolling
-  const previewSection = app.querySelector(".preview-section");
-  const fallback = document.getElementById("explore-section");
-  const insertBefore = previewSection || fallback;
-  if (insertBefore) app.insertBefore(gate, insertBefore);
-  else app.appendChild(gate);
-  gate.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.body.appendChild(dialog);
+  dialog.showModal();
 }
 
 /** Render the single data-type gate after a successful upload. */
@@ -367,7 +372,7 @@ function _buildPreviewTable(preview, nullCounts) {
 }
 
 /** Wire drag-and-drop and file input on the upload zone. */
-function _wireDropZone(dropZone, fileInput, containerEl, onSuccess) {
+function _wireDropZone(dropZone, fileInput, containerEl, onSuccess, isActive = () => true) {
   // Prevent browser from opening the file on drag
   ["dragenter", "dragover", "dragleave", "drop"].forEach((evt) => {
     dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
@@ -381,7 +386,7 @@ function _wireDropZone(dropZone, fileInput, containerEl, onSuccess) {
   dropZone.addEventListener("drop", (e) => {
     dropZone.classList.remove("drag-over");
     const file = e.dataTransfer.files[0];
-    if (file) _handleFile(file, dropZone, onSuccess);
+    if (file && isActive()) _handleFile(file, dropZone, onSuccess);
   });
 
   dropZone.addEventListener("keydown", (e) => {
@@ -396,7 +401,7 @@ function _wireDropZone(dropZone, fileInput, containerEl, onSuccess) {
   });
 
   fileInput.addEventListener("change", () => {
-    if (fileInput.files[0]) _handleFile(fileInput.files[0], dropZone, onSuccess);
+    if (fileInput.files[0] && isActive()) _handleFile(fileInput.files[0], dropZone, onSuccess);
     fileInput.value = ""; // reset so same file can be re-uploaded
   });
 }

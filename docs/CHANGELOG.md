@@ -6,6 +6,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.4] — 2026-05-12
+
+### Upload gate UX improvements
+
+#### Changed
+
+- **Drop zone disabled after first upload** — after the first file is accepted on the initial screen, the drop zone greys out (`upload-zone--queued` class, `pointer-events: none`) and its label changes to "1 file queued — make a selection below". The browse button is hidden. Further drops or file-picker selections are blocked via an `isActive()` guard passed to `_wireDropZone`. The zone is never re-enabled — once the user confirms the gate, `_renderExploration` replaces the entire view. This prevents a second upload from replacing the active dataset while the data-type gate is still open.
+- **"Load another file" gate is now a modal overlay** — replaced the inline banner with a native `<dialog>` element using `showModal()`. The modal appears centered with a blurred backdrop; the underlying exploration view stays visible behind it. Backdrop click or Cancel dismisses the modal without further action. Confirm saves data type, closes the modal, and re-renders the exploration view. Focus is trapped inside the dialog automatically by the browser. No JS library required.
+
+---
+
 ## [0.2.3] — 2026-05-12
 
 ### Bug fix
