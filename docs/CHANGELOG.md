@@ -6,6 +6,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.1] — 2026-05-12
+
+### Sub-Phase 1 — UX/UI refinements
+
+#### Changed
+
+- **Home screen copy** — headline lowercased to sentence case; subtitle shortened to four-step summary (`Upload your data. Normalize. Train. Validate. All on your machine.`)
+- **Global header** — replaced the old `#learning-status-bar` (only visible when learning mode was on) with a permanent `#global-header` always visible at the top. Header contains: app name/version, Level selector (Beginner active; Intermediate and Expert disabled with Phase 2 label), Cores selector (1–8, ⚠ on options >4), theme toggle, learning mode button.
+- **Gate questionnaire** — removed experience level and processor count from the sequential upload flow. Upload now asks only one question (data type) before showing the Continue button. Experience level and processor count are configurable at any time via the global header.
+- **Theme** — light mode is now the default (`:root` palette in `variables.css`). Dark mode is opt-in via the theme toggle button; preference is persisted to `localStorage`. Dark palette moved to `[data-theme="dark"]` CSS selector.
+- **Data preview table** — added `min-width: 0; overflow: hidden` to `.preview-section.card` so the existing `overflow-x: auto` on `.preview-table-wrap` takes effect. Wide tables now scroll horizontally instead of overflowing.
+
+#### Added
+
+- `docs/ui_designer_handoff.md` — six pair plot readability issues documented for UI Designer: font sizes, marker size, label overlap, color contrast (light mode), diagonal histograms, axis units. Prioritized for Phase 2.
+
+#### Known limitations carried forward
+
+- Scatter matrix uses 10-row preview only (full-dataset chart endpoint deferred)
+- Learning mode state not persisted to backend (JS state only)
+- No Vite bundling (ES modules served directly)
+- STATE is a plain dict — not thread-safe for multi-worker gunicorn deployments
+- Pair plot readability: 6 open issues documented in `docs/ui_designer_handoff.md`
+- Data cleaning, normalization, model training, active learning: Phase 2+
+
+---
+
 ## [0.1.0] — 2026-05-11
 
 ### Phase 1 — Initial build

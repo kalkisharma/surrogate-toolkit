@@ -2,9 +2,9 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Description: SPA entry point. Bootstraps learning mode, renders the upload
-//              view, handles the three sequential gates, and navigates to the
-//              exploration view.
+// Description: SPA entry point. Bootstraps global header (theme, level, cores,
+//              learning mode), renders the upload view, handles the single data-
+//              type gate, and navigates to the exploration view.
 // =============================================================================
 
 import { initLearningMode, registerPrimer, registerTooltip } from "./learning_mode.js";
@@ -18,8 +18,9 @@ import { el, clearEl } from "./utils.js";
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 (async () => {
-  const statusBar = document.getElementById("learning-status-bar");
-  initLearningMode(statusBar);
+  const learningToggle = document.getElementById("learning-toggle");
+  initLearningMode(learningToggle);
+  _initGlobalHeader();
 
   await refreshState();
   renderUploadView();
@@ -40,11 +41,8 @@ function renderUploadView() {
   const hero = el("div", { cls: "hero" });
   hero.innerHTML = `
     <div class="hero__badge">Surrogate Modeling Toolkit</div>
-    <h1 class="hero__title">Build Fast Surrogate Models from Your Data</h1>
-    <p class="hero__subtitle">
-      Load analytical or test data, train a validated surrogate model,
-      and make predictions — in minutes, on your machine.
-    </p>
+    <h1 class="hero__title">Build fast surrogate models from your data</h1>
+    <p class="hero__subtitle">Upload your data. Normalize. Train. Validate. All on your machine.</p>
   `;
 
   // Learning mode primer for the entry screen
@@ -103,109 +101,55 @@ function renderUploadView() {
   });
 }
 
-/** Render the three sequential gates after a successful upload. */
+/** Render the single data-type gate after a successful upload. */
 function _renderGates(app, uploadResponse) {
-  // Append gates below the upload section (don't clear — keep the zone visible)
+  // Append gate below the upload section (don't clear — keep the zone visible)
   const gatesSection = el("div", { cls: "gates-container", id: "gates-container",
     style: "max-width: 640px; margin: var(--space-8) auto 0;" });
 
   const gatesHeader = el("div", { cls: "section-header" });
   gatesHeader.innerHTML = `
-    <h2 class="section-title">Step 2 — Configure Your Session</h2>
-    <p class="section-desc">Answer three quick questions to personalise your experience.</p>
+    <h2 class="section-title">Step 2 — Data Type</h2>
+    <p class="section-desc">One question before we explore your data.</p>
   `;
   gatesSection.appendChild(gatesHeader);
 
-  const sessionData = { data_type: null, experience_level: null, processor_count: 1 };
+  let selectedDataType = null;
+
+  const confirmBtn = el("button", {
+    cls: "btn btn-primary",
+    text: "Continue to Explore Data →",
+    style: "margin-top: var(--space-6); width: 100%;",
+  });
+  confirmBtn.disabled = true;
 
   // ── Gate 1: Data type ─────────────────────────────────────────────────────
   const gate1 = _makeGate(
     1,
     "What type of data are you working with?",
     [
-      { value: "simulation", label: "Simulation / CFD output" },
+      { value: "simulation",   label: "Simulation / CFD output" },
       { value: "experimental", label: "Experimental measurements" },
-      { value: "mixed", label: "Mixed / Unknown" },
+      { value: "mixed",        label: "Mixed / Unknown" },
     ],
     (val) => {
-      sessionData.data_type = val;
-      gate2.classList.add("active");
+      selectedDataType = val;
+      confirmBtn.disabled = false;
     }
   );
   gate1.classList.add("active");
   gatesSection.appendChild(gate1);
 
-  // ── Gate 2: Experience level ───────────────────────────────────────────────
-  const gate2 = _makeGate(
-    2,
-    "What is your experience level with surrogate modeling?",
-    [
-      { value: "beginner",      label: "Beginner — guide me step by step" },
-      { value: "intermediate",  label: "Intermediate — I know the basics" },
-      { value: "expert",        label: "Expert — get out of my way" },
-    ],
-    (val) => {
-      sessionData.experience_level = val;
-      gate3.classList.add("active");
-    }
-  );
-  gatesSection.appendChild(gate2);
-
-  // ── Gate 3: Processor count ────────────────────────────────────────────────
-  const gate3Wrap = document.createElement("div");
-
-  const gate3 = _makeGate(
-    3,
-    "How many processors are available for this session?",
-    [
-      { value: "1",  label: "1 — Serial" },
-      { value: "4",  label: "2–4 — Parallel" },
-      { value: "8",  label: ">4 — High-performance (HPC)" },
-    ],
-    (val) => {
-      sessionData.processor_count = parseInt(val, 10);
-      if (sessionData.processor_count > 4) {
-        caution.classList.add("visible");
-      } else {
-        caution.classList.remove("visible");
-      }
-      confirmBtn.disabled = false;
-    }
-  );
-
-  const caution = el("div", {
-    cls: "gate-caution",
-    text: "⚠ Using more than 4 processors on a head/login node may violate cluster usage policies. Ensure this is a dedicated workstation or compute node.",
-  });
-
-  const confirmBtn = el("button", {
-    cls: "btn btn-primary",
-    text: "Continue to Explore Data →",
-    style: "margin-top: var(--space-6); width: 100%;",
-    disabled: "true",
-  });
-
   confirmBtn.addEventListener("click", async () => {
     confirmBtn.disabled = true;
     confirmBtn.textContent = "Saving…";
 
-    // Persist gate selections to backend STATE
-    await put("/api/state/session", {
-      data_type:        sessionData.data_type,
-      experience_level: sessionData.experience_level,
-      processor_count:  sessionData.processor_count,
-      processor_mode:   sessionData.processor_count > 1 ? "parallel" : "serial",
-    });
-
+    await put("/api/state/session", { data_type: selectedDataType });
     await refreshState();
     _renderExploration(uploadResponse);
   });
 
-  gate3Wrap.appendChild(gate3);
-  gate3Wrap.appendChild(caution);
-  gate3Wrap.appendChild(confirmBtn);
-  gatesSection.appendChild(gate3Wrap);
-
+  gatesSection.appendChild(confirmBtn);
   app.appendChild(gatesSection);
 }
 
@@ -371,6 +315,53 @@ function _wireDropZone(dropZone, fileInput, containerEl, onSuccess) {
     if (fileInput.files[0]) _handleFile(fileInput.files[0], dropZone, onSuccess);
     fileInput.value = ""; // reset so same file can be re-uploaded
   });
+}
+
+/** Wire global header controls: theme toggle, level select, cores select. */
+function _initGlobalHeader() {
+  const themeBtn   = document.getElementById("theme-toggle");
+  const levelSel   = document.getElementById("level-select");
+  const coresSel   = document.getElementById("cores-select");
+
+  // Apply stored theme on load (default: light)
+  const storedTheme = localStorage.getItem("theme") || "light";
+  _applyTheme(storedTheme, themeBtn);
+
+  themeBtn.addEventListener("click", () => {
+    const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+    const next = isDark ? "light" : "dark";
+    _applyTheme(next, themeBtn);
+    localStorage.setItem("theme", next);
+  });
+
+  levelSel.addEventListener("change", async () => {
+    await put("/api/state/session", { experience_level: levelSel.value });
+    await refreshState();
+  });
+
+  coresSel.addEventListener("change", async () => {
+    const count = parseInt(coresSel.value, 10);
+    await put("/api/state/session", {
+      processor_count: count,
+      processor_mode:  count > 1 ? "parallel" : "serial",
+    });
+    await refreshState();
+  });
+}
+
+/** Apply theme to <html> and update toggle button label. */
+function _applyTheme(theme, btn) {
+  if (theme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+    btn.textContent = "☀";
+    btn.setAttribute("aria-label", "Switch to light mode");
+    btn.title = "Switch to light mode";
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    btn.textContent = "🌙";
+    btn.setAttribute("aria-label", "Switch to dark mode");
+    btn.title = "Switch to dark mode";
+  }
 }
 
 async function _handleFile(file, dropZone, onSuccess) {

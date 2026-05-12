@@ -20,17 +20,37 @@
 </head>
 <body>
 
-  <!-- Learning mode status bar — always in the DOM, hidden when off -->
-  <header id="learning-status-bar" class="hidden" role="banner" aria-label="Learning mode status">
-    <div class="status-bar__left">
-      <span class="status-bar__label">📚 Learning Mode</span>
-      <span class="status-bar__desc">Explanations and tooltips are expanded — hover any labelled element for details</span>
+  <!-- Global header — always visible; replaces old #learning-status-bar -->
+  <header id="global-header" role="banner" aria-label="Application header">
+    <div class="global-header__brand">
+      <span class="global-header__name">Surrogate Toolkit</span>
+      <span class="global-header__version">v0.1.1</span>
     </div>
-    <label class="toggle-switch" title="Toggle learning mode">
-      <input type="checkbox" id="learning-mode-checkbox" checked>
-      <span class="toggle-switch__track"></span>
-      <span>Disable</span>
-    </label>
+    <nav class="global-header__controls" aria-label="Session settings">
+      <div class="global-header__control-group">
+        <span class="global-header__control-label">Level</span>
+        <select id="level-select" class="global-header__select" aria-label="Experience level">
+          <option value="beginner" selected>Beginner</option>
+          <option value="intermediate" disabled>Intermediate (Phase 2)</option>
+          <option value="expert" disabled>Expert (Phase 2)</option>
+        </select>
+      </div>
+      <div class="global-header__control-group">
+        <span class="global-header__control-label">Cores</span>
+        <select id="cores-select" class="global-header__select" aria-label="Processor count">
+          <option value="1" selected>1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5 ⚠</option>
+          <option value="6">6 ⚠</option>
+          <option value="7">7 ⚠</option>
+          <option value="8">8 ⚠</option>
+        </select>
+      </div>
+      <button id="theme-toggle" class="global-header__btn" aria-label="Switch to dark mode" title="Switch to dark mode">🌙</button>
+      <button id="learning-toggle" class="global-header__btn global-header__btn--learning" aria-label="Toggle learning mode" aria-pressed="false">📚 Learning</button>
+    </nav>
   </header>
 
   <!-- SPA root — all views are rendered here by the JavaScript router -->

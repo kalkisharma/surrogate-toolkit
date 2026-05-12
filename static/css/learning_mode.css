@@ -1,80 +1,7 @@
 /* =============================================================================
-   learning_mode.css — Learning mode status bar, primers, expanded tooltips
+   learning_mode.css — Collapsible primers and expanded tooltips
    surrogate-toolkit | Copyright © 2026 Kalki Sharma. All rights reserved.
    ============================================================================= */
-
-/* ── Status bar ──────────────────────────────────────────────────────────────── */
-#learning-status-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: var(--status-bar-height);
-  padding: 0 var(--space-6);
-  background: rgba(75, 110, 245, 0.08);
-  border-bottom: 1px solid var(--color-accent);
-  font-size: var(--text-sm);
-  color: var(--color-accent);
-  backdrop-filter: blur(8px);
-}
-
-.status-bar__left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.status-bar__label {
-  font-weight: var(--font-semi);
-  letter-spacing: 0.02em;
-}
-
-.status-bar__desc {
-  font-size: var(--text-xs);
-  color: var(--color-text-secondary);
-}
-
-/* ── Toggle switch ───────────────────────────────────────────────────────────── */
-.toggle-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  cursor: pointer;
-  font-size: var(--text-sm);
-  color: var(--color-text-secondary);
-  user-select: none;
-}
-.toggle-switch input[type="checkbox"] { display: none; }
-.toggle-switch__track {
-  position: relative;
-  width: 36px;
-  height: 20px;
-  background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  transition: background var(--transition-base), border-color var(--transition-base);
-}
-.toggle-switch__track::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  background: var(--color-text-muted);
-  border-radius: var(--radius-full);
-  transition: transform var(--transition-base), background var(--transition-base);
-}
-.toggle-switch input:checked ~ .toggle-switch__track {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
-}
-.toggle-switch input:checked ~ .toggle-switch__track::after {
-  transform: translateX(16px);
-  background: var(--color-accent);
-}
 
 /* ── Collapsible primers (<details>) ─────────────────────────────────────────── */
 .primer {
@@ -110,7 +37,6 @@
   color: var(--color-text-secondary);
   line-height: var(--leading-relaxed);
 }
-/* Phase 2: add max-height animation here */
 
 /* ── Expanded tooltips ───────────────────────────────────────────────────────── */
 .tooltip-expanded {

@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/learning_mode.js
-// Description: Learning mode toggle, always-visible status bar, collapsible
+// Description: Learning mode toggle (global header button), collapsible
 //              primers, and expanded tooltips. All modules call registerPrimer
 //              and registerTooltip rather than implementing their own UI.
 // =============================================================================
@@ -10,43 +10,42 @@
 import { showInfo } from "./notifications.js";
 
 let _active = false;
-let _statusBarEl = null;
+let _toggleBtnEl = null;
 const _tooltips = new Map(); // element → { shortText, expandedText, expandedEl }
 let _activeTooltipEl = null;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Initialise learning mode, wiring the toggle in the status bar.
- * @param {HTMLElement} statusBarEl - The #learning-status-bar element.
+ * Initialise learning mode, wiring the toggle button in the global header.
+ * @param {HTMLElement} toggleBtnEl - The #learning-toggle button element.
  */
-export function initLearningMode(statusBarEl) {
-  _statusBarEl = statusBarEl;
-  const checkbox = document.getElementById("learning-mode-checkbox");
-  if (!checkbox) return;
+export function initLearningMode(toggleBtnEl) {
+  _toggleBtnEl = toggleBtnEl;
+  if (!toggleBtnEl) return;
 
-  checkbox.addEventListener("change", () => {
-    if (checkbox.checked) {
-      enableLearningMode();
-    } else {
+  toggleBtnEl.addEventListener("click", () => {
+    if (_active) {
       disableLearningMode();
+    } else {
+      enableLearningMode();
     }
   });
 }
 
-/** Enable learning mode — shows status bar, dispatches event, notifies user. */
+/** Enable learning mode — activates header button, dispatches event, notifies user. */
 export function enableLearningMode() {
   _active = true;
-  if (_statusBarEl) _statusBarEl.classList.remove("hidden");
+  if (_toggleBtnEl) _toggleBtnEl.setAttribute("aria-pressed", "true");
   _applyTooltips(true);
   document.dispatchEvent(new CustomEvent("learning:enabled"));
   showInfo("Learning mode enabled — hover over labelled elements for explanations.");
 }
 
-/** Disable learning mode — hides status bar, dispatches event. */
+/** Disable learning mode — deactivates header button, dispatches event. */
 export function disableLearningMode() {
   _active = false;
-  if (_statusBarEl) _statusBarEl.classList.add("hidden");
+  if (_toggleBtnEl) _toggleBtnEl.setAttribute("aria-pressed", "false");
   _applyTooltips(false);
   _hideExpandedTooltip();
   document.dispatchEvent(new CustomEvent("learning:disabled"));
