@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.8] — 2026-05-12
+
+### Bug fixes
+
+#### Fixed
+
+- **Summary statistics layout** — stats grid changed from `flex-wrap` (many narrow cards per row) to `grid-template-columns: repeat(4, 1fr)` (maximum 4 equal-width cards per row). Cards now fill the available width and are no longer compressed.
+
+---
+
 ## [0.1.7] — 2026-05-12
 
 ### Bug fixes
