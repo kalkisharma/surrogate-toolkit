@@ -10,8 +10,8 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
-VERSION: 0.1.1
-LAST MODIFIED: 2026-05-11
+VERSION: 0.1.2
+LAST MODIFIED: 2026-05-12
 ================================================================================
 """
 
@@ -21,7 +21,7 @@ LAST MODIFIED: 2026-05-11
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 

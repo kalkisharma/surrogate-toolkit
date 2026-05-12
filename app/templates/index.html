@@ -20,11 +20,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <!-- Stylesheets — ?v= busts browser cache on version bumps -->
-  <link rel="stylesheet" href="/static/css/variables.css?v=0.1.1">
-  <link rel="stylesheet" href="/static/css/main.css?v=0.1.1">
-  <link rel="stylesheet" href="/static/css/notifications.css?v=0.1.1">
-  <link rel="stylesheet" href="/static/css/loading.css?v=0.1.1">
-  <link rel="stylesheet" href="/static/css/learning_mode.css?v=0.1.1">
+  <link rel="stylesheet" href="/static/css/variables.css?v=0.1.2">
+  <link rel="stylesheet" href="/static/css/main.css?v=0.1.2">
+  <link rel="stylesheet" href="/static/css/notifications.css?v=0.1.2">
+  <link rel="stylesheet" href="/static/css/loading.css?v=0.1.2">
+  <link rel="stylesheet" href="/static/css/learning_mode.css?v=0.1.2">
 </head>
 <body>
 
@@ -32,7 +32,7 @@
   <header id="global-header" role="banner" aria-label="Application header">
     <div class="global-header__brand">
       <span class="global-header__name">Surrogate Toolkit</span>
-      <span class="global-header__version">v0.1.1</span>
+      <span class="global-header__version">v0.1.2</span>
     </div>
     <nav class="global-header__controls" aria-label="Session settings">
       <div class="global-header__control-group">
@@ -45,16 +45,8 @@
       </div>
       <div class="global-header__control-group">
         <span class="global-header__control-label">Cores</span>
-        <select id="cores-select" class="global-header__select" aria-label="Processor count">
-          <option value="1" selected>1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5 ⚠</option>
-          <option value="6">6 ⚠</option>
-          <option value="7">7 ⚠</option>
-          <option value="8">8 ⚠</option>
-        </select>
+        <input id="cores-input" type="number" class="global-header__input"
+               min="1" value="1" aria-label="Processor count">
       </div>
       <button id="theme-toggle" class="global-header__btn" aria-label="Switch to dark mode" title="Switch to dark mode">🌙</button>
       <button id="learning-toggle" class="global-header__btn global-header__btn--learning" aria-label="Toggle learning mode" aria-pressed="false">📚 Learning</button>
@@ -71,7 +63,7 @@
   <script src="/static/vendor/plotly.min.js"></script>
 
   <!-- App entry point — ?v= busts browser cache on version bumps -->
-  <script type="module" src="/static/js/main.js?v=0.1.1"></script>
+  <script type="module" src="/static/js/main.js?v=0.1.2"></script>
 
 </body>
 </html>

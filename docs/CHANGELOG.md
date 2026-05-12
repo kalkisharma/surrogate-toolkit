@@ -6,6 +6,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.2] — 2026-05-12
+
+### Bug fixes and improvements
+
+#### Fixed
+
+- **Theme toggle** — removed stale `@import url("variables.css")` from `main.css`. The `@import` fetched the file without the `?v=` cache-buster, causing the old dark-as-`:root` version to override the new light palette and making the toggle appear non-functional.
+
+#### Changed
+
+- **Cores — number input** — replaced the fixed 1–8 dropdown with a free-text `<input type="number">`. `navigator.hardwareConcurrency` detects the machine's logical CPU count and sets it as the max and placeholder. Border turns amber when value exceeds 4 (head-node warning threshold). Hover tooltip confirms detected count or shows warning if over threshold.
+- **Launch banner** — `python run.py` now prints a formatted version banner to the console before Flask output:
+  ```
+  ══════════════════════════════════════════
+    Surrogate Toolkit  v0.1.2
+    http://127.0.0.1:5000
+    Debug: off
+  ══════════════════════════════════════════
+  ```
+
+---
+
 ## [0.1.1] — 2026-05-12
 
 ### Sub-Phase 1 — UX/UI refinements

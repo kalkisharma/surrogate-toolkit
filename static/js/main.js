@@ -319,9 +319,8 @@ function _wireDropZone(dropZone, fileInput, containerEl, onSuccess) {
 
 /** Wire global header controls: theme toggle, level select, cores select. */
 function _initGlobalHeader() {
-  const themeBtn   = document.getElementById("theme-toggle");
-  const levelSel   = document.getElementById("level-select");
-  const coresSel   = document.getElementById("cores-select");
+  const themeBtn  = document.getElementById("theme-toggle");
+  const levelSel  = document.getElementById("level-select");
 
   // Apply stored theme on load (default: light)
   const storedTheme = localStorage.getItem("theme") || "light";
@@ -339,8 +338,26 @@ function _initGlobalHeader() {
     await refreshState();
   });
 
-  coresSel.addEventListener("change", async () => {
-    const count = parseInt(coresSel.value, 10);
+  // Cores — number input; max and placeholder set from detected CPU count
+  const coresInput = document.getElementById("cores-input");
+  const cpuCount = navigator.hardwareConcurrency || 8;
+  coresInput.max = cpuCount;
+  coresInput.placeholder = cpuCount;
+  coresInput.title = `Detected: ${cpuCount} logical processors`;
+
+  coresInput.addEventListener("input", () => {
+    const count = parseInt(coresInput.value, 10);
+    if (!count || count < 1) return;
+    const over = count > 4;
+    coresInput.classList.toggle("input-caution", over);
+    coresInput.title = over
+      ? `⚠ More than 4 processors may violate head-node policies`
+      : `Detected: ${cpuCount} logical processors`;
+  });
+
+  coresInput.addEventListener("change", async () => {
+    const count = parseInt(coresInput.value, 10);
+    if (!count || count < 1) return;
     await put("/api/state/session", {
       processor_count: count,
       processor_mode:  count > 1 ? "parallel" : "serial",

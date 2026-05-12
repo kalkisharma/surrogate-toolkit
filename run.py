@@ -9,8 +9,8 @@ FUTURE EXTENSIONS: None — production uses gunicorn, not this file.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.1.2
 ================================================================================
 """
 
@@ -26,15 +26,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from app import create_app  # noqa: E402 — intentional late import
+from app import create_app          # noqa: E402 — intentional late import
+from config.settings import VERSION  # noqa: E402
 
 app = create_app()
 
 if __name__ == "__main__":
     # Production deployment uses: gunicorn "app:create_app()"
     # This block is for local development only.
-    host = os.getenv("HOST", "127.0.0.1")
-    port = int(os.getenv("PORT", "5000"))
+    host  = os.getenv("HOST", "127.0.0.1")
+    port  = int(os.getenv("PORT", "5000"))
     debug = os.getenv("DEBUG", "false").lower() == "true"
+
+    border = "═" * 42
+    print(f"\n{border}")
+    print(f"  Surrogate Toolkit  v{VERSION}")
+    print(f"  http://{host}:{port}")
+    print(f"  Debug: {'on' if debug else 'off'}")
+    print(f"{border}\n")
 
     app.run(host=host, port=port, debug=debug)
