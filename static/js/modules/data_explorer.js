@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 0.2.1
+// Version: 0.3.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -12,12 +12,14 @@ import { registerPrimer, registerTooltip } from "../learning_mode.js";
 import { mean, stdDev, median, skewness, detectOutliers, el, formatNum, clearEl } from "../utils.js";
 import { get } from "../api.js";
 import { showError } from "../notifications.js";
+import { showSpinner, hideSpinner } from "../loading.js";
 
 let _currentRows    = [];
 let _currentColumns = [];
 let _outlierIndices = new Set();
 let _showOutliers   = false;
 let _chartEl        = null;
+let _fullStats      = null;
 
 // Re-render on theme toggle so palette and font colors update immediately.
 document.addEventListener("theme:changed", () => { if (_chartEl) _rerender(); });
@@ -90,6 +92,7 @@ function _rerender() {
  */
 export async function initExploration(containerEl, uploadResponse) {
   clearEl(containerEl);
+  showSpinner(containerEl);
 
   _loadSettings();
 
@@ -117,6 +120,8 @@ export async function initExploration(containerEl, uploadResponse) {
     _fullStats    = summaryResp.stats;
     usingFullStats = true;
   }
+
+  hideSpinner(containerEl);
 
   _currentRows    = plotRows;
   _currentColumns = columns;
@@ -565,8 +570,6 @@ function _wirePanelEvents(panelEl) {
 }
 
 // ── Stats section (below chart) ───────────────────────────────────────────────
-
-let _fullStats = null;
 
 function _buildStatsSection(columns, rows, fullStats, totalRows) {
   const section = el("div", { cls: "stats-section" });

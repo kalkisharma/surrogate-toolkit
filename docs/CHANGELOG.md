@@ -6,6 +6,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.3.0] — 2026-05-12
+
+### Phase 1 completion release
+
+#### Added
+
+- **Summary stats cached at upload time (R1)** — `POST /api/data/upload` now computes `min`, `max`, `mean`, `std`, `median`, and `null_count` for every column at ingest time and stores the result in `_datasets[key]["metadata"]["summary_stats"]`. `GET /api/data/summary` serves from this cache on every subsequent call, skipping pandas recomputation entirely. Falls back to live computation if the cache is absent (e.g., legacy datasets pre-v0.3.0).
+- **Overwrite warning on same-filename upload (R5)** — if a file with the same `secure_filename()` is uploaded while one already exists in the session, an `eviction_warnings` entry is included in the upload response: `"'filename.csv' replaced an existing upload with the same filename."` The frontend surfaces this as an amber toast via the existing eviction-warning path.
+- **Loading spinner in data exploration (R4)** — `initExploration` now calls `showSpinner(containerEl)` immediately after clearing the container, before the two async fetches (`/api/data/rows`, `/api/data/summary`). `hideSpinner` is called once both fetches resolve. Prevents a blank `#explore-section` during network flight.
+
+#### Changed
+
+- **`/api/data/rows` uses `primary["clean"]` (R2)** — previously read from `primary["raw"]`; now reads from `primary["clean"]`. `raw` and `clean` are identical today, but Phase 2 filtering/normalization will write to `clean` only. Aligned now at zero risk.
+- **`_fullStats` moved to module-level block (R3)** — `let _fullStats = null;` relocated from the inline "Stats section" comment block to the top-of-module variable cluster alongside `_currentRows`, `_currentColumns`, `_outlierIndices`, `_showOutliers`, and `_chartEl`. Code organization only; no behavior change.
+- **README updated to Phase 1 — v0.3.0 (R6)** — "What it does (Phase 1 — v0.2.1)" heading updated to `v0.3.0`.
+
+---
+
 ## [0.2.4] — 2026-05-12
 
 ### Upload gate UX improvements

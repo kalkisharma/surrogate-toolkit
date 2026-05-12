@@ -9,9 +9,8 @@ FUTURE EXTENSIONS: Per-program overrides, runtime config loading from a database
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.4
 LAST MODIFIED: 2026-05-12
+VERSION: 0.3.0
 ================================================================================
 """
 
@@ -21,7 +20,7 @@ LAST MODIFIED: 2026-05-12
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "0.2.4"
+VERSION = "0.3.0"
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 

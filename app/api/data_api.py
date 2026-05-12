@@ -12,8 +12,8 @@ FUTURE EXTENSIONS: GET /api/data/summary (full-dataset stats), POST /api/data/cl
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.3.0
 ================================================================================
 """
 
@@ -170,10 +170,24 @@ def upload():
         "data_type":          None,   # filled in by the gate (PUT /api/state/session)
     }
 
-    # Compute preview rows here so they can be recalled when switching datasets.
+    # Compute preview rows and summary stats at upload time so both can be
+    # recalled on dataset switch without re-running pandas on every request.
     preview_df   = df.head(10).where(df.head(10).notna(), other=None)
     preview_rows = _numpy_to_python(preview_df.to_dict(orient="records"))
     ds_meta["preview_rows"] = preview_rows
+
+    summary_stats = {}
+    for col in df.columns:
+        series = df[col].dropna()
+        summary_stats[col] = {
+            "min":        _to_python(series.min())    if len(series) else None,
+            "max":        _to_python(series.max())    if len(series) else None,
+            "mean":       _to_python(series.mean())   if len(series) else None,
+            "std":        _to_python(series.std())    if len(series) else None,
+            "median":     _to_python(series.median()) if len(series) else None,
+            "null_count": int(df[col].isnull().sum()),
+        }
+    ds_meta["summary_stats"] = summary_stats
 
     # Build dataset entry and store in _datasets accumulator
     ds_entry = {
@@ -185,10 +199,17 @@ def upload():
     }
 
     _datasets = state["datasets"]["_datasets"]
+
+    # ── Overwrite warning ─────────────────────────────────────────────────────
+    eviction_warnings = []
+    if safe_name in _datasets:
+        eviction_warnings.append(
+            f"'{ds_meta['filename']}' replaced an existing upload with the same filename."
+        )
+
     _datasets[safe_name] = ds_entry
 
     # ── Eviction — enforce MAX_DATASETS cap ──────────────────────────────────
-    eviction_warnings = []
     while len(_datasets) > MAX_DATASETS:
         lru_key = min(
             (k for k in _datasets if k != safe_name),
@@ -293,8 +314,9 @@ def summary():
     Future:
         Histogram data per column, correlation matrix, outlier flags.
     """
-    state = current_app.config["STATE"]
-    df = state["datasets"]["primary"]["clean"]
+    state     = current_app.config["STATE"]
+    df        = state["datasets"]["primary"]["clean"]
+    active_key = state["datasets"]["active_dataset_key"]
 
     if df is None:
         return (
@@ -310,6 +332,20 @@ def summary():
             ),
             400,
         )
+
+    # Serve from cache if available (populated at upload time).
+    _datasets = state["datasets"]["_datasets"]
+    cached    = _datasets.get(active_key, {}).get("metadata", {}).get("summary_stats")
+    if cached:
+        return jsonify(
+            {
+                "success": True,
+                "stats": cached,
+                "n_rows": len(df),
+                "n_cols": len(df.columns),
+                "columns": list(df.columns),
+            }
+        ), 200
 
     stats = {}
     for col in df.columns:
@@ -354,7 +390,7 @@ def rows():
         JSON 400: No data loaded yet.
     """
     state = current_app.config["STATE"]
-    df = state["datasets"]["primary"]["raw"]
+    df = state["datasets"]["primary"]["clean"]
 
     if df is None:
         return (
