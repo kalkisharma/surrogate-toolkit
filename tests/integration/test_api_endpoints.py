@@ -343,3 +343,23 @@ def test_datasets_endpoint_no_data(client):
     assert data["success"] is True
     assert data["count"] == 0
     assert data["datasets"] == []
+
+
+def test_state_reset_clears_datasets(client, csv_clean):
+    """POST /api/state/reset wipes all loaded datasets."""
+    _upload(client, csv_clean)
+    assert json.loads(client.get("/api/data/datasets").data)["count"] == 1
+
+    resp = client.post("/api/state/reset")
+    assert resp.status_code == 200
+    assert json.loads(resp.data)["success"] is True
+    assert json.loads(client.get("/api/data/datasets").data)["count"] == 0
+
+
+def test_state_reset_clears_primary(client, csv_clean):
+    """POST /api/state/reset removes the primary dataset DataFrame."""
+    _upload(client, csv_clean)
+    resp = client.post("/api/state/reset")
+    assert resp.status_code == 200
+    rows_resp = json.loads(client.get("/api/data/rows").data)
+    assert rows_resp["success"] is False

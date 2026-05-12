@@ -22,7 +22,7 @@ VERSION: 0.1.0
 
 from flask import Blueprint, jsonify
 
-from app.state.schema import get_state_json_safe
+from app.state.schema import get_state_json_safe, reset_state
 
 bp = Blueprint("state", __name__)
 
@@ -135,3 +135,17 @@ def update_session():
         current_app.logger.info(f"Active dataset switched to '{new_key}'")
 
     return jsonify({"success": True, "session": session})
+
+
+@bp.route("/reset", methods=["POST"])
+def reset():
+    """
+    Reset STATE to canonical defaults, clearing all loaded datasets and session data.
+
+    Returns:
+        JSON: {"success": True}
+    """
+    from flask import current_app
+    reset_state()  # modifies STATE in-place; app.config["STATE"] reference remains valid
+    current_app.logger.info("Session reset via POST /api/state/reset")
+    return jsonify({"success": True})

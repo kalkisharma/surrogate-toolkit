@@ -6,6 +6,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.2] — 2026-05-12
+
+### Clear session
+
+#### Added
+
+- **"✕ Clear" button in global header** — appears at all times next to the theme toggle. Clicking prompts for confirmation, then calls `POST /api/state/reset`, removes the dataset switcher, returns to the upload screen, and shows a success toast.
+- **`POST /api/state/reset` endpoint** — calls `reset_state()` (in-place `STATE.clear()` + deep-copy of canonical template), wiping all loaded datasets and session data. Logged via `app.logger.info()`.
+- **2 new integration tests** — verify reset clears `_datasets` accumulator and removes the primary DataFrame so `/api/data/rows` returns a failure after reset.
+
+---
+
 ## [0.2.1] — 2026-05-12
 
 ### Testing session bug fixes

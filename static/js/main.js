@@ -466,10 +466,20 @@ async function _refreshDatasetSwitcher() {
   nav.insertBefore(switcher, themeBtn);
 }
 
-/** Wire global header controls: theme toggle, level select, cores select. */
+/** Wire global header controls: theme toggle, level select, cores select, clear session. */
 function _initGlobalHeader() {
   const themeBtn  = document.getElementById("theme-toggle");
   const levelSel  = document.getElementById("level-select");
+
+  // Clear session
+  document.getElementById("clear-session-btn").addEventListener("click", async () => {
+    if (!confirm("Clear all loaded datasets and return to the upload screen?")) return;
+    await post("/api/state/reset", {});
+    const switcher = document.getElementById("dataset-switcher-group");
+    if (switcher) switcher.remove();
+    renderUploadView();
+    showSuccess("Session cleared.");
+  });
 
   // Apply stored theme on load (default: light)
   const storedTheme = localStorage.getItem("theme") || "light";
