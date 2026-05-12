@@ -456,7 +456,7 @@ function _buildStatsSection(columns, rows, fullStats) {
     ];
     for (const [key, val] of pairs) {
       const pair = el("div", { cls: "stat-pair" });
-      pair.innerHTML = `<span class="stat-pair__key">${key}</span><span class="stat-pair__val">${val}</span>`;
+      pair.innerHTML = `<span class="stat-pair__key">${key}</span><span class="stat-pair__val" title="${val}">${val}</span>`;
       valGrid.appendChild(pair);
     }
 

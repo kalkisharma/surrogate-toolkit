@@ -336,9 +336,15 @@ input, select, textarea { font-family: inherit; }
   grid-template-columns: 1fr 1fr;
   gap: var(--space-1) var(--space-2);
 }
-.stat-pair { font-size: var(--text-xs); }
+.stat-pair { font-size: var(--text-xs); min-width: 0; }
 .stat-pair__key { color: var(--color-text-muted); }
-.stat-pair__val { color: var(--color-text-primary); font-family: var(--font-mono); }
+.stat-pair__val {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── Hero / entry ────────────────────────────────────────────────────────────── */
 .hero {

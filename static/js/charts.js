@@ -145,7 +145,12 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
     font:     { color: theme.font, family: "Inter, system-ui, sans-serif", size: fontSize },
-    margin:   { t: 20, b: 20, l: 20, r: 20 },
+    margin: {
+      l: Math.max(50, tickFontSize * 6),
+      b: Math.max(50, tickFontSize * 6),
+      t: Math.max(30, fontSize * 3),
+      r: 20,
+    },
     height:   computedHeight,
     dragmode: "select",
     ...axisLayout,

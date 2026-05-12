@@ -6,6 +6,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.7] — 2026-05-12
+
+### Bug fixes
+
+#### Fixed
+
+- **SPLOM label/tick clipping** — `layout.margin` in `charts.js` was fixed at 20 px on all sides, too small to accommodate axis tick numbers or dimension labels at any font size above the default. Margins are now computed dynamically: `l` and `b` scale with `tickFontSize` (`max(50, tickFontSize × 6)`); `t` scales with `fontSize` (`max(30, fontSize × 3)`); `r` stays at 20 px. Labels and tick numbers now have correct clearance at all font sizes.
+- **Stats card number overflow** — stat values (e.g. `-123456.78`) could extend past the 180 px card boundary. Fixed by adding `min-width: 0` to `.stat-pair` (required for grid children to shrink) and `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` to `.stat-pair__val`. Full value remains accessible via hover tooltip (`title` attribute on each value span).
+
+---
+
 ## [0.1.6] — 2026-05-12
 
 ### Explore view — full data, layout refactor, expanded plot controls
