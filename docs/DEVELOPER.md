@@ -56,7 +56,7 @@ gunicorn "app:create_app()"
 python -m pytest tests/ -v
 ```
 
-Target: 80%+ coverage on `app/data/ingestion.py` and `app/api/data_api.py`.
+45 tests (24 unit, 21 integration). Target: 80%+ coverage on `app/data/ingestion.py` and `app/api/data_api.py`.
 
 Test fixtures live in `tests/fixtures/`. They are synthetic — no real program data.
 
@@ -86,6 +86,16 @@ State sync: the frontend calls `GET /api/state/` after every mutating POST via `
 - Only `charts.js` calls `Plotly.*`
 - Only `notifications.js` renders toasts
 - Only `loading.js` renders spinners/skeletons
+
+### API endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/data/upload` | Validate and ingest a CSV; returns 10-row preview |
+| `GET` | `/api/data/summary` | Per-column descriptive stats from full dataset |
+| `GET` | `/api/data/rows` | Up to `MAX_PLOT_ROWS` (2,000) rows for the scatter matrix |
+| `GET` | `/api/state/` | Full STATE snapshot |
+| `PUT` | `/api/state/session` | Update session fields (level, cores, theme, etc.) |
 
 ### Adding a new API endpoint
 

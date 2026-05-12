@@ -30,12 +30,14 @@ Open `http://127.0.0.1:5000` in your browser.
 
 ---
 
-## What it does (Phase 1)
+## What it does (Phase 1 — v0.1.6)
 
 - **CSV upload** — drag-and-drop with full validation: size, encoding, headers, row/column counts, float coercion, null tolerance
-- **Session gates** — configure data type, experience level, and processor availability
-- **Data exploration** — scatter plot matrix, summary statistics sidebar, outlier overlay (IQR-based)
-- **Learning mode** — collapsible concept primers, expanded tooltips, always-visible status bar
+- **Data type gate** — single pre-exploration question (analytical vs. test data); experience level and processor count configured via the persistent global header
+- **Data exploration** — scatter plot matrix using up to 2,000 rows, IQR-based outlier overlay, per-column summary statistics displayed below the chart
+- **Plot settings panel** — expandable controls: label/tick font size, marker size/opacity/edge color/edge width, figure height/width, major/minor gridlines, marker palette (3 presets), PNG save; all settings persisted to `localStorage`
+- **Theme** — light mode default with dark mode toggle; preference persists across sessions and resets cleanly on version upgrade
+- **Learning mode** — collapsible concept primers, expanded tooltips, toggle in the global header
 
 ---
 
