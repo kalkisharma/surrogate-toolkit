@@ -21,12 +21,14 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
+from datetime import datetime, timezone
+
 import numpy as np
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
 from app.data.ingestion import ingest_csv
-from config.settings import MAX_PLOT_ROWS
+from config.settings import MAX_DATASETS, MAX_DATASETS_MEMORY_MB, MAX_PLOT_ROWS
 
 bp = Blueprint("data", __name__)
 
@@ -141,60 +143,121 @@ def upload():
         return jsonify(result), _http_status(result["error_code"])
 
     # ── Update STATE ─────────────────────────────────────────────────────────
-    state = current_app.config["STATE"]
-    primary = state["datasets"]["primary"]
+    state    = current_app.config["STATE"]
+    meta     = result["metadata"]
+    now_ts   = datetime.now(timezone.utc).isoformat()
+    mem_bytes = int(df.memory_usage(deep=True).sum())
 
-    # raw is set once and NEVER modified after this line.
-    primary["raw"] = df.copy()
-    primary["clean"] = df.copy()
-
-    # Populate metadata from ingestion result + spec fields
-    meta = result["metadata"]
-    primary["metadata"].update(
-        {
-            "filename": meta["filename"],
-            "upload_timestamp": meta["upload_timestamp"],
-            "n_rows_original": meta["n_rows_original"],
-            "n_cols": meta["n_cols"],
-            "columns": meta["columns"],
-            "dtypes": meta["dtypes"],
-            "null_counts": meta["null_counts"],
-            "coercion_warnings": meta["coercion_warnings"],
-            "missing_data_report": {
-                col: {
-                    "count": meta["null_counts"][col],
-                    "ratio": round(meta["null_counts"][col] / meta["n_rows_original"], 4),
-                }
-                for col in meta["columns"]
-                if meta["null_counts"][col] > 0
-            },
+    missing_data_report = {
+        col: {
+            "count": meta["null_counts"][col],
+            "ratio": round(meta["null_counts"][col] / meta["n_rows_original"], 4),
         }
+        for col in meta["columns"]
+        if meta["null_counts"][col] > 0
+    }
+
+    ds_meta = {
+        "filename":           meta["filename"],
+        "upload_timestamp":   meta["upload_timestamp"],
+        "n_rows_original":    meta["n_rows_original"],
+        "n_cols":             meta["n_cols"],
+        "columns":            meta["columns"],
+        "dtypes":             meta["dtypes"],
+        "null_counts":        meta["null_counts"],
+        "coercion_warnings":  meta["coercion_warnings"],
+        "missing_data_report": missing_data_report,
+        "data_type":          None,   # filled in by the gate (PUT /api/state/session)
+    }
+
+    # Build dataset entry and store in _datasets accumulator
+    ds_entry = {
+        "raw":          df.copy(),
+        "clean":        df.copy(),
+        "metadata":     ds_meta,
+        "memory_bytes": mem_bytes,
+        "last_accessed": now_ts,
+    }
+
+    _datasets = state["datasets"]["_datasets"]
+    _datasets[safe_name] = ds_entry
+
+    # ── Eviction — enforce MAX_DATASETS cap ──────────────────────────────────
+    eviction_warnings = []
+    while len(_datasets) > MAX_DATASETS:
+        lru_key = min(
+            (k for k in _datasets if k != safe_name),
+            key=lambda k: _datasets[k]["last_accessed"],
+            default=None,
+        )
+        if lru_key is None:
+            break
+        evicted_name = _datasets[lru_key]["metadata"]["filename"]
+        del _datasets[lru_key]
+        eviction_warnings.append(
+            f"'{evicted_name}' was removed to stay within the {MAX_DATASETS}-dataset limit."
+        )
+        current_app.logger.info(
+            f"LRU eviction (count cap): removed '{evicted_name}'"
+        )
+
+    # ── Eviction — enforce memory budget ─────────────────────────────────────
+    total_mem = sum(ds.get("memory_bytes", 0) for ds in _datasets.values())
+    budget    = MAX_DATASETS_MEMORY_MB * 1024 * 1024
+    while total_mem > budget and len(_datasets) > 1:
+        lru_key = min(
+            (k for k in _datasets if k != safe_name),
+            key=lambda k: _datasets[k]["last_accessed"],
+            default=None,
+        )
+        if lru_key is None:
+            break
+        evicted_name = _datasets[lru_key]["metadata"]["filename"]
+        total_mem -= _datasets[lru_key].get("memory_bytes", 0)
+        del _datasets[lru_key]
+        eviction_warnings.append(
+            f"'{evicted_name}' was removed to stay within the {MAX_DATASETS_MEMORY_MB} MB memory limit."
+        )
+        current_app.logger.info(
+            f"LRU eviction (memory cap): removed '{evicted_name}'"
+        )
+
+    # ── Mirror active dataset to primary ─────────────────────────────────────
+    state["datasets"]["active_dataset_key"] = safe_name
+    primary = state["datasets"]["primary"]
+    primary["raw"]   = ds_entry["raw"]
+    primary["clean"] = ds_entry["clean"]
+    primary["metadata"].update(ds_meta)
+
+    current_app.logger.info(
+        f"Dataset loaded: '{safe_name}' ({mem_bytes // 1024} KB, "
+        f"{len(_datasets)} dataset(s) in session)"
     )
 
     # ── Build preview ────────────────────────────────────────────────────────
-    # Replace NaN with None so json.dumps can serialize the response.
-    preview_df = df.head(10).where(df.head(10).notna(), other=None)
-    preview_rows = preview_df.to_dict(orient="records")
-    # numpy types are not JSON-serializable — convert to native Python types
-    preview_rows = _numpy_to_python(preview_rows)
+    preview_df  = df.head(10).where(df.head(10).notna(), other=None)
+    preview_rows = _numpy_to_python(preview_df.to_dict(orient="records"))
 
     return jsonify(
         {
             "success": True,
             "message": f"'{safe_name}' uploaded successfully. "
                        f"{meta['n_rows_original']:,} rows × {meta['n_cols']} columns.",
+            "dataset_key": safe_name,
+            "loaded_count": len(_datasets),
+            "eviction_warnings": eviction_warnings,
             "metadata": {
-                "filename": meta["filename"],
-                "n_rows": meta["n_rows_original"],
-                "n_cols": meta["n_cols"],
-                "columns": meta["columns"],
-                "null_counts": meta["null_counts"],
+                "filename":          meta["filename"],
+                "n_rows":            meta["n_rows_original"],
+                "n_cols":            meta["n_cols"],
+                "columns":           meta["columns"],
+                "null_counts":       meta["null_counts"],
                 "coercion_warnings": meta["coercion_warnings"],
-                "upload_timestamp": meta["upload_timestamp"],
+                "upload_timestamp":  meta["upload_timestamp"],
             },
             "preview": {
-                "columns": meta["columns"],
-                "rows": preview_rows,
+                "columns":    meta["columns"],
+                "rows":       preview_rows,
                 "total_rows": meta["n_rows_original"],
             },
         }
@@ -322,6 +385,55 @@ def rows():
             "truncated": total > MAX_PLOT_ROWS,
         }
     ), 200
+
+
+@bp.route("/datasets", methods=["GET"])
+def datasets():
+    """
+    Return the list of all datasets currently loaded in the session.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "active_key": str | null,
+              "count": int,
+              "datasets": [
+                {
+                  "key": str,
+                  "filename": str,
+                  "n_rows": int,
+                  "n_cols": int,
+                  "data_type": str | null,
+                  "memory_bytes": int,
+                  "active": bool
+                }
+              ]
+            }
+    """
+    state      = current_app.config["STATE"]
+    _datasets  = state["datasets"]["_datasets"]
+    active_key = state["datasets"]["active_dataset_key"]
+
+    result = []
+    for key, ds in _datasets.items():
+        m = ds["metadata"]
+        result.append({
+            "key":          key,
+            "filename":     m.get("filename", key),
+            "n_rows":       m.get("n_rows_original", 0),
+            "n_cols":       m.get("n_cols", 0),
+            "data_type":    m.get("data_type"),
+            "memory_bytes": ds.get("memory_bytes", 0),
+            "active":       key == active_key,
+        })
+
+    return jsonify({
+        "success":    True,
+        "active_key": active_key,
+        "count":      len(result),
+        "datasets":   result,
+    }), 200
 
 
 # ─── SERIALISATION HELPERS ────────────────────────────────────────────────────

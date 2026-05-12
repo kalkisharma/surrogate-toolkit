@@ -206,7 +206,7 @@ export async function initExploration(containerEl, uploadResponse) {
   containerEl.appendChild(chartWrap);
 
   // ── Stats section (below chart) ───────────────────────────────────────────
-  const statsEl = _buildStatsSection(columns, plotRows, usingFullStats ? _fullStats : null);
+  const statsEl = _buildStatsSection(columns, plotRows, usingFullStats ? _fullStats : null, totalRows);
   containerEl.appendChild(statsEl);
 
   // ── Initial render ────────────────────────────────────────────────────────
@@ -580,14 +580,15 @@ function _wirePanelEvents(panelEl) {
 
 let _fullStats = null;
 
-function _buildStatsSection(columns, rows, fullStats) {
+function _buildStatsSection(columns, rows, fullStats, totalRows) {
   const section = el("div", { cls: "stats-section" });
   section.appendChild(el("div", { cls: "stats-section__header", text: "Summary Statistics" }));
 
   const grid = el("div", { cls: "stats-grid" });
+  const N = totalRows || rows.length;
 
   for (const col of columns) {
-    const vals = rows.map((r) => r[col]).filter((v) => v !== null && v !== undefined);
+    const vals     = rows.map((r) => r[col]).filter((v) => v !== null && v !== undefined);
     const nullCount = rows.length - vals.length;
 
     const stats = fullStats && fullStats[col]
@@ -603,31 +604,53 @@ function _buildStatsSection(columns, rows, fullStats) {
             null_count: nullCount,
           };
 
-    const skew = skewness(vals);
+    const skew     = skewness(vals);
+    const nc       = stats.null_count ?? nullCount;
+    const nullPct  = N > 0 ? ((nc / N) * 100).toFixed(1) : "0.0";
+    const qualCls  = nc === 0 ? "stats-col-card--ok"
+                   : parseFloat(nullPct) <= 10 ? "stats-col-card--warn"
+                   : "stats-col-card--bad";
 
-    const card   = el("div", { cls: "stats-col-card" });
-    const nameEl = el("div", { cls: "stats-col-card__name" });
-    nameEl.textContent = col;
-    nameEl.title       = col;
+    const card   = el("div", { cls: `stats-col-card ${qualCls}` });
+    const nameEl = el("div", { cls: "stats-col-card__name", text: col });
+    nameEl.title = col;
 
-    const valGrid = el("div", { cls: "stat-col-values" });
-    const pairs = [
-      ["min",    formatNum(stats.min)],
-      ["max",    formatNum(stats.max)],
-      ["mean",   formatNum(stats.mean)],
-      ["std",    formatNum(stats.std)],
-      ["median", formatNum(stats.median)],
-      ["nulls",  String(stats.null_count)],
-      ["skew",   skew !== null ? formatNum(skew, 2) : "—"],
-    ];
-    for (const [key, val] of pairs) {
-      const pair = el("div", { cls: "stat-pair" });
-      pair.innerHTML = `<span class="stat-pair__key">${key}</span><span class="stat-pair__val" title="${val}">${val}</span>`;
-      valGrid.appendChild(pair);
-    }
+    // Primary tier: mean ± std  and  min … max
+    const primary = el("div", { cls: "stat-tier stat-tier--primary" });
+    const meanStd = `${formatNum(stats.mean)} ± ${formatNum(stats.std)}`;
+    const range   = `${formatNum(stats.min)} … ${formatNum(stats.max)}`;
+    primary.innerHTML = `
+      <div class="stat-pair">
+        <span class="stat-pair__key">μ ± σ</span>
+        <span class="stat-pair__val" title="${meanStd}">${meanStd}</span>
+      </div>
+      <div class="stat-pair">
+        <span class="stat-pair__key">range</span>
+        <span class="stat-pair__val" title="${range}">${range}</span>
+      </div>`;
+
+    // Secondary tier: median, nulls %, skew
+    const secondary = el("div", { cls: "stat-tier stat-tier--secondary" });
+    const nullsStr  = `${nc} / ${N} (${nullPct}%)`;
+    const skewStr   = skew !== null ? formatNum(skew, 2) : "—";
+    const medStr    = formatNum(stats.median);
+    secondary.innerHTML = `
+      <div class="stat-pair">
+        <span class="stat-pair__key">median</span>
+        <span class="stat-pair__val" title="${medStr}">${medStr}</span>
+      </div>
+      <div class="stat-pair">
+        <span class="stat-pair__key">nulls</span>
+        <span class="stat-pair__val" title="${nullsStr}">${nullsStr}</span>
+      </div>
+      <div class="stat-pair">
+        <span class="stat-pair__key">skew</span>
+        <span class="stat-pair__val" title="${skewStr}">${skewStr}</span>
+      </div>`;
 
     card.appendChild(nameEl);
-    card.appendChild(valGrid);
+    card.appendChild(primary);
+    card.appendChild(secondary);
     grid.appendChild(card);
   }
 

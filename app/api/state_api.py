@@ -100,4 +100,38 @@ def update_session():
     if "classification" in data:
         state["compliance"]["classification"] = data["classification"]
 
+    # When data_type is set, also annotate the active dataset's metadata
+    if "data_type" in data:
+        active_key = state["datasets"].get("active_dataset_key")
+        if active_key and active_key in state["datasets"]["_datasets"]:
+            state["datasets"]["_datasets"][active_key]["metadata"]["data_type"] = data["data_type"]
+        state["datasets"]["primary"]["metadata"]["data_type"] = data["data_type"]
+
+    # ── Active dataset switch ─────────────────────────────────────────────────
+    if "active_dataset_key" in data:
+        from datetime import datetime, timezone
+        new_key    = data["active_dataset_key"]
+        _datasets  = state["datasets"]["_datasets"]
+        if new_key not in _datasets:
+            return (
+                jsonify({
+                    "success":    False,
+                    "error_code": "DATASET_NOT_FOUND",
+                    "message":    f"Dataset '{new_key}' is not loaded in this session.",
+                }),
+                404,
+            )
+        # Mirror selected dataset to primary
+        ds = _datasets[new_key]
+        ds["last_accessed"] = datetime.now(timezone.utc).isoformat()
+        state["datasets"]["active_dataset_key"] = new_key
+        primary = state["datasets"]["primary"]
+        primary["raw"]   = ds["raw"]
+        primary["clean"] = ds["clean"]
+        primary["metadata"].update(ds["metadata"])
+        # Sync data_type to session
+        session["data_type"] = ds["metadata"].get("data_type")
+        from flask import current_app
+        current_app.logger.info(f"Active dataset switched to '{new_key}'")
+
     return jsonify({"success": True, "session": session})

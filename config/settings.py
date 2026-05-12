@@ -21,7 +21,7 @@ LAST MODIFIED: 2026-05-12
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "0.1.10"
+VERSION = "0.2.0"
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
@@ -64,6 +64,8 @@ HEAD_NODE_WARNING_THRESHOLD = 4      # show caution if user requests more than t
 # ─── STATE LIMITS ─────────────────────────────────────────────────────────────
 
 MAX_PLOT_ROWS = 2000            # max rows sent to the browser scatter matrix
+MAX_DATASETS = 5                # max simultaneously loaded datasets per session
+MAX_DATASETS_MEMORY_MB = 2048   # total in-memory DataFrame budget across all datasets
 
 MAX_PREDICTION_HISTORY = 20
 MAX_AUDIT_EVENTS = 1000

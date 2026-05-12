@@ -89,6 +89,10 @@ _CANONICAL_STATE = {
                 "coercion_warnings": [],
             },
         },
+        # Accumulator for all loaded datasets. Each entry:
+        # { raw, clean, metadata, memory_bytes, last_accessed }
+        "_datasets": {},
+        "active_dataset_key": None,
         "secondary": None,
         "combined": None,
     },

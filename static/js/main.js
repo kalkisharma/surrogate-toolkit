@@ -8,9 +8,9 @@
 // =============================================================================
 
 import { initLearningMode, registerPrimer, registerTooltip } from "./learning_mode.js";
-import { post, put } from "./api.js";
+import { get, post, put } from "./api.js";
 import { refreshState } from "./state.js";
-import { showSuccess, showError, showWarning, showInfo } from "./notifications.js";
+import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
 import { initExploration } from "./modules/data_explorer.js";
 import { el, clearEl } from "./utils.js";
@@ -101,6 +101,70 @@ function renderUploadView() {
   });
 }
 
+/**
+ * Compact inline gate for additional file uploads (from the exploration view).
+ * Inserts a dismissible banner above #explore-section; re-renders exploration
+ * with the new active dataset once the data type is confirmed.
+ */
+function _renderAdditionalFileGate(app, uploadResponse) {
+  // Remove any existing additional gate
+  const existing = document.getElementById("additional-gate");
+  if (existing) existing.remove();
+
+  const gate = el("div", {
+    cls: "additional-gate card",
+    id: "additional-gate",
+    style: "margin-bottom: var(--space-4);",
+  });
+  const meta = uploadResponse.metadata;
+  gate.innerHTML = `
+    <p class="section-desc" style="margin-bottom:var(--space-3);">
+      <strong>${meta.filename}</strong> loaded — select data type to continue.
+    </p>
+    <div class="gate-options" id="ag-options"></div>
+    <div style="display:flex;gap:var(--space-3);margin-top:var(--space-4);">
+      <button class="btn btn-primary" id="ag-confirm" disabled>Confirm →</button>
+      <button class="btn btn-secondary" id="ag-cancel">Cancel</button>
+    </div>
+  `;
+
+  let selectedType = null;
+  const confirmBtn = gate.querySelector("#ag-confirm");
+  const optionsWrap = gate.querySelector("#ag-options");
+
+  for (const opt of [
+    { value: "simulation",   label: "Simulation / CFD output" },
+    { value: "experimental", label: "Experimental measurements" },
+    { value: "mixed",        label: "Mixed / Unknown" },
+  ]) {
+    const wrapper = el("div", { cls: "gate-option" });
+    const radio   = el("input", { type: "radio", name: "ag-type", id: `ag-${opt.value}`, value: opt.value });
+    const label   = el("label", { cls: "gate-option__label", for: `ag-${opt.value}`, text: opt.label });
+    radio.addEventListener("change", () => { selectedType = opt.value; confirmBtn.disabled = false; });
+    wrapper.appendChild(radio);
+    wrapper.appendChild(label);
+    optionsWrap.appendChild(wrapper);
+  }
+
+  confirmBtn.addEventListener("click", async () => {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Saving…";
+    await put("/api/state/session", { data_type: selectedType });
+    await refreshState();
+    gate.remove();
+    // Re-render exploration with the new active dataset
+    _renderExploration(uploadResponse);
+    _refreshDatasetSwitcher();
+  });
+
+  gate.querySelector("#ag-cancel").addEventListener("click", () => gate.remove());
+
+  // Insert before the explore section
+  const exploreSection = document.getElementById("explore-section");
+  if (exploreSection) app.insertBefore(gate, exploreSection);
+  else app.appendChild(gate);
+}
+
 /** Render the single data-type gate after a successful upload. */
 function _renderGates(app, uploadResponse) {
   // Append gate below the upload section (don't clear — keep the zone visible)
@@ -173,10 +237,26 @@ async function _renderExploration(uploadResponse) {
         &nbsp;·&nbsp; uploaded ${new Date(meta.upload_timestamp).toLocaleTimeString()}
       </p>
     </div>
-    <button class="btn btn-secondary" id="back-btn">← Upload new file</button>
+    <div style="display:flex;gap:var(--space-3);">
+      <input type="file" id="add-file-input" accept=".csv" style="display:none" aria-label="Load additional CSV">
+      <button class="btn btn-secondary" id="add-file-btn">+ Load another file</button>
+      <button class="btn btn-secondary" id="back-btn">← Upload new file</button>
+    </div>
   `;
   app.appendChild(summaryBar);
   summaryBar.querySelector("#back-btn").addEventListener("click", renderUploadView);
+
+  // "Load another file" — uploads without clearing the current exploration view
+  const addFileInput = summaryBar.querySelector("#add-file-input");
+  summaryBar.querySelector("#add-file-btn").addEventListener("click", () => addFileInput.click());
+  addFileInput.addEventListener("change", () => {
+    if (!addFileInput.files[0]) return;
+    const file = addFileInput.files[0];
+    addFileInput.value = "";
+    _handleFile(file, summaryBar.querySelector("#add-file-btn"), (response) => {
+      _renderAdditionalFileGate(app, response);
+    });
+  });
 
   // ── Data preview table ────────────────────────────────────────────────────
   const previewSection = el("div", { cls: "preview-section card",
@@ -317,6 +397,71 @@ function _wireDropZone(dropZone, fileInput, containerEl, onSuccess) {
   });
 }
 
+/**
+ * Fetch the loaded dataset list and update the switcher in the global header.
+ * Shows the switcher only when 2+ datasets are loaded.
+ */
+async function _refreshDatasetSwitcher() {
+  const resp = await get("/api/data/datasets");
+  if (!resp.success) return;
+
+  const nav = document.querySelector(".global-header__controls");
+  let switcher = document.getElementById("dataset-switcher-group");
+
+  if (resp.count < 2) {
+    if (switcher) switcher.remove();
+    return;
+  }
+
+  // Build or rebuild the switcher control group
+  if (switcher) switcher.remove();
+  switcher = el("div", { cls: "global-header__control-group", id: "dataset-switcher-group" });
+  const label = el("span", { cls: "global-header__control-label", text: "Dataset" });
+  const select = el("select", { cls: "global-header__select", id: "dataset-switcher",
+    "aria-label": "Active dataset" });
+
+  for (const ds of resp.datasets) {
+    const typeLabel = ds.data_type ? ` — ${ds.data_type}` : "";
+    const opt = el("option", { value: ds.key, text: `${ds.filename}${typeLabel}` });
+    if (ds.active) opt.selected = true;
+    select.appendChild(opt);
+  }
+
+  select.addEventListener("change", async () => {
+    await put("/api/state/session", { active_dataset_key: select.value });
+    await refreshState();
+    const activeDs = resp.datasets.find((d) => d.key === select.value);
+    if (activeDs) {
+      const dsResp = await get("/api/data/datasets");
+      const active = dsResp.datasets?.find((d) => d.key === select.value);
+      if (active) {
+        // Re-render exploration with refreshed data
+        const uploadMeta = {
+          metadata: {
+            filename:         active.filename,
+            n_rows:           active.n_rows,
+            n_cols:           active.n_cols,
+            upload_timestamp: new Date().toISOString(),
+            null_counts:      {},
+            coercion_warnings: [],
+          },
+          preview: { columns: [], rows: [], total_rows: active.n_rows },
+        };
+        _renderExploration(uploadMeta);
+        showSuccess(`Switched to "${active.filename}"`);
+      }
+    }
+    _refreshDatasetSwitcher();
+  });
+
+  switcher.appendChild(label);
+  switcher.appendChild(select);
+
+  // Insert before the theme toggle
+  const themeBtn = document.getElementById("theme-toggle");
+  nav.insertBefore(switcher, themeBtn);
+}
+
 /** Wire global header controls: theme toggle, level select, cores select. */
 function _initGlobalHeader() {
   const themeBtn  = document.getElementById("theme-toggle");
@@ -409,6 +554,12 @@ async function _handleFile(file, dropZone, onSuccess) {
       showWarning(w, 8000);
     }
   }
+  if (result.eviction_warnings?.length) {
+    for (const w of result.eviction_warnings) {
+      showWarning(w, 10000);
+    }
+  }
 
+  await _refreshDatasetSwitcher();
   onSuccess(result);
 }

@@ -6,6 +6,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.0] — 2026-05-12
+
+### Multi-file loading + stats formatting
+
+#### Added
+
+- **Multi-file dataset loading** — uploading a second (or third…) CSV no longer replaces the first. Each file is stored in a new `_datasets` accumulator dict keyed by safe filename. The most recently uploaded file becomes the active dataset; all existing API endpoints (`/api/data/rows`, `/api/data/summary`) continue to serve the active dataset transparently via a `datasets.primary` mirror.
+- **`GET /api/data/datasets`** — new endpoint returning all loaded datasets with key, filename, row/col counts, data type, memory footprint (bytes), and active flag.
+- **Dataset switcher in global header** — appears automatically when 2+ datasets are loaded. Dropdown shows `filename — data_type` for each entry. Selecting a dataset calls `PUT /api/state/session` with the new `active_dataset_key`, mirrors the dataset to primary, and re-renders the exploration view.
+- **"Load another file" button** — available in the exploration view summary bar. Opens a file picker; on selection, uploads the file and shows a compact inline gate above the current exploration view. The existing chart stays visible while the user selects the data type.
+- **`active_dataset_key` in `PUT /api/state/session`** — switching the active dataset mirrors the selected `_datasets` entry to primary and logs the switch via `app.logger.info()`.
+- **`data_type` annotated per dataset** — when the gate sets `data_type` via `PUT /api/state/session`, the active dataset's metadata is also updated. Shown in the switcher dropdown and in `GET /api/data/datasets`.
+- **LRU eviction** — when either `MAX_DATASETS = 5` (count cap) or `MAX_DATASETS_MEMORY_MB = 2048` (memory budget) is exceeded, the least-recently-accessed dataset is dropped. Evictions emit a warning toast and are logged via `app.logger.info()`. Eviction warnings are included in the upload API response.
+- **Memory tracking** — `df.memory_usage(deep=True).sum()` computed at upload time; stored as `memory_bytes` per dataset entry. Reported in `GET /api/data/datasets`.
+- **`MAX_DATASETS` and `MAX_DATASETS_MEMORY_MB`** constants in `config/settings.py`.
+- **7 new integration tests** for multi-file upload, dataset accumulation, active-key switching, 404 on unknown key, data_type per dataset, empty dataset list, and eviction response shape.
+
+#### Changed
+
+- **Summary statistics — two-tier layout** — stats cards reorganised from 7 flat rows into two groups:
+  - *Primary* (bold): `μ ± σ` (mean ± std) and `range` (min … max).
+  - *Secondary* (muted): `median`, `nulls` (shown as `n / N (x%)`), `skew`.
+- **Stats card quality border** — left border color indicates data quality: green = 0% nulls, amber = 1–10%, red > 10%.
+- **Column name styling** — larger font weight, bottom border separating name from stats rows.
+
+---
+
 ## [0.1.10] — 2026-05-12
 
 ### Bug fix

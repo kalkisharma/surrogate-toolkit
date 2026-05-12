@@ -251,3 +251,95 @@ def test_session_update(client):
     data = json.loads(resp.data)
     assert data["success"] is True
     assert data["session"]["learning_mode"] is True
+
+
+# ─── MULTI-FILE LOADING ───────────────────────────────────────────────────────
+
+
+def test_upload_returns_dataset_key(client, csv_clean):
+    """POST /api/data/upload response includes dataset_key and loaded_count."""
+    resp = _upload(client, csv_clean, "file_a.csv")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "dataset_key" in data
+    assert "loaded_count" in data
+    assert data["loaded_count"] == 1
+    assert data["dataset_key"] == "file_a.csv"
+
+
+def test_two_uploads_accumulate(client, csv_clean):
+    """Uploading two distinct files accumulates both in _datasets."""
+    _upload(client, csv_clean, "file_a.csv")
+    resp = _upload(client, csv_clean, "file_b.csv")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["loaded_count"] == 2
+    assert data["dataset_key"] == "file_b.csv"
+
+
+def test_datasets_endpoint_lists_loaded(client, csv_clean):
+    """GET /api/data/datasets returns all loaded datasets with correct shape."""
+    _upload(client, csv_clean, "file_a.csv")
+    _upload(client, csv_clean, "file_b.csv")
+    resp = client.get("/api/data/datasets")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["count"] == 2
+    keys = {ds["key"] for ds in data["datasets"]}
+    assert "file_a.csv" in keys
+    assert "file_b.csv" in keys
+    # file_b should be active (last uploaded)
+    active = next(ds for ds in data["datasets"] if ds["active"])
+    assert active["key"] == "file_b.csv"
+
+
+def test_active_dataset_switch(client, csv_clean):
+    """PUT /api/state/session with active_dataset_key mirrors that dataset to primary."""
+    _upload(client, csv_clean, "file_a.csv")
+    _upload(client, csv_clean, "file_b.csv")
+    # Switch back to file_a
+    resp = client.put(
+        "/api/state/session",
+        data=json.dumps({"active_dataset_key": "file_a.csv"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    # Verify rows endpoint now serves file_a (same data in this test, so just check 200)
+    rows_resp = client.get("/api/data/rows")
+    assert rows_resp.status_code == 200
+
+
+def test_switch_to_nonexistent_dataset_returns_404(client, csv_clean):
+    """PUT /api/state/session with unknown active_dataset_key returns 404."""
+    _upload(client, csv_clean, "file_a.csv")
+    resp = client.put(
+        "/api/state/session",
+        data=json.dumps({"active_dataset_key": "nonexistent.csv"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 404
+
+
+def test_data_type_stored_per_dataset(client, csv_clean):
+    """PUT /api/state/session data_type annotates the active dataset metadata."""
+    _upload(client, csv_clean, "file_a.csv")
+    client.put(
+        "/api/state/session",
+        data=json.dumps({"data_type": "simulation"}),
+        content_type="application/json",
+    )
+    resp = client.get("/api/data/datasets")
+    data = json.loads(resp.data)
+    active = next(ds for ds in data["datasets"] if ds["active"])
+    assert active["data_type"] == "simulation"
+
+
+def test_datasets_endpoint_no_data(client):
+    """GET /api/data/datasets with no uploads returns empty list."""
+    resp = client.get("/api/data/datasets")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["count"] == 0
+    assert data["datasets"] == []
