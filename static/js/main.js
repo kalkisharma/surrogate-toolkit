@@ -446,10 +446,14 @@ async function _refreshDatasetSwitcher() {
             n_rows:           active.n_rows,
             n_cols:           active.n_cols,
             upload_timestamp: new Date().toISOString(),
-            null_counts:      {},
+            null_counts:      active.null_counts || {},
             coercion_warnings: [],
           },
-          preview: { columns: active.columns || [], rows: [], total_rows: active.n_rows },
+          preview: {
+            columns:    active.columns     || [],
+            rows:       active.preview_rows || [],
+            total_rows: active.n_rows,
+          },
         };
         _renderExploration(uploadMeta);
         showSuccess(`Switched to "${active.filename}"`);

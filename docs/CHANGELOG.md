@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.3] — 2026-05-12
+
+### Bug fix
+
+#### Fixed
+
+- **Data Preview table disappears on dataset switch** — `preview_rows` (first 10 rows) were computed at upload time but not stored in `_datasets` metadata, so the switcher had no rows to pass to `_renderExploration`. Fix: `preview_rows` and `null_counts` are now stored in `ds_meta` at upload time; `GET /api/data/datasets` returns both fields per dataset; the switcher handler populates `uploadMeta.preview.rows` and `uploadMeta.metadata.null_counts` from the cached values, so the Data Preview table renders correctly on every switch.
+
+---
+
 ## [0.2.2] — 2026-05-12
 
 ### Clear session

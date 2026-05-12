@@ -170,6 +170,11 @@ def upload():
         "data_type":          None,   # filled in by the gate (PUT /api/state/session)
     }
 
+    # Compute preview rows here so they can be recalled when switching datasets.
+    preview_df   = df.head(10).where(df.head(10).notna(), other=None)
+    preview_rows = _numpy_to_python(preview_df.to_dict(orient="records"))
+    ds_meta["preview_rows"] = preview_rows
+
     # Build dataset entry and store in _datasets accumulator
     ds_entry = {
         "raw":          df.copy(),
@@ -233,10 +238,6 @@ def upload():
         f"Dataset loaded: '{safe_name}' ({mem_bytes // 1024} KB, "
         f"{len(_datasets)} dataset(s) in session)"
     )
-
-    # ── Build preview ────────────────────────────────────────────────────────
-    preview_df  = df.head(10).where(df.head(10).notna(), other=None)
-    preview_rows = _numpy_to_python(preview_df.to_dict(orient="records"))
 
     return jsonify(
         {
@@ -421,12 +422,14 @@ def datasets():
         result.append({
             "key":          key,
             "filename":     m.get("filename", key),
-            "n_rows":       m.get("n_rows_original", 0),
-            "n_cols":       m.get("n_cols", 0),
-            "data_type":    m.get("data_type"),
-            "memory_bytes": ds.get("memory_bytes", 0),
-            "columns":      m.get("columns", []),
-            "active":       key == active_key,
+            "n_rows":        m.get("n_rows_original", 0),
+            "n_cols":        m.get("n_cols", 0),
+            "data_type":     m.get("data_type"),
+            "memory_bytes":  ds.get("memory_bytes", 0),
+            "columns":       m.get("columns", []),
+            "null_counts":   m.get("null_counts", {}),
+            "preview_rows":  m.get("preview_rows", []),
+            "active":        key == active_key,
         })
 
     return jsonify({
