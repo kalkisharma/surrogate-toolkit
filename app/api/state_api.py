@@ -45,7 +45,8 @@ def get_state():
     Future:
         Support ETag-based conditional GET to skip sending unchanged STATE.
     """
-    return jsonify({"success": True, "state": get_state_json_safe()})
+    from config.settings import VERSION
+    return jsonify({"success": True, "version": VERSION, "state": get_state_json_safe()})
 
 
 @bp.route("/session", methods=["PUT"])

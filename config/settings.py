@@ -18,6 +18,10 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
+# ─── VERSION ──────────────────────────────────────────────────────────────────
+
+VERSION = "0.1.0"
+
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
 MAX_FILE_SIZE_MB = 500
