@@ -62,6 +62,9 @@ function _getThemeColors(palette = "blueRed") {
  * @param {boolean}     [options.showMajorGrid=true]
  * @param {boolean}     [options.showMinorGrid=false]
  * @param {string}      [options.palette="blueRed"]
+ * @param {number}      [options.opacity=0.8]       - Marker fill opacity (0.1–1.0).
+ * @param {string}      [options.edgeColor="#000000"] - Marker border colour (hex).
+ * @param {number}      [options.edgeWidth=0]        - Marker border width (px).
  * @returns {{ capped: boolean, displayedColumns: string[], computedMarkerSize: number, computedHeight: number }}
  */
 export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
@@ -74,6 +77,9 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     showMajorGrid  = true,
     showMinorGrid  = false,
     palette        = "blueRed",
+    opacity        = 0.8,
+    edgeColor      = "#000000",
+    edgeWidth      = 0,
   } = options;
 
   const displayedColumns = columns.slice(0, SPLOM_MAX_COLS);
@@ -109,8 +115,8 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     marker: {
       color:   colors,
       size:    computedMarkerSize,
-      opacity: 0.8,
-      line:    { width: 0 },
+      opacity: opacity,
+      line:    { width: edgeWidth, color: edgeColor },
     },
     diagonal:      { visible: true },
     showupperhalf: false,
@@ -149,7 +155,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     responsive:             true,
     displayModeBar:         true,
     displaylogo:            false,
-    modeBarButtonsToRemove: ["toImage", "sendDataToCloud"],
+    modeBarButtonsToRemove: ["sendDataToCloud"],
   };
 
   // eslint-disable-next-line no-undef

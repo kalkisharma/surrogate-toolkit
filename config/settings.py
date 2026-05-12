@@ -21,7 +21,7 @@ LAST MODIFIED: 2026-05-12
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
@@ -62,6 +62,8 @@ DEFAULT_PROCESSOR_MODE = 'serial'
 HEAD_NODE_WARNING_THRESHOLD = 4      # show caution if user requests more than this
 
 # ─── STATE LIMITS ─────────────────────────────────────────────────────────────
+
+MAX_PLOT_ROWS = 2000            # max rows sent to the browser scatter matrix
 
 MAX_PREDICTION_HISTORY = 20
 MAX_AUDIT_EVENTS = 1000

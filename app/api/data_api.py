@@ -26,6 +26,7 @@ from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
 from app.data.ingestion import ingest_csv
+from config.settings import MAX_PLOT_ROWS
 
 bp = Blueprint("data", __name__)
 
@@ -265,6 +266,60 @@ def summary():
             "n_rows": len(df),
             "n_cols": len(df.columns),
             "columns": list(df.columns),
+        }
+    ), 200
+
+
+@bp.route("/rows", methods=["GET"])
+def rows():
+    """
+    Return up to MAX_PLOT_ROWS rows from the full ingested dataset for use
+    in the scatter matrix. The upload preview is limited to 10 rows; this
+    endpoint provides the complete (or truncated) dataset to the chart.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "rows": [...],
+              "columns": [...],
+              "total_rows": N,
+              "shown_rows": M,
+              "truncated": bool
+            }
+        JSON 400: No data loaded yet.
+    """
+    state = current_app.config["STATE"]
+    df = state["datasets"]["primary"]["raw"]
+
+    if df is None:
+        return (
+            jsonify(
+                {
+                    "success": False,
+                    "error_code": "NO_DATA",
+                    "message": "No dataset is loaded. Upload a CSV file first.",
+                    "detail": "",
+                    "recoverable": True,
+                    "allowed_actions": ["upload"],
+                }
+            ),
+            400,
+        )
+
+    total = len(df)
+    limit = min(total, MAX_PLOT_ROWS)
+    subset = df.iloc[:limit].where(df.iloc[:limit].notna(), other=None)
+    row_data = _numpy_to_python(subset.to_dict(orient="records"))
+
+    return jsonify(
+        {
+            "success": True,
+            "rows": row_data,
+            "columns": list(df.columns),
+            "total_rows": total,
+            "shown_rows": limit,
+            "truncated": total > MAX_PLOT_ROWS,
         }
     ), 200
 

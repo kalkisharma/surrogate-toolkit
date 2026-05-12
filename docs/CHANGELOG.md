@@ -6,6 +6,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.6] — 2026-05-12
+
+### Explore view — full data, layout refactor, expanded plot controls
+
+#### Added
+
+- **`GET /api/data/rows`** — new endpoint returning up to `MAX_PLOT_ROWS = 2000` rows from the full ingested dataset. Used by the frontend to populate the SPLOM with real data instead of the 10-row upload preview. Returns `rows`, `columns`, `total_rows`, `shown_rows`, `truncated`. Truncation notice shown in the UI when total rows exceeds the limit.
+- **`MAX_PLOT_ROWS = 2000`** constant in `config/settings.py`.
+- **Marker opacity control** — range slider (0.10–1.00, step 0.05) with live numeric readout. Maps to `marker.opacity` in Plotly.
+- **Marker edge width** — number input (0–3, step 0.5). Maps to `marker.line.width`.
+- **Marker edge color** — color picker. Maps to `marker.line.color`. Greyed out (disabled) when edge width is 0.
+- **Chart width control** — number input (400–1400 px, step 50) with a "Full" checkbox for unconstrained width. Sets CSS `max-width` on the chart container; Plotly `responsive: true` stays intact.
+- **Save plot** — re-enabled Plotly's built-in camera/download button (previously suppressed via `modeBarButtonsToRemove`). Downloads the chart as PNG.
+- **2 new integration tests** for `GET /api/data/rows` (no-data 400, after-upload 200 with correct shape).
+
+#### Changed
+
+- **Font size controls** — replaced S/M/L button groups with `<input type="number">`. Label font: 7–20 px. Tick font: 6–16 px. Both debounced 200 ms.
+- **Summary statistics moved below chart** — removed the right sidebar. Stats now appear as a flex-wrap row of fixed-width (180 px) per-column cards beneath the chart. Frees the chart to use full container width.
+- **Explore layout** — `explore-layout` flex row and sidebar removed from the view. Chart wrap and stats section are now direct children of the view root.
+- **Outlier detection** — now runs on all fetched rows (up to 2,000) instead of the 10-row preview. IQR detection is more representative of the actual dataset distribution.
+
+---
+
 ## [0.1.5] — 2026-05-12
 
 ### Plot settings panel

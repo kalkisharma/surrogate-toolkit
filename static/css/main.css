@@ -642,3 +642,79 @@ body,
 }
 .chart-settings-select:hover { border-color: var(--color-border-focus); }
 .chart-settings-select:focus { outline: none; border-color: var(--color-border-focus); box-shadow: var(--shadow-accent); }
+
+/* Range slider */
+.range-with-value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.chart-settings-range {
+  width: 80px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+.chart-settings-range-val {
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  color: var(--color-text-secondary);
+  min-width: 30px;
+}
+
+/* Color picker */
+.chart-settings-color {
+  width: 36px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-input);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
+}
+.chart-settings-color:hover:not(:disabled) { border-color: var(--color-border-focus); }
+.chart-settings-color:disabled { cursor: not-allowed; }
+
+/* Width control (number input + Full checkbox side by side) */
+.width-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ── Stats section (below chart) ─────────────────────────────────────────────── */
+.stats-section {
+  margin-top: var(--space-6);
+}
+.stats-section__header {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semi);
+  color: var(--color-text-secondary);
+  border-left: 3px solid var(--color-accent);
+  padding-left: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.stats-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.stats-col-card {
+  width: 180px;
+  flex-shrink: 0;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+.stats-col-card__name {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semi);
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

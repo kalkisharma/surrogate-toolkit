@@ -207,6 +207,36 @@ def test_summary_after_upload(client, csv_edge):
     assert data["n_rows"] == 10
 
 
+# ─── ROWS ENDPOINT ────────────────────────────────────────────────────────────
+
+
+def test_rows_no_data(client):
+    """GET /api/data/rows without uploading returns 400 NO_DATA."""
+    resp = client.get("/api/data/rows")
+    assert resp.status_code == 400
+    data = json.loads(resp.data)
+    assert data["error_code"] == "NO_DATA"
+
+
+def test_rows_after_upload(client, csv_clean):
+    """GET /api/data/rows after upload returns all rows up to MAX_PLOT_ROWS."""
+    _upload(client, csv_clean, "sample_clean.csv")
+    resp = client.get("/api/data/rows")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert "rows" in data
+    assert "columns" in data
+    assert "total_rows" in data
+    assert "shown_rows" in data
+    assert isinstance(data["truncated"], bool)
+    # sample_clean.csv has 500 rows — all within MAX_PLOT_ROWS (2000)
+    assert data["total_rows"] == 500
+    assert data["shown_rows"] == 500
+    assert data["truncated"] is False
+    assert len(data["rows"]) == 500
+
+
 # ─── SESSION UPDATE ───────────────────────────────────────────────────────────
 
 
