@@ -1,0 +1,81 @@
+/* =============================================================================
+   notifications.css — Toast notification styles
+   surrogate-toolkit | Copyright © 2026 Kalki Sharma. All rights reserved.
+   ============================================================================= */
+
+#notification-container {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-6);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  pointer-events: none;
+  max-width: 400px;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid;
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+  pointer-events: auto;
+  animation: toast-in 200ms ease forwards;
+  backdrop-filter: blur(8px);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.toast.toast--exiting {
+  animation: toast-out 200ms ease forwards;
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(20px); }
+}
+
+.toast--success {
+  background: rgba(22, 35, 25, 0.95);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.toast--error {
+  background: rgba(35, 16, 16, 0.95);
+  border-color: var(--color-error);
+  color: var(--color-error);
+}
+.toast--warning {
+  background: rgba(35, 28, 16, 0.95);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+.toast--info {
+  background: rgba(16, 28, 35, 0.95);
+  border-color: var(--color-info);
+  color: var(--color-info);
+}
+
+.toast__icon { font-size: var(--text-lg); flex-shrink: 0; }
+.toast__body { flex: 1; }
+.toast__message { color: var(--color-text-primary); }
+.toast__dismiss {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+.toast__dismiss:hover { color: var(--color-text-primary); }

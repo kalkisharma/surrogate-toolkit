@@ -1,0 +1,65 @@
+/* =============================================================================
+   loading.css — Spinner, progress bar, skeleton screen styles
+   surrogate-toolkit | Copyright © 2026 Kalki Sharma. All rights reserved.
+   ============================================================================= */
+
+/* ── Spinner overlay ─────────────────────────────────────────────────────────── */
+.spinner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 17, 23, 0.75);
+  border-radius: inherit;
+  z-index: 50;
+  backdrop-filter: blur(2px);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 600ms linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Inline progress bar ─────────────────────────────────────────────────────── */
+.progress-bar-wrap {
+  height: 4px;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin: var(--space-3) 0;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-full);
+  transition: width 200ms ease;
+}
+
+/* ── Skeleton screens ────────────────────────────────────────────────────────── */
+.skeleton {
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+.skeleton-row {
+  height: 16px;
+  margin-bottom: var(--space-3);
+}
+.skeleton-row:last-child { margin-bottom: 0; }
+.skeleton-row--short { width: 60%; }
+.skeleton-row--medium { width: 80%; }

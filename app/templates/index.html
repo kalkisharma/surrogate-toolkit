@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Surrogate Modeling Toolkit — build fast surrogate models from analytical or test data.">
+  <title>Surrogate Modeling Toolkit</title>
+
+  <!-- Preconnect for Google Fonts (Inter) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/static/css/variables.css">
+  <link rel="stylesheet" href="/static/css/main.css">
+  <link rel="stylesheet" href="/static/css/notifications.css">
+  <link rel="stylesheet" href="/static/css/loading.css">
+  <link rel="stylesheet" href="/static/css/learning_mode.css">
+</head>
+<body>
+
+  <!-- Learning mode status bar — always in the DOM, hidden when off -->
+  <header id="learning-status-bar" class="hidden" role="banner" aria-label="Learning mode status">
+    <div class="status-bar__left">
+      <span class="status-bar__label">📚 Learning Mode</span>
+      <span class="status-bar__desc">Explanations and tooltips are expanded — hover any labelled element for details</span>
+    </div>
+    <label class="toggle-switch" title="Toggle learning mode">
+      <input type="checkbox" id="learning-mode-checkbox" checked>
+      <span class="toggle-switch__track"></span>
+      <span>Disable</span>
+    </label>
+  </header>
+
+  <!-- SPA root — all views are rendered here by the JavaScript router -->
+  <main id="app" role="main"></main>
+
+  <!-- Notification container — outside #app so toasts overlay everything -->
+  <div id="notification-container" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Plotly (blocking, must load before any module that uses charts.js) -->
+  <script src="/static/vendor/plotly.min.js"></script>
+
+  <!-- App entry point (ES module — loads the entire module graph) -->
+  <script type="module" src="/static/js/main.js"></script>
+
+</body>
+</html>

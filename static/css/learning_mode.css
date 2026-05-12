@@ -1,0 +1,136 @@
+/* =============================================================================
+   learning_mode.css — Learning mode status bar, primers, expanded tooltips
+   surrogate-toolkit | Copyright © 2026 Kalki Sharma. All rights reserved.
+   ============================================================================= */
+
+/* ── Status bar ──────────────────────────────────────────────────────────────── */
+#learning-status-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--status-bar-height);
+  padding: 0 var(--space-6);
+  background: rgba(75, 110, 245, 0.08);
+  border-bottom: 1px solid var(--color-accent);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  backdrop-filter: blur(8px);
+}
+
+.status-bar__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.status-bar__label {
+  font-weight: var(--font-semi);
+  letter-spacing: 0.02em;
+}
+
+.status-bar__desc {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────────────────── */
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  user-select: none;
+}
+.toggle-switch input[type="checkbox"] { display: none; }
+.toggle-switch__track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-base), border-color var(--transition-base);
+}
+.toggle-switch__track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: var(--color-text-muted);
+  border-radius: var(--radius-full);
+  transition: transform var(--transition-base), background var(--transition-base);
+}
+.toggle-switch input:checked ~ .toggle-switch__track {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+.toggle-switch input:checked ~ .toggle-switch__track::after {
+  transform: translateX(16px);
+  background: var(--color-accent);
+}
+
+/* ── Collapsible primers (<details>) ─────────────────────────────────────────── */
+.primer {
+  margin-bottom: var(--space-4);
+  background: rgba(75, 110, 245, 0.06);
+  border: 1px solid rgba(75, 110, 245, 0.2);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.primer summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-accent);
+  list-style: none;
+  user-select: none;
+}
+.primer summary::before {
+  content: "▶";
+  font-size: var(--text-xs);
+  transition: transform var(--transition-fast);
+}
+.primer[open] summary::before { transform: rotate(90deg); }
+.primer summary::-webkit-details-marker { display: none; }
+.primer__body {
+  padding: var(--space-4);
+  padding-top: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+/* Phase 2: add max-height animation here */
+
+/* ── Expanded tooltips ───────────────────────────────────────────────────────── */
+.tooltip-expanded {
+  position: fixed;
+  z-index: 9999;
+  max-width: 300px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+  pointer-events: none;
+}
+.tooltip-expanded__title {
+  font-weight: var(--font-semi);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-sm);
+}
