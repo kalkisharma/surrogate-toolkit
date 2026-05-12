@@ -11,16 +11,36 @@
 // Maximum columns shown in scatter matrix before we cap for readability.
 const SPLOM_MAX_COLS = 10;
 
+// Normal/outlier color pairs per palette, for light and dark themes.
+const _PALETTES = {
+  blueRed: {
+    light: { normal: "rgba(59,93,217,0.75)",  outlier: "rgba(220,38,38,0.90)"  },
+    dark:  { normal: "rgba(75,110,245,0.65)",  outlier: "rgba(239,68,68,0.85)"  },
+  },
+  greenOrange: {
+    light: { normal: "rgba(22,163,74,0.75)",   outlier: "rgba(234,88,12,0.90)"  },
+    dark:  { normal: "rgba(34,197,94,0.65)",   outlier: "rgba(251,146,60,0.85)" },
+  },
+  tealAmber: {
+    light: { normal: "rgba(13,148,136,0.75)",  outlier: "rgba(217,119,6,0.90)"  },
+    dark:  { normal: "rgba(20,184,166,0.65)",  outlier: "rgba(245,158,11,0.85)" },
+  },
+};
+
 /**
- * Return theme-aware color/font values for the scatter matrix.
+ * Return theme- and palette-aware color values.
  * Called at render time so toggling theme between renders picks up correctly.
+ *
+ * @param {string} [palette="blueRed"]
  */
-function _getThemeColors() {
+function _getThemeColors(palette = "blueRed") {
   const dark = document.documentElement.getAttribute("data-theme") === "dark";
+  const pal = _PALETTES[palette] || _PALETTES.blueRed;
+  const { normal, outlier } = dark ? pal.dark : pal.light;
   return {
-    normal:  dark ? "rgba(75,110,245,0.65)"  : "rgba(59,93,217,0.75)",
-    outlier: dark ? "rgba(239,68,68,0.85)"   : "rgba(220,38,38,0.90)",
-    font:    dark ? "#8b94b3"                : "#4b5478",
+    normal,
+    outlier,
+    font: dark ? "#8b94b3" : "#4b5478",
   };
 }
 
@@ -34,31 +54,48 @@ function _getThemeColors() {
  * @param {string[]} columns - Column names to include.
  * @param {object[]} rows - Array of row objects (preview or full data).
  * @param {object} [options]
- * @param {Set<number>} [options.outlierIndices] - Row indices to colour as outliers.
- * @returns {{ capped: boolean, displayedColumns: string[] }}
+ * @param {Set<number>} [options.outlierIndices]   - Row indices to colour as outliers.
+ * @param {number}      [options.fontSize=11]      - Dimension label font size (px).
+ * @param {number}      [options.tickFontSize=9]   - Axis tick number font size (px).
+ * @param {number|null} [options.markerSize]       - null = auto-scale by row count.
+ * @param {number|null} [options.height]           - null = auto-scale by column count.
+ * @param {boolean}     [options.showMajorGrid=true]
+ * @param {boolean}     [options.showMinorGrid=false]
+ * @param {string}      [options.palette="blueRed"]
+ * @returns {{ capped: boolean, displayedColumns: string[], computedMarkerSize: number, computedHeight: number }}
  */
 export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
+  const {
+    outlierIndices = new Set(),
+    fontSize       = 11,
+    tickFontSize   = 9,
+    markerSize     = null,
+    height         = null,
+    showMajorGrid  = true,
+    showMinorGrid  = false,
+    palette        = "blueRed",
+  } = options;
+
   const displayedColumns = columns.slice(0, SPLOM_MAX_COLS);
   const capped = columns.length > SPLOM_MAX_COLS;
 
   if (!rows || rows.length === 0) {
     containerEl.innerHTML = '<p style="color:var(--color-text-muted);padding:2rem;text-align:center">No data to display.</p>';
-    return { capped, displayedColumns };
+    return { capped, displayedColumns, computedMarkerSize: 6, computedHeight: 400 };
   }
 
-  const { outlierIndices = new Set() } = options;
-  const theme = _getThemeColors();
+  const theme = _getThemeColors(palette);
 
   // Build per-column value arrays
   const colData = displayedColumns.map((col) => rows.map((r) => r[col] ?? null));
 
-  // Point colours: accent for normal, error red for outliers
+  // Point colours: palette normal for regular points, outlier red for flagged rows
   const colors = rows.map((_, i) =>
     outlierIndices.has(i) ? theme.outlier : theme.normal
   );
 
-  // Scale marker size by row count — larger dots for sparse datasets
-  const markerSize = Math.max(4, Math.min(8, 400 / rows.length));
+  const computedMarkerSize = markerSize !== null ? markerSize : Math.max(4, Math.min(8, 400 / rows.length));
+  const computedHeight     = height     !== null ? height     : Math.max(400, displayedColumns.length * 90);
 
   // Truncate long column names so labels don't overlap in SPLOM cells
   const truncate = (name) => name.length > 9 ? name.slice(0, 8) + "…" : name;
@@ -71,7 +108,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     })),
     marker: {
       color:   colors,
-      size:    markerSize,
+      size:    computedMarkerSize,
       opacity: 0.8,
       line:    { width: 0 },
     },
@@ -80,26 +117,45 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     showlowerhalf: true,
   };
 
+  // Enumerate axis keys for all SPLOM dimensions.
+  // Plotly generates: xaxis, xaxis2, xaxis3, ... (first axis has no number suffix).
+  const axisLayout = {};
+  for (let i = 1; i <= displayedColumns.length; i++) {
+    const xk = i === 1 ? "xaxis" : `xaxis${i}`;
+    const yk = i === 1 ? "yaxis" : `yaxis${i}`;
+    axisLayout[xk] = {
+      showgrid: showMajorGrid,
+      tickfont: { size: tickFontSize },
+      ...(showMinorGrid ? { minor: { showgrid: true } } : {}),
+    };
+    axisLayout[yk] = {
+      showgrid: showMajorGrid,
+      tickfont: { size: tickFontSize },
+      ...(showMinorGrid ? { minor: { showgrid: true } } : {}),
+    };
+  }
+
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
-    font: { color: theme.font, family: "Inter, system-ui, sans-serif", size: 11 },
+    font:     { color: theme.font, family: "Inter, system-ui, sans-serif", size: fontSize },
     margin:   { t: 20, b: 20, l: 20, r: 20 },
-    height:   Math.max(400, displayedColumns.length * 90),
+    height:   computedHeight,
     dragmode: "select",
+    ...axisLayout,
   };
 
   const config = {
-    responsive: true,
-    displayModeBar: true,
-    displaylogo: false,
+    responsive:             true,
+    displayModeBar:         true,
+    displaylogo:            false,
     modeBarButtonsToRemove: ["toImage", "sendDataToCloud"],
   };
 
   // eslint-disable-next-line no-undef
   Plotly.newPlot(containerEl, [trace], layout, config);
 
-  return { capped, displayedColumns };
+  return { capped, displayedColumns, computedMarkerSize, computedHeight };
 }
 
 /**
@@ -109,11 +165,12 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
  * @param {HTMLElement} containerEl
  * @param {object[]} rows
  * @param {Set<number>} outlierIndices
+ * @param {string} [palette="blueRed"]
  */
-export function updateScatterMatrixOutliers(containerEl, rows, outlierIndices) {
-  if (!containerEl._fullLayout) return; // not yet rendered
+export function updateScatterMatrixOutliers(containerEl, rows, outlierIndices, palette = "blueRed") {
+  if (!containerEl._fullLayout) return;
 
-  const theme = _getThemeColors();
+  const theme = _getThemeColors(palette);
   const colors = rows.map((_, i) =>
     outlierIndices.has(i) ? theme.outlier : theme.normal
   );

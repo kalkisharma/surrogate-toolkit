@@ -6,6 +6,28 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.5] — 2026-05-12
+
+### Plot settings panel
+
+#### Added
+
+- **Expandable plot settings panel** — a `<details>`/`<summary>` panel inserted between the outlier controls and the scatter matrix. Collapsed by default; click "Plot Settings ▸" to expand. Settings are persisted to `localStorage` under `surrogate_chart_settings` and restored on page reload.
+- **Label font size** — S / M / L button group (9 / 11 / 13 px) controlling the dimension label text in the SPLOM.
+- **Tick font size** — S / M / L button group (7 / 9 / 11 px) controlling the axis tick number text independently from dimension labels.
+- **Marker size** — number input (3–12, step 1); pre-filled with the auto-scaled value computed from row count. Updates on input with 200 ms debounce.
+- **Figure height** — number input (300–1200 px, step 50); pre-filled with the auto-scaled value computed from column count. Updates on input with 200 ms debounce.
+- **Major gridlines** — checkbox, on by default.
+- **Minor gridlines** — checkbox, off by default.
+- **Marker palette** — select dropdown: Blue/Red (default), Green/Orange, Teal/Amber. Each palette has distinct light-mode and dark-mode colour pairs for normal and outlier markers.
+
+#### Changed
+
+- **`charts.js`** — `_PALETTES` constant defines three named colour pairs (normal/outlier) for light and dark themes. `_getThemeColors(palette)` accepts palette name. `renderScatterMatrix()` expanded options: `fontSize`, `tickFontSize`, `markerSize`, `height`, `showMajorGrid`, `showMinorGrid`, `palette`. Axis keys enumerated explicitly so tick font and grid settings apply to all SPLOM cells. Returns `computedMarkerSize` and `computedHeight` for panel pre-fill. `updateScatterMatrixOutliers()` accepts optional `palette` argument.
+- **`data_explorer.js`** — outlier toggle now calls full `renderScatterMatrix()` with current settings (not `updateScatterMatrixOutliers`) so palette and size remain consistent on toggle.
+
+---
+
 ## [0.1.4] — 2026-05-12
 
 ### Pair plot (SPLOM) cleanup

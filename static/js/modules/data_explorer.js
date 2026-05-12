@@ -3,10 +3,10 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
 // Description: Data exploration view — scatter plot matrix (via charts.js),
-//              stats sidebar, and outlier overlay toggle.
+//              stats sidebar, outlier overlay toggle, and plot settings panel.
 // =============================================================================
 
-import { renderScatterMatrix, updateScatterMatrixOutliers } from "../charts.js";
+import { renderScatterMatrix } from "../charts.js";
 import { registerPrimer, registerTooltip } from "../learning_mode.js";
 import { mean, stdDev, median, skewness, detectOutliers, el, formatNum, clearEl } from "../utils.js";
 import { get } from "../api.js";
@@ -18,6 +18,48 @@ let _outlierIndices = new Set();
 let _showOutliers = false;
 let _chartEl = null;
 
+// ── Chart settings ────────────────────────────────────────────────────────────
+
+const _SETTINGS_KEY = "surrogate_chart_settings";
+
+const _DEFAULT_SETTINGS = {
+  fontSize:      11,
+  tickFontSize:  9,
+  markerSize:    null,   // null = auto-scale by row count
+  height:        null,   // null = auto-scale by column count
+  showMajorGrid: true,
+  showMinorGrid: false,
+  palette:       "blueRed",
+};
+
+let _chartSettings = { ..._DEFAULT_SETTINGS };
+
+function _loadSettings() {
+  try {
+    const saved = localStorage.getItem(_SETTINGS_KEY);
+    if (saved) _chartSettings = { ..._DEFAULT_SETTINGS, ...JSON.parse(saved) };
+  } catch (_) {
+    _chartSettings = { ..._DEFAULT_SETTINGS };
+  }
+}
+
+function _saveSettings() {
+  localStorage.setItem(_SETTINGS_KEY, JSON.stringify(_chartSettings));
+}
+
+function _rerender() {
+  if (!_chartEl || !_currentRows.length) return;
+  const displayedCount = Math.min(_currentColumns.length, 10);
+  const autoMarkerSize = Math.max(4, Math.min(8, 400 / _currentRows.length));
+  const autoHeight     = Math.max(400, displayedCount * 90);
+  renderScatterMatrix(_chartEl, _currentColumns, _currentRows, {
+    outlierIndices: _showOutliers ? _outlierIndices : new Set(),
+    ..._chartSettings,
+    markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
+    height:     _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
+  });
+}
+
 /**
  * Initialise the data exploration view.
  *
@@ -26,6 +68,8 @@ let _chartEl = null;
  */
 export async function initExploration(containerEl, uploadResponse) {
   clearEl(containerEl);
+
+  _loadSettings();
 
   // Try to load full-dataset stats from the summary endpoint.
   // Falls back to preview data if /api/data/summary is unavailable.
@@ -36,8 +80,6 @@ export async function initExploration(containerEl, uploadResponse) {
 
   const summaryResp = await get("/api/data/summary");
   if (summaryResp.success && summaryResp.stats) {
-    // Rebuild row-format data from per-column stats for the sidebar.
-    // Scatter matrix still uses preview rows (spatial distribution sampling).
     _fullStats = summaryResp.stats;
     usingFullData = true;
   }
@@ -45,6 +87,11 @@ export async function initExploration(containerEl, uploadResponse) {
   _currentRows = rows;
   _currentColumns = columns;
   _outlierIndices = detectOutliers(rows, columns);
+
+  // Pre-compute auto values used by both the settings panel and initial render
+  const displayedCount = Math.min(columns.length, 10);
+  const autoMarkerSize = Math.max(4, Math.min(8, 400 / rows.length));
+  const autoHeight     = Math.max(400, displayedCount * 90);
 
   // ── Layout ────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
@@ -116,6 +163,13 @@ export async function initExploration(containerEl, uploadResponse) {
 
   containerEl.appendChild(controls);
 
+  // ── Plot settings panel ───────────────────────────────────────────────────
+  const panelEl = _renderSettingsPanel(
+    _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
+    _chartSettings.height     !== null ? _chartSettings.height     : autoHeight
+  );
+  containerEl.appendChild(panelEl);
+
   // ── Two-column layout ─────────────────────────────────────────────────────
   const layout = el("div", { cls: "explore-layout" });
 
@@ -135,18 +189,145 @@ export async function initExploration(containerEl, uploadResponse) {
   containerEl.appendChild(layout);
 
   // ── Render chart ──────────────────────────────────────────────────────────
-  const { capped } = renderScatterMatrix(chartWrap, columns, rows, {
+  renderScatterMatrix(chartWrap, columns, rows, {
     outlierIndices: _showOutliers ? _outlierIndices : new Set(),
+    ..._chartSettings,
+    markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
+    height:     _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
   });
 
   // ── Outlier toggle handler ─────────────────────────────────────────────────
+  // Full re-render so palette and marker size apply correctly alongside outlier state.
   outlierCheckbox.addEventListener("change", () => {
     _showOutliers = outlierCheckbox.checked;
-    updateScatterMatrixOutliers(
-      _chartEl,
-      _currentRows,
-      _showOutliers ? _outlierIndices : new Set()
-    );
+    _rerender();
+  });
+
+  // ── Settings panel event wiring ───────────────────────────────────────────
+  _wirePanelEvents(panelEl);
+}
+
+// ── Settings panel ────────────────────────────────────────────────────────────
+
+function _renderSettingsPanel(currentMarkerSize, currentHeight) {
+  const s = _chartSettings;
+
+  const fontBtns = (target, values, labels) =>
+    values.map((v, i) =>
+      `<button class="font-size-btn${s[target] === v ? " active" : ""}" data-target="${target}" data-value="${v}">${labels[i]}</button>`
+    ).join("");
+
+  const panel = document.createElement("details");
+  panel.className = "chart-settings-panel";
+  panel.innerHTML = `
+    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <div class="chart-settings-controls">
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Label font</span>
+        <div class="font-size-btn-group">
+          ${fontBtns("fontSize", [9, 11, 13], ["S", "M", "L"])}
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Tick font</span>
+        <div class="font-size-btn-group">
+          ${fontBtns("tickFontSize", [7, 9, 11], ["S", "M", "L"])}
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="cs-marker-size">Marker size</label>
+        <input id="cs-marker-size" type="number" class="chart-settings-input"
+               min="3" max="12" step="1" value="${Math.round(currentMarkerSize)}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="cs-height">Height (px)</label>
+        <input id="cs-height" type="number" class="chart-settings-input"
+               min="300" max="1200" step="50" value="${currentHeight}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Gridlines</span>
+        <label class="chart-settings-check">
+          <input type="checkbox" id="cs-major-grid" ${s.showMajorGrid ? "checked" : ""}> Major
+        </label>
+        <label class="chart-settings-check">
+          <input type="checkbox" id="cs-minor-grid" ${s.showMinorGrid ? "checked" : ""}> Minor
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="cs-palette">Marker palette</label>
+        <select id="cs-palette" class="chart-settings-select">
+          <option value="blueRed"     ${s.palette === "blueRed"     ? "selected" : ""}>Blue / Red</option>
+          <option value="greenOrange" ${s.palette === "greenOrange" ? "selected" : ""}>Green / Orange</option>
+          <option value="tealAmber"   ${s.palette === "tealAmber"   ? "selected" : ""}>Teal / Amber</option>
+        </select>
+      </div>
+    </div>
+  `;
+  return panel;
+}
+
+function _wirePanelEvents(panelEl) {
+  // Font size buttons (label font and tick font share the same handler via data-target)
+  panelEl.querySelectorAll(".font-size-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.target;
+      const value  = parseInt(btn.dataset.value, 10);
+      btn.closest(".font-size-btn-group")
+         .querySelectorAll(".font-size-btn")
+         .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      _chartSettings[target] = value;
+      _saveSettings();
+      _rerender();
+    });
+  });
+
+  // Marker size — debounced so rapid typing doesn't thrash the chart
+  const markerInput = panelEl.querySelector("#cs-marker-size");
+  let markerTimer;
+  markerInput.addEventListener("input", () => {
+    clearTimeout(markerTimer);
+    markerTimer = setTimeout(() => {
+      const val = parseInt(markerInput.value, 10);
+      if (val >= 3 && val <= 12) {
+        _chartSettings.markerSize = val;
+        _saveSettings();
+        _rerender();
+      }
+    }, 200);
+  });
+
+  // Figure height — debounced
+  const heightInput = panelEl.querySelector("#cs-height");
+  let heightTimer;
+  heightInput.addEventListener("input", () => {
+    clearTimeout(heightTimer);
+    heightTimer = setTimeout(() => {
+      const val = parseInt(heightInput.value, 10);
+      if (val >= 300 && val <= 1200) {
+        _chartSettings.height = val;
+        _saveSettings();
+        _rerender();
+      }
+    }, 200);
+  });
+
+  panelEl.querySelector("#cs-major-grid").addEventListener("change", (e) => {
+    _chartSettings.showMajorGrid = e.target.checked;
+    _saveSettings();
+    _rerender();
+  });
+
+  panelEl.querySelector("#cs-minor-grid").addEventListener("change", (e) => {
+    _chartSettings.showMinorGrid = e.target.checked;
+    _saveSettings();
+    _rerender();
+  });
+
+  panelEl.querySelector("#cs-palette").addEventListener("change", (e) => {
+    _chartSettings.palette = e.target.value;
+    _saveSettings();
+    _rerender();
   });
 }
 
@@ -168,11 +349,11 @@ function _buildStatsCard(columns, rows, fullStats) {
     const stats = fullStats && fullStats[col]
       ? fullStats[col]
       : {
-          min:    Math.min(...vals),
-          max:    Math.max(...vals),
-          mean:   mean(vals),
-          std:    stdDev(vals),
-          median: median(vals),
+          min:        Math.min(...vals),
+          max:        Math.max(...vals),
+          mean:       mean(vals),
+          std:        stdDev(vals),
+          median:     median(vals),
           null_count: rows.filter((r) => r[col] === null || r[col] === undefined).length,
         };
 
