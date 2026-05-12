@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.10] — 2026-05-12
+
+### Bug fix
+
+#### Fixed
+
+- **SPLOM axis border only appearing on matrix exterior edges** — `showline: true` + `mirror: "ticks"` only draw lines on the outer boundary of the full SPLOM grid, not around individual scatter cells. Fixed by adding `showframe: showAxisLines` and `linewidth: showAxisLines ? 1 : 0` to every axis entry in the axisLayout loop in `charts.js`. Each cell now receives a complete rectangular frame when "Axis border" is enabled.
+
+---
+
 ## [0.1.9] — 2026-05-12
 
 ### Bug fixes, features, and accessibility

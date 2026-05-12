@@ -161,6 +161,8 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
       tickfont:  { size: tickFontSize },
       showline:  showAxisLines,
       linecolor: axisLineColor,
+      linewidth: showAxisLines ? 1 : 0,
+      showframe: showAxisLines,
       mirror:    showAxisLines ? "ticks" : false,
       ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: _hexToRgba(minorGridColor, minorGridOpacity) } } : {}),
     };
