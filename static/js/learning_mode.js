@@ -74,6 +74,7 @@ export function registerPrimer(key, anchorEl, summaryText, contentHTML) {
   const details = document.createElement("details");
   details.className = "primer" + (_active ? "" : " hidden");
   details.dataset.key = key;
+  details.setAttribute("aria-label", summaryText);
   details.innerHTML = `
     <summary>${_escapeHtml(summaryText)}</summary>
     <div class="primer__body">${contentHTML}</div>

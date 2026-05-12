@@ -11,6 +11,14 @@
 // Maximum columns shown in scatter matrix before we cap for readability.
 const SPLOM_MAX_COLS = 10;
 
+function _hexToRgba(hex, opacity) {
+  if (!hex || !hex.startsWith("#")) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${opacity})`;
+}
+
 // Normal/outlier color pairs per palette, for light and dark themes.
 const _PALETTES = {
   blueRed: {
@@ -62,24 +70,42 @@ function _getThemeColors(palette = "blueRed") {
  * @param {boolean}     [options.showMajorGrid=true]
  * @param {boolean}     [options.showMinorGrid=false]
  * @param {string}      [options.palette="blueRed"]
- * @param {number}      [options.opacity=0.8]       - Marker fill opacity (0.1–1.0).
- * @param {string}      [options.edgeColor="#000000"] - Marker border colour (hex).
- * @param {number}      [options.edgeWidth=0]        - Marker border width (px).
+ * @param {number}      [options.opacity=0.8]          - Marker fill opacity (0.1–1.0).
+ * @param {string}      [options.edgeColor="#000000"]   - Marker border colour (hex).
+ * @param {number}      [options.edgeWidth=0]           - Marker border width (px).
+ * @param {string}      [options.majorGridColor="#cccccc"]
+ * @param {number}      [options.majorGridOpacity=1.0]
+ * @param {string}      [options.minorGridColor="#e0e0e0"]
+ * @param {number}      [options.minorGridOpacity=0.6]
+ * @param {boolean}     [options.showAxisLines=false]
+ * @param {string}      [options.axisLineColor="#888888"]
+ * @param {string|null} [options.plotBgColor=null]      - null = transparent.
+ * @param {string|null} [options.paperBgColor=null]     - null = transparent.
+ * @param {string|null} [options.fontColor=null]        - null = theme default.
  * @returns {{ capped: boolean, displayedColumns: string[], computedMarkerSize: number, computedHeight: number }}
  */
 export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
   const {
-    outlierIndices = new Set(),
-    fontSize       = 11,
-    tickFontSize   = 9,
-    markerSize     = null,
-    height         = null,
-    showMajorGrid  = true,
-    showMinorGrid  = false,
-    palette        = "blueRed",
-    opacity        = 0.8,
-    edgeColor      = "#000000",
-    edgeWidth      = 0,
+    outlierIndices   = new Set(),
+    fontSize         = 11,
+    tickFontSize     = 9,
+    markerSize       = null,
+    height           = null,
+    showMajorGrid    = true,
+    showMinorGrid    = false,
+    palette          = "blueRed",
+    opacity          = 0.8,
+    edgeColor        = "#000000",
+    edgeWidth        = 0,
+    majorGridColor   = "#cccccc",
+    majorGridOpacity = 1.0,
+    minorGridColor   = "#e0e0e0",
+    minorGridOpacity = 0.6,
+    showAxisLines    = false,
+    axisLineColor    = "#888888",
+    plotBgColor      = null,
+    paperBgColor     = null,
+    fontColor        = null,
   } = options;
 
   const displayedColumns = columns.slice(0, SPLOM_MAX_COLS);
@@ -118,7 +144,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
       opacity: opacity,
       line:    { width: edgeWidth, color: edgeColor },
     },
-    diagonal:      { visible: true },
+    diagonal:      { visible: true, type: "histogram" },
     showupperhalf: false,
     showlowerhalf: true,
   };
@@ -129,22 +155,23 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
   for (let i = 1; i <= displayedColumns.length; i++) {
     const xk = i === 1 ? "xaxis" : `xaxis${i}`;
     const yk = i === 1 ? "yaxis" : `yaxis${i}`;
-    axisLayout[xk] = {
-      showgrid: showMajorGrid,
-      tickfont: { size: tickFontSize },
-      ...(showMinorGrid ? { minor: { showgrid: true } } : {}),
+    const axisOpts = {
+      showgrid:  showMajorGrid,
+      gridcolor: _hexToRgba(majorGridColor, majorGridOpacity),
+      tickfont:  { size: tickFontSize },
+      showline:  showAxisLines,
+      linecolor: axisLineColor,
+      mirror:    showAxisLines ? "ticks" : false,
+      ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: _hexToRgba(minorGridColor, minorGridOpacity) } } : {}),
     };
-    axisLayout[yk] = {
-      showgrid: showMajorGrid,
-      tickfont: { size: tickFontSize },
-      ...(showMinorGrid ? { minor: { showgrid: true } } : {}),
-    };
+    axisLayout[xk] = axisOpts;
+    axisLayout[yk] = { ...axisOpts };
   }
 
   const layout = {
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor:  "rgba(0,0,0,0)",
-    font:     { color: theme.font, family: "Inter, system-ui, sans-serif", size: fontSize },
+    paper_bgcolor: paperBgColor || "rgba(0,0,0,0)",
+    plot_bgcolor:  plotBgColor  || "rgba(0,0,0,0)",
+    font:     { color: fontColor || theme.font, family: "Inter, system-ui, sans-serif", size: fontSize },
     margin: {
       l: Math.max(50, tickFontSize * 6),
       b: Math.max(50, tickFontSize * 6),

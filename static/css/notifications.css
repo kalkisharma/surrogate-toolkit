@@ -67,7 +67,7 @@
 
 .toast__icon { font-size: var(--text-lg); flex-shrink: 0; }
 .toast__body { flex: 1; }
-.toast__message { color: var(--color-text-primary); }
+.toast__message { color: #e8ecf5; }
 .toast__dismiss {
   background: none;
   border: none;

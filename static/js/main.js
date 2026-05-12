@@ -379,6 +379,7 @@ function _applyTheme(theme, btn) {
     btn.setAttribute("aria-label", "Switch to dark mode");
     btn.title = "Switch to dark mode";
   }
+  document.dispatchEvent(new CustomEvent("theme:changed"));
 }
 
 async function _handleFile(file, dropZone, onSuccess) {

@@ -6,6 +6,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.9] — 2026-05-12
+
+### Bug fixes, features, and accessibility
+
+#### Fixed
+
+- **Toast message text invisible in light mode** — `.toast__message` was set to `var(--color-text-primary)` (dark navy in light mode), but toast backgrounds are always dark. Changed to a fixed light color (`#e8ecf5`) so text is always readable regardless of theme.
+- **Theme toggle does not re-render SPLOM** — `_applyTheme()` now dispatches `theme:changed` after updating the DOM attribute. `data_explorer.js` listens for this event and calls `_rerender()` so palette colors and font colors update immediately.
+- **Stats crash on all-null column** — `_buildStatsSection` now guards `vals.length === 0` before calling `Math.min`/`Math.max`, returning `NaN` placeholders instead of throwing.
+
+#### Added
+
+- **Additional SPLOM color controls** — plot settings panel gains nine new controls grouped under labeled section dividers:
+  - *Typography*: Font color picker with Auto checkbox (uses theme default when auto).
+  - *Figure*: Plot background and paper background color pickers, each with Auto checkbox (transparent when auto).
+  - *Gridlines*: Major grid color picker + opacity slider; minor grid color picker + opacity slider; axis border toggle + color picker.
+- **`_hexToRgba(hex, opacity)` helper** in `charts.js` — converts hex colors to `rgba()` strings for Plotly gridline color + opacity support.
+
+#### Changed
+
+- **Settings panel grouped with labeled dividers** — controls reorganised into four sections (Typography / Markers / Figure / Gridlines) using a full-width `.settings-divider` flex item. Palette selector moved into the Markers group.
+- **SPLOM diagonal cells show histograms** — `diagonal: { visible: true, type: "histogram" }` replaces the blank diagonal. Gives per-column distribution context without additional UI.
+- **Primer `<details>` elements carry `aria-label`** — `registerPrimer()` sets `aria-label` to the summary text so screen readers announce the topic when navigating to a collapsed primer.
+
+---
+
 ## [0.1.8] — 2026-05-12
 
 ### Bug fixes
