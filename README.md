@@ -30,7 +30,7 @@ Open `http://127.0.0.1:5000` in your browser.
 
 ---
 
-## What it does (Phase 1 — v0.1.6)
+## What it does (Phase 1 — v0.1.7)
 
 - **CSV upload** — drag-and-drop with full validation: size, encoding, headers, row/column counts, float coercion, null tolerance
 - **Data type gate** — single pre-exploration question (analytical vs. test data); experience level and processor count configured via the persistent global header
