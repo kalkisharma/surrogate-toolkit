@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
+// Version: 0.2.1
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, handles the single data-
 //              type gate, and navigates to the exploration view.
@@ -159,10 +160,13 @@ function _renderAdditionalFileGate(app, uploadResponse) {
 
   gate.querySelector("#ag-cancel").addEventListener("click", () => gate.remove());
 
-  // Insert before the explore section
-  const exploreSection = document.getElementById("explore-section");
-  if (exploreSection) app.insertBefore(gate, exploreSection);
+  // Insert above the data preview table so it's visible without scrolling
+  const previewSection = app.querySelector(".preview-section");
+  const fallback = document.getElementById("explore-section");
+  const insertBefore = previewSection || fallback;
+  if (insertBefore) app.insertBefore(gate, insertBefore);
   else app.appendChild(gate);
+  gate.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 /** Render the single data-type gate after a successful upload. */
@@ -445,7 +449,7 @@ async function _refreshDatasetSwitcher() {
             null_counts:      {},
             coercion_warnings: [],
           },
-          preview: { columns: [], rows: [], total_rows: active.n_rows },
+          preview: { columns: active.columns || [], rows: [], total_rows: active.n_rows },
         };
         _renderExploration(uploadMeta);
         showSuccess(`Switched to "${active.filename}"`);

@@ -425,6 +425,7 @@ def datasets():
             "n_cols":       m.get("n_cols", 0),
             "data_type":    m.get("data_type"),
             "memory_bytes": ds.get("memory_bytes", 0),
+            "columns":      m.get("columns", []),
             "active":       key == active_key,
         })
 

@@ -6,6 +6,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.2.1] — 2026-05-12
+
+### Testing session bug fixes
+
+#### Fixed
+
+- **S4-1 — Cell shading replaces broken axis border** — "Axis border" toggle in Plot Settings removed (Plotly SPLOM silently ignores `showframe`/`linewidth` on inner cell edges). Replaced with "Cell shading" checkbox that applies a theme-aware `plot_bgcolor` tint (`rgba(0,0,0,0.04)` light / `rgba(255,255,255,0.04)` dark) to all SPLOM cells. The axis line color picker is removed; `cellShading` boolean is the new setting key in `localStorage`.
+- **S6-1 — Inline gate now appears above the data preview** — `_renderAdditionalFileGate` previously inserted the compact gate above `#explore-section` (the SPLOM), which pushed it below the data preview table and required scrolling to find. Now inserts above `.preview-section` (data table) and auto-scrolls to the gate with `scrollIntoView({ behavior: "smooth" })`.
+- **S6-2 — Dataset switch no longer clears the SPLOM** — `GET /api/data/datasets` was missing the `columns` field; the frontend fell back to `columns: []`, causing `initExploration` to render an empty chart. Backend now returns `"columns": m.get("columns", [])` per dataset. Frontend `_refreshDatasetSwitcher` switch handler uses `active.columns || []` when constructing the `uploadMeta` passed to `_renderExploration`.
+- **S7-1 — Learning mode primer added to Summary Statistics** — `_buildStatsSection` now registers a primer anchored to the "Summary Statistics" header. Content covers μ±σ interpretation, skewness threshold (|skew| > 1 = heavy tail), and the null-border color legend (green / amber / red).
+
+---
+
 ## [0.2.0] — 2026-05-12
 
 ### Multi-file loading + stats formatting

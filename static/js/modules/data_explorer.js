@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
+// Version: 0.2.1
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -42,9 +43,8 @@ const _DEFAULT_SETTINGS = {
   majorGridOpacity:  1.0,
   minorGridColor:    "#e0e0e0",
   minorGridOpacity:  0.6,
-  showAxisLines:     false,
-  axisLineColor:     "#888888",
-  plotBgColor:       null,      // null = transparent
+  cellShading:       false,
+  plotBgColor:       null,      // null = transparent (or cellShading tint)
   paperBgColor:      null,      // null = transparent
 };
 
@@ -250,8 +250,6 @@ function _renderSettingsPanel(currentMarkerSize, currentHeight) {
   const paperBgVal            = s.paperBgColor || "#f5f6fa";
   const paperBgDisabled       = paperBgAuto ? "disabled" : "";
   const paperBgOpacity        = paperBgAuto ? "0.4" : "1";
-  const axisLineColorDisabled = s.showAxisLines ? "" : "disabled";
-  const axisLineColorOpacity  = s.showAxisLines ? "1" : "0.4";
 
   panel.innerHTML = `
     <summary class="chart-settings-panel__summary">Plot Settings</summary>
@@ -386,14 +384,10 @@ function _renderSettingsPanel(currentMarkerSize, currentHeight) {
         </div>
       </div>
       <div class="chart-settings-group">
-        <span class="chart-settings-group__label">Axis border</span>
-        <div class="color-with-auto">
-          <label class="chart-settings-check">
-            <input type="checkbox" id="cs-axis-lines" ${s.showAxisLines ? "checked" : ""}> On
-          </label>
-          <input id="cs-axis-line-color" type="color" class="chart-settings-color"
-                 value="${s.axisLineColor}" ${axisLineColorDisabled} style="opacity:${axisLineColorOpacity}">
-        </div>
+        <span class="chart-settings-group__label">Cell shading</span>
+        <label class="chart-settings-check">
+          <input type="checkbox" id="cs-cell-shading" ${s.cellShading ? "checked" : ""}> On
+        </label>
       </div>
 
     </div>
@@ -564,15 +558,9 @@ function _wirePanelEvents(panelEl) {
     save();
   });
 
-  const axisLineColorInput = panelEl.querySelector("#cs-axis-line-color");
-  panelEl.querySelector("#cs-axis-lines").addEventListener("change", (e) => {
-    _chartSettings.showAxisLines         = e.target.checked;
-    axisLineColorInput.disabled          = !e.target.checked;
-    axisLineColorInput.style.opacity     = e.target.checked ? "1" : "0.4";
+  panelEl.querySelector("#cs-cell-shading").addEventListener("change", (e) => {
+    _chartSettings.cellShading = e.target.checked;
     save();
-  });
-  axisLineColorInput.addEventListener("input", (e) => {
-    _chartSettings.axisLineColor = e.target.value; save();
   });
 }
 
@@ -582,7 +570,23 @@ let _fullStats = null;
 
 function _buildStatsSection(columns, rows, fullStats, totalRows) {
   const section = el("div", { cls: "stats-section" });
-  section.appendChild(el("div", { cls: "stats-section__header", text: "Summary Statistics" }));
+  const statsHeader = el("div", { cls: "stats-section__header", text: "Summary Statistics" });
+  section.appendChild(statsHeader);
+
+  registerPrimer(
+    "stats",
+    statsHeader,
+    "Reading the summary statistics",
+    `<p><strong>μ ± σ</strong> (mean ± standard deviation) shows where values cluster and how spread out they are.
+     For a normal distribution, ~68% of values fall within ±1σ of the mean.</p>
+     <p><strong>Skewness</strong> measures distribution asymmetry. |skew| &lt; 1 is roughly symmetric;
+     |skew| &gt; 1 suggests a heavy tail — consider a log-transform before training.</p>
+     <p><strong>Null border color</strong>:
+       <span style="color:var(--color-success);font-weight:600">green</span> = no nulls,
+       <span style="color:var(--color-warning);font-weight:600">amber</span> = ≤10% nulls (caution),
+       <span style="color:var(--color-danger);font-weight:600">red</span> = &gt;10% nulls — investigate before training.
+     </p>`
+  );
 
   const grid = el("div", { cls: "stats-grid" });
   const N = totalRows || rows.length;

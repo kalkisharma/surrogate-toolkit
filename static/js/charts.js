@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
+// Version: 0.2.1
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -77,9 +78,8 @@ function _getThemeColors(palette = "blueRed") {
  * @param {number}      [options.majorGridOpacity=1.0]
  * @param {string}      [options.minorGridColor="#e0e0e0"]
  * @param {number}      [options.minorGridOpacity=0.6]
- * @param {boolean}     [options.showAxisLines=false]
- * @param {string}      [options.axisLineColor="#888888"]
- * @param {string|null} [options.plotBgColor=null]      - null = transparent.
+ * @param {boolean}     [options.cellShading=false]        - Subtle theme-aware tint on each SPLOM cell.
+ * @param {string|null} [options.plotBgColor=null]      - null = transparent (or cellShading tint).
  * @param {string|null} [options.paperBgColor=null]     - null = transparent.
  * @param {string|null} [options.fontColor=null]        - null = theme default.
  * @returns {{ capped: boolean, displayedColumns: string[], computedMarkerSize: number, computedHeight: number }}
@@ -101,8 +101,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     majorGridOpacity = 1.0,
     minorGridColor   = "#e0e0e0",
     minorGridOpacity = 0.6,
-    showAxisLines    = false,
-    axisLineColor    = "#888888",
+    cellShading      = false,
     plotBgColor      = null,
     paperBgColor     = null,
     fontColor        = null,
@@ -128,6 +127,13 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
 
   const computedMarkerSize = markerSize !== null ? markerSize : Math.max(4, Math.min(8, 400 / rows.length));
   const computedHeight     = height     !== null ? height     : Math.max(400, displayedColumns.length * 90);
+
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const effectivePlotBg = plotBgColor !== null
+    ? plotBgColor
+    : cellShading
+      ? (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)")
+      : "rgba(0,0,0,0)";
 
   // Truncate long column names so labels don't overlap in SPLOM cells
   const truncate = (name) => name.length > 9 ? name.slice(0, 8) + "…" : name;
@@ -159,11 +165,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
       showgrid:  showMajorGrid,
       gridcolor: _hexToRgba(majorGridColor, majorGridOpacity),
       tickfont:  { size: tickFontSize },
-      showline:  showAxisLines,
-      linecolor: axisLineColor,
-      linewidth: showAxisLines ? 1 : 0,
-      showframe: showAxisLines,
-      mirror:    showAxisLines ? "ticks" : false,
+      showline:  false,
       ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: _hexToRgba(minorGridColor, minorGridOpacity) } } : {}),
     };
     axisLayout[xk] = axisOpts;
@@ -172,7 +174,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
 
   const layout = {
     paper_bgcolor: paperBgColor || "rgba(0,0,0,0)",
-    plot_bgcolor:  plotBgColor  || "rgba(0,0,0,0)",
+    plot_bgcolor:  effectivePlotBg,
     font:     { color: fontColor || theme.font, family: "Inter, system-ui, sans-serif", size: fontSize },
     margin: {
       l: Math.max(50, tickFontSize * 6),
