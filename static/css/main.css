@@ -45,6 +45,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
@@ -64,11 +65,14 @@ input, select, textarea { font-family: inherit; }
 .btn-primary {
   background: var(--color-accent);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(75, 110, 245, 0.30);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 16px rgba(75, 110, 245, 0.40);
 }
+[data-theme="dark"] .btn-primary { box-shadow: none; }
+[data-theme="dark"] .btn-primary:hover:not(:disabled) { box-shadow: var(--shadow-sm); }
 
 .btn-secondary {
   background: var(--color-bg-elevated);
@@ -90,21 +94,23 @@ input, select, textarea { font-family: inherit; }
 
 /* ── Upload zone ─────────────────────────────────────────────────────────────── */
 .upload-zone {
+  background: var(--color-bg-elevated);
   border: 2px dashed var(--color-border);
   border-radius: var(--radius-xl);
   padding: var(--space-16) var(--space-8);
   text-align: center;
-  transition: border-color var(--transition-base), background var(--transition-base);
+  transition: border-color var(--transition-base), background var(--transition-base), box-shadow var(--transition-base);
   cursor: pointer;
 }
 .upload-zone:hover,
 .upload-zone.drag-over {
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
+  box-shadow: var(--shadow-accent);
 }
 .upload-zone__icon {
   font-size: 3rem;
-  color: var(--color-text-muted);
+  color: var(--color-accent);
   margin-bottom: var(--space-4);
 }
 .upload-zone__title {
@@ -199,8 +205,9 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--color-accent);
   background: var(--color-accent-soft);
   color: var(--color-accent);
+  box-shadow: var(--shadow-accent);
 }
-.gate-option__label:hover { border-color: var(--color-accent); }
+.gate-option__label:hover { border-color: var(--color-accent); background: var(--color-bg-hover); }
 
 .gate-caution {
   margin-top: var(--space-3);
@@ -418,7 +425,7 @@ input, select, textarea { font-family: inherit; }
 .global-header__name {
   font-size: var(--text-sm);
   font-weight: var(--font-semi);
-  color: var(--color-text-primary);
+  color: var(--color-accent);
 }
 .global-header__version {
   font-size: var(--text-xs);
@@ -484,4 +491,29 @@ input, select, textarea { font-family: inherit; }
 }
 .preview-table-wrap {
   -webkit-overflow-scrolling: touch;
+}
+
+/* ── Smooth theme transition ─────────────────────────────────────────────────── */
+body,
+#global-header,
+.card,
+.upload-zone,
+.gate-step,
+.gate-option__label,
+.btn,
+.global-header__select,
+.global-header__btn,
+.stat-card,
+.explore-chart-wrap {
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base),
+    color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+/* ── Section title accent bar ────────────────────────────────────────────────── */
+.section-title {
+  border-left: 3px solid var(--color-accent);
+  padding-left: var(--space-3);
 }
