@@ -6,6 +6,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.1.3] — 2026-05-12
+
+### Bug fixes
+
+#### Changed
+
+- **Light mode guaranteed on version update** — inline script in `index.html` now checks stored `app_version` against the current version. On mismatch (first install or upgrade), any stored theme preference is cleared and light mode becomes the default. Engineers who prefer dark mode can re-toggle after each update.
+- **Version logged on startup** — `create_app()` in `app/__init__.py` now calls `app.logger.info(f"Surrogate Toolkit v{VERSION} starting")`, which appears in all deployment modes (dev server and gunicorn). Closes the production audit trace gap identified in team review.
+
+---
+
 ## [0.1.2] — 2026-05-12
 
 ### Bug fixes and improvements

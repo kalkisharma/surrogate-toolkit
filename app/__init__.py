@@ -12,8 +12,8 @@ FUTURE EXTENSIONS: Flask-CORS for Vite dev server (Phase 2), per-request
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.1.3
 ================================================================================
 """
 
@@ -25,7 +25,7 @@ import os
 
 from flask import Flask, jsonify, render_template, request
 
-from config.settings import MAX_FILE_SIZE_BYTES
+from config.settings import MAX_FILE_SIZE_BYTES, VERSION
 from app.state.schema import STATE, reset_state
 
 
@@ -177,5 +177,7 @@ def create_app() -> Flask:
             ),
             500,
         )
+
+    app.logger.info(f"Surrogate Toolkit v{VERSION} starting")
 
     return app
