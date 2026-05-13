@@ -10,7 +10,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.5.0
+VERSION: 0.5.1
 ================================================================================
 """
 
@@ -851,3 +851,82 @@ def test_audit_event_on_cleaning_reset(client, csv_dirty):
     client.post("/api/data/clean/reset")
     events = json.loads(client.get("/api/state/").data)["state"]["audit"]["events"]
     assert any(e["event_type"] == "cleaning_reset" for e in events)
+
+
+# ─── POST /api/data/clean/transform ──────────────────────────────────────────
+
+
+def test_clean_transform_no_data(client):
+    """POST /api/data/clean/transform returns 400 when no dataset is loaded."""
+    resp = client.post(
+        "/api/data/clean/transform",
+        data=json.dumps({"columns": ["x1"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_clean_transform_no_columns(client, csv_clean):
+    """POST /api/data/clean/transform returns 422 when columns list is empty."""
+    _upload(client, csv_clean, "test.csv")
+    resp = client.post(
+        "/api/data/clean/transform",
+        data=json.dumps({"columns": []}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+
+
+def test_clean_transform_invalid_column(client, csv_clean):
+    """POST /api/data/clean/transform returns 422 for unknown column names."""
+    _upload(client, csv_clean, "test.csv")
+    resp = client.post(
+        "/api/data/clean/transform",
+        data=json.dumps({"columns": ["does_not_exist"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    data = json.loads(resp.data)
+    assert data["error_code"] == "INVALID_COLUMNS"
+
+
+def test_clean_transform_negative_values_rejected(client):
+    """POST /api/data/clean/transform returns 422 when column has values <= -1."""
+    csv_neg = b"x1,x2,y\n-5.0,0.1,1.0\n1.0,0.2,2.0\n2.0,0.3,3.0\n3.0,0.4,4.0\n4.0,0.5,5.0\n"
+    _upload(client, csv_neg, "neg.csv")
+    resp = client.post(
+        "/api/data/clean/transform",
+        data=json.dumps({"columns": ["x1"]}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+
+
+def test_clean_transform_success(client, csv_clean):
+    """POST /api/data/clean/transform transforms specified columns."""
+    _upload(client, csv_clean, "test.csv")
+    # Identify a valid column from the summary
+    summary = json.loads(client.get("/api/data/summary").data)
+    col = summary["columns"][0]
+    resp = client.post(
+        "/api/data/clean/transform",
+        data=json.dumps({"columns": [col]}),
+        content_type="application/json",
+    )
+    data = json.loads(resp.data)
+    assert resp.status_code == 200
+    assert data["success"] is True
+    assert data["n_columns"] == 1
+    assert col in data["columns_transformed"]
+    assert data["rows_before"] == data["rows_after"]
+
+
+def test_summary_includes_skew(client, csv_clean):
+    """GET /api/data/summary response includes skew for each column."""
+    _upload(client, csv_clean, "test.csv")
+    resp = client.get("/api/data/summary")
+    data = json.loads(resp.data)
+    assert resp.status_code == 200
+    for col_stats in data["stats"].values():
+        assert "skew" in col_stats

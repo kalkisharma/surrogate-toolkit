@@ -6,6 +6,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.5.1] — 2026-05-12
+
+### Phase 2 — Log-Transform Patch (v0.5.1)
+
+#### Added
+
+- **Log-transform card (B7)** — fourth cleaning card in Step 3. Displays columns with `|skew| > 1.0` (`LOG_TRANSFORM_SKEW_THRESHOLD`) as pre-checked checkboxes with their skew values. "Apply log-transform" button sends `POST /api/data/clean/transform` with the selected column list.
+- **`POST /api/data/clean/transform`** — new endpoint in `app/api/data_api.py`. Accepts `{"columns": [...]}`, validates column names and rejects any column with values ≤ −1 (log1p undefined), applies `numpy.log1p` via `apply_log_transform()`, writes result via `_apply_clean()`, and appends a `cleaning_transform` audit event.
+- **`apply_log_transform(df, columns)`** — new function in `app/data/cleaning.py`. Non-mutating; raises `ValueError` for unknown columns or values ≤ −1. Returns `(result_df, n_columns_transformed)`.
+- **Skew in summary stats** — `GET /api/data/summary` now returns `skew` per column in each column's stats dict (both upload-time cache and post-cleaning live-compute paths). Requires ≥3 non-null values; `None` otherwise.
+- **`LOG_TRANSFORM_SKEW_THRESHOLD = 1.0`** — added to `config/settings.py`.
+- **11 new tests** — 5 unit tests for `apply_log_transform` (basic, source-not-mutated, zero-safe, negative-values-rejected, unknown-column); 6 integration tests for `/clean/transform` and skew-in-summary. Total test count: 120 (48 unit, 72 integration).
+
+---
+
 ## [0.5.0] — 2026-05-12
 
 ### Phase 2 — B-Series: Data Cleaning (v0.5.0)

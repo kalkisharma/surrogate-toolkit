@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.5.0
+VERSION: 0.5.1
 ================================================================================
 """
 
@@ -27,6 +27,7 @@ from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
 from app.data.cleaning import (
+    apply_log_transform,
     compute_cleaning_stats,
     handle_nulls,
     handle_outliers,
@@ -39,6 +40,7 @@ from config.settings import (
     CLEANING_STRATEGIES_NULL,
     CLEANING_STRATEGIES_OUTLIER,
     CORRELATION_WARNING_THRESHOLD,
+    LOG_TRANSFORM_SKEW_THRESHOLD,
     MAX_DATASETS,
     MAX_DATASETS_MEMORY_MB,
     MAX_PLOT_ROWS,
@@ -209,6 +211,7 @@ def upload():
             "std":        _to_python(series.std())    if len(series) else None,
             "median":     _to_python(series.median()) if len(series) else None,
             "null_count": int(df[col].isnull().sum()),
+            "skew":       _to_python(series.skew())   if len(series) >= 3 else None,
         }
     ds_meta["summary_stats"] = summary_stats
 
@@ -386,12 +389,13 @@ def summary():
     for col in df.columns:
         series = df[col].dropna()
         stats[col] = {
-            "min": _to_python(series.min()) if len(series) else None,
-            "max": _to_python(series.max()) if len(series) else None,
-            "mean": _to_python(series.mean()) if len(series) else None,
-            "std": _to_python(series.std()) if len(series) else None,
-            "median": _to_python(series.median()) if len(series) else None,
+            "min":        _to_python(series.min())    if len(series) else None,
+            "max":        _to_python(series.max())    if len(series) else None,
+            "mean":       _to_python(series.mean())   if len(series) else None,
+            "std":        _to_python(series.std())    if len(series) else None,
+            "median":     _to_python(series.median()) if len(series) else None,
             "null_count": int(df[col].isnull().sum()),
+            "skew":       _to_python(series.skew())   if len(series) >= 3 else None,
         }
 
     return jsonify(
@@ -1131,6 +1135,106 @@ def clean_reset():
     return jsonify({
         "success":       True,
         "rows_restored": len(restored),
+    }), 200
+
+
+@bp.route("/clean/transform", methods=["POST"])
+def clean_transform():
+    """
+    Apply a natural log(1 + x) transform to selected columns of the active dataset.
+
+    Args (JSON body):
+        columns (list[str]): Column names to transform. Must all be present in the
+                             dataset and must all have values > -1.
+
+    Returns:
+        JSON 200: {
+            "success": true,
+            "columns_transformed": [...],
+            "n_columns": N,
+            "rows_before": R,
+            "rows_after": R    # same — transform does not remove rows
+        }
+        JSON 4xx: Standard error envelope.
+
+    Notes:
+        Uses numpy.log1p (zero-safe). Columns with any value <= -1 are rejected
+        to avoid undefined/infinite results. Row count is unchanged.
+        Skew threshold (LOG_TRANSFORM_SKEW_THRESHOLD = 1.0) is enforced in the UI
+        but not here — any numeric column may be transformed via the API.
+
+    Future:
+        Box-Cox / Yeo-Johnson transforms; per-column transform preview.
+    """
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+
+    data    = request.get_json(silent=True) or {}
+    columns = data.get("columns", [])
+
+    if not columns:
+        return (
+            jsonify({
+                "success": False, "error_code": "UNKNOWN_STRATEGY",
+                "message": "No columns specified. Provide at least one column name.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    clean_df = state["datasets"]["primary"]["clean"]
+    invalid  = [c for c in columns if c not in clean_df.columns]
+    if invalid:
+        return (
+            jsonify({
+                "success": False, "error_code": "INVALID_COLUMNS",
+                "message": f"Unknown column(s): {invalid}",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    try:
+        result_df, n_transformed = apply_log_transform(clean_df, columns)
+    except ValueError as exc:
+        return (
+            jsonify({
+                "success": False, "error_code": "UNKNOWN_STRATEGY",
+                "message": str(exc),
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+    except Exception as exc:
+        current_app.logger.error(f"Log-transform error: {exc}")
+        return (
+            jsonify({
+                "success": False, "error_code": "CLEAN_ERROR",
+                "message": "Log-transform failed. See server log for details.",
+                "detail": str(exc), "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            400,
+        )
+
+    rows_before = len(clean_df)
+    _apply_clean(state, active_key, ds, result_df)
+    append_audit_event(state, "cleaning_transform", {
+        "dataset":             active_key,
+        "columns_transformed": columns,
+        "n_columns":           n_transformed,
+    })
+    current_app.logger.info(
+        f"Log-transform: '{active_key}' — columns={columns}"
+    )
+
+    return jsonify({
+        "success":             True,
+        "columns_transformed": columns,
+        "n_columns":           n_transformed,
+        "rows_before":         rows_before,
+        "rows_after":          len(result_df),
     }), 200
 
 

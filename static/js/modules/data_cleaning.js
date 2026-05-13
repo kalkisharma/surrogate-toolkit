@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_cleaning.js
-// Version: 0.5.0
+// Version: 0.5.1
 // Description: Data cleaning step — lets users handle missing values, remove
 //              duplicates, and flag/drop outliers before column designation.
 //              Sends POST /api/data/clean/* endpoints. Calls onClean() after
@@ -67,6 +67,7 @@ export async function initCleaning(containerEl, onClean) {
   grid.appendChild(_buildNullCard(cs.null_rows, nRows, onClean));
   grid.appendChild(_buildDuplicatesCard(cs.duplicate_rows, onClean));
   grid.appendChild(_buildOutlierCard(cs.outlier_rows, nRows, onClean));
+  grid.appendChild(_buildTransformCard(summaryResp.stats || {}, onClean));
 
   // ── Undo all ─────────────────────────────────────────────────────────────────
   const resetRow = el("div", { cls: "cleaning-reset-row" });
@@ -243,6 +244,78 @@ function _buildOutlierCard(outlierRows, nRows, onClean) {
       }
     } else {
       showError(resp.message || "Outlier handling failed.");
+    }
+  });
+
+  return card;
+}
+
+// ── Log-transform card ────────────────────────────────────────────────────────
+
+const LOG_SKEW_THRESHOLD = 1.0;
+
+function _buildTransformCard(stats, onClean) {
+  const card = el("div", { cls: "cleaning-item-card" });
+
+  // Collect columns with |skew| > threshold
+  const skewedCols = Object.entries(stats)
+    .filter(([, s]) => s.skew !== null && s.skew !== undefined && Math.abs(s.skew) > LOG_SKEW_THRESHOLD)
+    .sort((a, b) => Math.abs(b[1].skew) - Math.abs(a[1].skew));
+
+  const badge = skewedCols.length > 0
+    ? `<span class="cleaning-badge cleaning-badge--warn">${skewedCols.length} column(s) with |skew| > ${LOG_SKEW_THRESHOLD}</span>`
+    : `<span class="cleaning-badge cleaning-badge--ok">None detected</span>`;
+
+  card.innerHTML = `
+    <div class="cleaning-item-header">
+      <span class="cleaning-item-title">Log-Transform (Skew)</span>
+      ${badge}
+    </div>
+    <p class="cleaning-item-desc">Columns with high skewness can bias model training. log(1+x) compresses the tail.</p>
+  `;
+
+  if (skewedCols.length === 0) {
+    card.appendChild(el("p", { cls: "cleaning-item-none", text: "No action needed." }));
+    return card;
+  }
+
+  const colList = el("div", { cls: "cleaning-transform-columns" });
+  for (const [col, s] of skewedCols) {
+    const item  = el("div", { cls: "cleaning-transform-col-item" });
+    const skewLabel = s.skew >= 0 ? `+${s.skew.toFixed(2)}` : s.skew.toFixed(2);
+    item.innerHTML = `
+      <label class="cleaning-transform-col-label">
+        <input type="checkbox" class="cleaning-transform-col-check" value="${col}" checked>
+        <span class="cleaning-transform-col-name">${col}</span>
+        <span class="cleaning-transform-col-skew">skew ${skewLabel}</span>
+      </label>
+    `;
+    colList.appendChild(item);
+  }
+  card.appendChild(colList);
+
+  const applyBtn = el("button", {
+    cls:  "btn btn-primary btn-sm cleaning-apply-btn",
+    text: "Apply log-transform",
+    id:   "transform-apply-btn",
+  });
+  card.appendChild(applyBtn);
+
+  applyBtn.addEventListener("click", async () => {
+    const checked = [...card.querySelectorAll(".cleaning-transform-col-check:checked")]
+      .map(cb => cb.value);
+    if (checked.length === 0) {
+      showWarning("Select at least one column to transform.");
+      return;
+    }
+    applyBtn.disabled = true;
+    const resp = await post("/api/data/clean/transform", { columns: checked });
+    applyBtn.disabled = false;
+    if (resp.success) {
+      showSuccess(`Applied log-transform to ${resp.n_columns} column(s): ${resp.columns_transformed.join(", ")}.`);
+      onClean();
+    } else {
+      showError(resp.message || "Log-transform failed.");
     }
   });
 

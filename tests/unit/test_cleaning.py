@@ -11,7 +11,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-12
 LAST MODIFIED: 2026-05-12
-VERSION: 0.5.0
+VERSION: 0.5.1
 ================================================================================
 """
 
@@ -24,6 +24,7 @@ import pandas as pd
 import pytest
 
 from app.data.cleaning import (
+    apply_log_transform,
     compute_cleaning_stats,
     handle_nulls,
     handle_outliers,
@@ -216,3 +217,57 @@ def test_remove_duplicates_source_not_mutated(df_with_duplicates):
     original_len = len(df_with_duplicates)
     remove_duplicates(df_with_duplicates)
     assert len(df_with_duplicates) == original_len
+
+
+# ─── apply_log_transform ──────────────────────────────────────────────────────
+
+
+@pytest.fixture()
+def df_skewed():
+    """10-row DataFrame with a right-skewed column (x1 spans 1–1000)."""
+    return pd.DataFrame({
+        "x1": [1.0, 2.0, 3.0, 4.0, 5.0, 10.0, 20.0, 50.0, 200.0, 1000.0],
+        "x2": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+        "y":  [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0],
+    })
+
+
+def test_log_transform_basic(df_skewed):
+    """apply_log_transform applies log1p to selected columns."""
+    result, n = apply_log_transform(df_skewed, ["x1"])
+    assert n == 1
+    assert len(result) == len(df_skewed)
+    expected_first = np.log1p(1.0)
+    assert abs(result["x1"].iloc[0] - expected_first) < 1e-10
+    # Untouched columns unchanged
+    assert list(result["x2"]) == list(df_skewed["x2"])
+
+
+def test_log_transform_source_not_mutated(df_skewed):
+    """apply_log_transform never mutates the source DataFrame."""
+    original_max = df_skewed["x1"].max()
+    apply_log_transform(df_skewed, ["x1"])
+    assert df_skewed["x1"].max() == original_max
+
+
+def test_log_transform_zero_values_ok(df_clean):
+    """Columns with zero values are valid — log1p(0) = 0."""
+    df = df_clean.copy()
+    df["x1"] = [0.0] * len(df)
+    result, n = apply_log_transform(df, ["x1"])
+    assert (result["x1"] == 0.0).all()
+    assert n == 1
+
+
+def test_log_transform_negative_values_rejected(df_clean):
+    """ValueError raised when a selected column contains values <= -1."""
+    df = df_clean.copy()
+    df.loc[0, "x1"] = -2.0
+    with pytest.raises(ValueError, match="values"):
+        apply_log_transform(df, ["x1"])
+
+
+def test_log_transform_unknown_column_raises(df_clean):
+    """ValueError raised when a column name is not in the DataFrame."""
+    with pytest.raises(ValueError, match="Unknown column"):
+        apply_log_transform(df_clean, ["does_not_exist"])

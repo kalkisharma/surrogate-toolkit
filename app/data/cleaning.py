@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-12
 LAST MODIFIED: 2026-05-12
-VERSION: 0.5.0
+VERSION: 0.5.1
 ================================================================================
 """
 
@@ -170,6 +170,51 @@ def remove_duplicates(df: pd.DataFrame) -> tuple:
     before = len(df)
     result = df.drop_duplicates().reset_index(drop=True)
     return result, before - len(result)
+
+
+# ─── LOG TRANSFORM ────────────────────────────────────────────────────────────
+
+
+def apply_log_transform(df: pd.DataFrame, columns: list) -> tuple:
+    """
+    Apply a natural log(1 + x) transform to the specified numeric columns.
+
+    Args:
+        df (pd.DataFrame): Source DataFrame. Not mutated.
+        columns (list[str]): Column names to transform.
+
+    Returns:
+        tuple[pd.DataFrame, int]: (result_df, n_columns_transformed)
+
+    Raises:
+        ValueError: If any column name is not in df, or if any selected column
+                    contains values <= -1 (log1p undefined or -inf at those points).
+
+    Notes:
+        Uses numpy.log1p for zero-safe computation: log1p(0) = 0. Columns with
+        values > -1 but near -1 will produce large negative outputs — the caller
+        should inspect the resulting distribution before proceeding.
+
+    Future:
+        Per-column transform preview; box-cox / Yeo-Johnson alternatives.
+    """
+    invalid = [c for c in columns if c not in df.columns]
+    if invalid:
+        raise ValueError(f"Unknown column(s): {invalid}")
+
+    for col in columns:
+        col_min = df[col].dropna().min()
+        if col_min <= -1:
+            raise ValueError(
+                f"Column '{col}' has values ≤ −1 (min≈{col_min:.4g}). "
+                "log1p requires all values > −1."
+            )
+
+    result = df.copy()
+    for col in columns:
+        result[col] = np.log1p(result[col])
+
+    return result, len(columns)
 
 
 # ─── PRIVATE HELPERS ──────────────────────────────────────────────────────────
