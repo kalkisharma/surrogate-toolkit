@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.8.1
+// Version: 0.8.2
 // Description: Step 7 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and parity/residual plots (test set).
@@ -37,16 +37,17 @@ export async function initResults(containerEl) {
   if (!resp.success) {
     containerEl.innerHTML = `
       <div class="section-header">
-        <h2 class="section-title">Step 7 — Training Results</h2>
+        <h2 class="section-title">Step 8 — Training Results</h2>
       </div>
       <p style="color: var(--color-text-muted); padding: var(--space-4) 0;">
-        No results yet. Train a model in Step 6 to see metrics here.
+        No results yet. Train a model in Step 7 to see metrics here.
       </p>`;
-    return;
+    return false;
   }
 
   const r = resp.results;
   _render(containerEl, r);
+  return true;
 }
 
 // ── Internal renderer ──────────────────────────────────────────────────────────
@@ -56,10 +57,11 @@ function _render(containerEl, r) {
 
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
+  const sourceNote = r.source_filename ? `<strong>${r.source_filename}</strong> — ` : "";
   header.innerHTML = `
-    <h2 class="section-title">Step 7 — Training Results</h2>
+    <h2 class="section-title">Step 8 — Training Results</h2>
     <p class="section-desc">
-      Model trained on ${r.n_train.toLocaleString()} rows,
+      ${sourceNote}Model trained on ${r.n_train.toLocaleString()} rows,
       evaluated on ${r.n_test.toLocaleString()} held-out rows.
       ${r.cv_results.n_folds}-fold cross-validation on the training set.
     </p>

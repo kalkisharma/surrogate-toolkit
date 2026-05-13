@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.8.1
+VERSION: 0.8.2
 ================================================================================
 """
 
@@ -325,6 +325,7 @@ def train():
         "model_type":       model_type,
         "n_train":          int(len(X_train)),
         "n_test":           int(len(X_test)),
+        "source_filename":  meta.get("filename"),
         "input_columns":    input_cols,
         "output_columns":   output_cols,
         "test_metrics":     test_metrics,

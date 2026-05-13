@@ -6,6 +6,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.2] — 2026-05-12
+
+### Dataset-switching correctness fixes (v0.8.2)
+
+#### Fixed
+
+- **Results always showed latest model, not the active dataset's model** — `surrogate_sessions["primary"]["models"]` was a single global slot with no dataset identity. Switching datasets left the previous model's results in STATE. `PUT /api/state/session` now clears `models` and resets `config` to defaults when switching datasets, so `GET /api/model/results` correctly returns `NO_TRAINED_MODEL` for a freshly switched dataset.
+- **Training config persisted across dataset switch** — model type, test split, and CV folds set for dataset A were silently inherited by dataset B. Config is now cleared alongside models on switch.
+- **Results step unlocked with stale data** — `_renderExploration` pre-checked `GET /api/model/results` and unlocked Step 8 even when the cached results belonged to a different dataset. Resolved as a consequence of the STATE fix above.
+- **Results panel showed no source filename** — the Step 8 header never named the dataset the model was trained on. `POST /api/model/train` now stores `source_filename` in the results dict; `results.js` renders it as the first token of the description line.
+- **Results completion checkmark set unconditionally** — `stepCompleted["results"] = true` fired even when `initResults` rendered the "no results yet" placeholder. `initResults` now returns `true`/`false`; the checkmark is only set on a successful result.
+- **Step number mismatch** — the results panel inner title read "Step 7" while the sidebar numbers it as Step 8. Corrected to "Step 8 — Training Results".
+
+#### Files changed
+
+- `app/api/state_api.py` — clear `surrogate_sessions["primary"]["models"]` and reset `config` on dataset switch; import `DEFAULT_CV_FOLDS`, `DEFAULT_TEST_SPLIT`
+- `app/api/model_api.py` — add `source_filename` to results dict
+- `static/js/modules/results.js` — display `source_filename` in header; return `true`/`false` from `initResults`; fix "Step 7" → "Step 8"
+- `static/js/main.js` — `stepCompleted["results"]` conditional on `initResults` return value
+- `config/settings.py` — `VERSION = "0.8.2"`
+- `app/templates/index.html` — version bump (8 locations)
+
+---
+
 ## [0.8.1] — 2026-05-12
 
 ### Phase 3 — Parity & Residual Plots (v0.8.1)

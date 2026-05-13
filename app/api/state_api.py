@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.4.0
+VERSION: 0.8.2
 ================================================================================
 """
 
@@ -23,6 +23,7 @@ VERSION: 0.4.0
 from flask import Blueprint, jsonify
 
 from app.state.schema import append_audit_event, get_state_json_safe, reset_state
+from config.settings import DEFAULT_CV_FOLDS, DEFAULT_TEST_SPLIT
 
 bp = Blueprint("state", __name__)
 
@@ -137,6 +138,15 @@ def update_session():
         primary["metadata"].update(ds["metadata"])
         # Sync data_type to session
         session["data_type"] = ds["metadata"].get("data_type")
+        # The trained model and config belong to the previous dataset — clear them so
+        # GET /api/model/results correctly returns NO_TRAINED_MODEL for the new dataset.
+        surrogate = state["surrogate_sessions"]["primary"]
+        surrogate["models"] = {}
+        surrogate["config"]  = {
+            "model_type": None,
+            "test_split":  DEFAULT_TEST_SPLIT,
+            "cv_folds":    DEFAULT_CV_FOLDS,
+        }
         from flask import current_app
         current_app.logger.info(f"Active dataset switched to '{new_key}'")
         append_audit_event(state, "dataset_switch", {
