@@ -127,6 +127,45 @@ All constants live in `config/settings.py`. Never hardcode values elsewhere.
 
 ---
 
+## Versioning
+
+This project uses an internal convention inspired by Semantic Versioning.
+It is **not** strict SemVer — there are no API compatibility guarantees.
+
+### Scheme: 0.SUBPHASE.PATCH
+
+| Number | When to increment | Reset? |
+|--------|-------------------|--------|
+| `0` (major) | Reserved — bumped to `1.0.0` when the full tool ships | — |
+| `SUBPHASE` (middle) | Each new development sub-phase batch ships | patch → 0 |
+| `PATCH` (last) | Bug fixes, UX tweaks, hotfixes within a sub-phase | — |
+
+### Phase → version map
+
+| Phase / Sub-phase | Version range | Status |
+|---|---|---|
+| Phase 1 — Sub-phase 1 (scaffold, ingestion, exploration) | 0.1.x | ✅ Complete |
+| Phase 1 — Sub-phase 2 (multi-file, stats, UX) | 0.2.x | ✅ Complete |
+| Phase 1 — Sub-phase 3 (completion, caching, polish) | 0.3.x | ✅ Complete |
+| Phase 2 — A-series (designation, correlation, normalization) | 0.4.x | ✅ Complete |
+| Phase 2 — B-series (data cleaning) | 0.5.x | ✅ Complete |
+| Phase 2 — C-series (TBD) | 0.6.x | Planned |
+| Phase 3+ | TBD | Planned |
+
+### Files to update on every version bump
+
+Update **all** of the following — do not skip any:
+
+1. `config/settings.py` — `VERSION = "x.y.z"`
+2. Header block of every **changed** file — `VERSION: x.y.z`
+3. `app/templates/index.html` — four locations:
+   - Inline `<script>` — `var currentVer = "x.y.z";`
+   - Header display span — `<span class="global-header__version">vx.y.z</span>`
+   - CSS cache-busters — `?v=x.y.z` (×5 stylesheet links)
+   - JS entry point cache-buster — `src="/static/js/main.js?v=x.y.z"`
+
+---
+
 ## Coding standards
 
 **Python files** must start with the standard header block (see any existing file) and the copyright/license notice.
@@ -160,4 +199,4 @@ Pre-merge checklist:
 - Security Engineer sign-off for any new data handling code
 - Compliance Officer sign-off if classification logic changed
 - CHANGELOG.md updated
-- Version bumped in changed file headers
+- Version bumped in ALL required locations (see ## Versioning above)
