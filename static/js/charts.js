@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.2.1
+// Version: 0.7.1
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -10,7 +10,7 @@
 // =============================================================================
 
 // Maximum columns shown in scatter matrix before we cap for readability.
-const SPLOM_MAX_COLS = 10;
+const SPLOM_MAX_COLS = 12;
 
 function _hexToRgba(hex, opacity) {
   if (!hex || !hex.startsWith("#")) return hex;

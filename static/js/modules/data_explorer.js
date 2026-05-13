@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 0.5.0
+// Version: 0.7.1
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -14,14 +14,15 @@ import { get } from "../api.js";
 import { showError } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 
-let _currentRows    = [];
-let _currentColumns = [];
-let _allColumns     = [];       // full column list before any selector filtering
-let _selectedCols   = [];       // user-selected subset when > 10 columns
-let _outlierIndices = new Set();
-let _showOutliers   = false;
-let _chartEl        = null;
-let _fullStats      = null;
+let _currentRows      = [];
+let _currentColumns   = [];
+let _allColumns       = [];       // full column list before any selector filtering
+let _selectedCols     = [];       // user-selected subset for SPLOM
+let _outlierIndices   = new Set();
+let _showOutliers     = false;
+let _chartEl          = null;
+let _fullStats        = null;
+let _selectorRefreshFn = null;   // set by _buildColumnSelector; used by updateColumnSelectorRoles
 
 // Re-render on theme toggle so palette and font colors update immediately.
 document.addEventListener("theme:changed", () => { if (_chartEl) _rerender(); });
@@ -74,7 +75,7 @@ function _applyWidth() {
 
 function _rerender() {
   if (!_chartEl || !_currentRows.length) return;
-  const displayedCount = Math.min(_currentColumns.length, 10);
+  const displayedCount = _currentColumns.length;
   const autoMarkerSize = Math.max(4, Math.min(8, 400 / _currentRows.length));
   const autoHeight     = Math.max(400, displayedCount * 90);
   _applyWidth();
@@ -127,21 +128,24 @@ export async function initExploration(containerEl, uploadResponse) {
 
   _allColumns = columns;
 
-  if (columns.length > 10) {
-    // Preserve existing selection if the same dataset is re-rendered; otherwise default to first 10.
-    const prevValid = _selectedCols.length > 0 && _selectedCols.every(c => columns.includes(c));
-    if (!prevValid) _selectedCols = columns.slice(0, 10);
-    _currentColumns = _selectedCols;
-  } else {
-    _selectedCols   = [];
-    _currentColumns = columns;
+  const SPLOM_MAX = 12;
+  // Preserve an existing valid selection; otherwise build a smart default.
+  const prevValid = _selectedCols.length >= 2 && _selectedCols.every(c => columns.includes(c));
+  if (!prevValid) {
+    // Order: designated outputs first, then inputs, then remaining columns.
+    const meta     = uploadResponse.metadata || {};
+    const outCols  = (meta.output_columns || []).filter(c => columns.includes(c));
+    const inCols   = (meta.input_columns  || []).filter(c => columns.includes(c));
+    const rest     = columns.filter(c => !outCols.includes(c) && !inCols.includes(c));
+    _selectedCols  = [...outCols, ...inCols, ...rest].slice(0, SPLOM_MAX);
   }
+  _currentColumns = _selectedCols;
 
   _currentRows    = plotRows;
   _outlierIndices = detectOutliers(plotRows, _currentColumns);
 
   // Pre-compute auto values needed by the settings panel and initial render
-  const displayedCount = Math.min(columns.length, 10);
+  const displayedCount = _currentColumns.length;
   const autoMarkerSize = Math.max(4, Math.min(8, 400 / plotRows.length));
   const autoHeight     = Math.max(400, displayedCount * 90);
 
@@ -182,13 +186,11 @@ export async function initExploration(containerEl, uploadResponse) {
     }));
   }
 
-  if (columns.length > 10) {
-    containerEl.appendChild(_buildColumnSelector(columns, () => {
-      _currentColumns = _selectedCols;
-      _outlierIndices = detectOutliers(plotRows, _currentColumns);
-      _rerender();
-    }));
-  }
+  containerEl.appendChild(_buildColumnSelector(columns, () => {
+    _currentColumns = _selectedCols;
+    _outlierIndices = detectOutliers(plotRows, _currentColumns);
+    _rerender();
+  }));
 
   // ── Outlier controls ──────────────────────────────────────────────────────
   const controls = el("div", { cls: "explore-controls" });
@@ -684,53 +686,97 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
   return section;
 }
 
-// ── Column selector (> 10 columns) ────────────────────────────────────────────
+// ── Column selector (chip row) ────────────────────────────────────────────────
 
 function _buildColumnSelector(columns, onchange) {
-  const MAX_SPLOM = 10;
+  const MAX_SPLOM = 12;
+  const MIN_SPLOM = 2;
 
-  const panel   = document.createElement("details");
-  panel.className = "col-selector-panel";
-  panel.open    = true;
+  const wrap = el("div", { cls: "col-selector-wrap" });
 
-  const summary = el("summary", { cls: "col-selector-panel__summary" });
-  summary.textContent = `SPLOM column selector — ${_selectedCols.length}/${MAX_SPLOM} selected (${columns.length} total)`;
-  panel.appendChild(summary);
+  const header    = el("div", { cls: "col-selector-header" });
+  const countEl   = el("span", { cls: "col-selector-count" });
+  const allBtn    = el("button", { cls: "col-selector-btn", text: "All" });
+  allBtn.type     = "button";
+  const clearBtn  = el("button", { cls: "col-selector-btn", text: "Clear" });
+  clearBtn.type   = "button";
+  header.appendChild(countEl);
+  header.appendChild(allBtn);
+  header.appendChild(clearBtn);
 
-  const grid = el("div", { cls: "col-selector-grid" });
+  const chipRow = el("div", { cls: "col-selector-row" });
 
   function refresh() {
-    summary.textContent = `SPLOM column selector — ${_selectedCols.length}/${MAX_SPLOM} selected (${columns.length} total)`;
-    // Disable unchecked boxes when at the limit
-    grid.querySelectorAll("input[type=checkbox]").forEach((cb) => {
-      if (!cb.checked) cb.disabled = _selectedCols.length >= MAX_SPLOM;
+    countEl.textContent = `Plot columns: ${_selectedCols.length} / ${MAX_SPLOM}`;
+    chipRow.querySelectorAll(".col-chip").forEach((chip) => {
+      const col      = chip.dataset.col;
+      const selected = _selectedCols.includes(col);
+      chip.classList.toggle("col-chip--selected", selected);
+      chip.disabled  = !selected && _selectedCols.length >= MAX_SPLOM;
     });
+    clearBtn.disabled = _selectedCols.length <= MIN_SPLOM;
   }
 
   for (const col of columns) {
-    const wrap = el("div", { cls: "col-selector-item" });
-    const cb   = el("input", { type: "checkbox", id: `cs-col-${CSS.escape(col)}` });
-    cb.checked  = _selectedCols.includes(col);
+    const chip      = el("button", { cls: "col-chip" });
+    chip.type       = "button";
+    chip.textContent = col;
+    chip.title      = col;
+    chip.dataset.col = col;
 
-    cb.addEventListener("change", () => {
-      if (cb.checked) {
-        if (_selectedCols.length < MAX_SPLOM) _selectedCols.push(col);
-        else { cb.checked = false; return; }
-      } else {
+    chip.addEventListener("click", () => {
+      const isSelected = _selectedCols.includes(col);
+      if (isSelected) {
+        if (_selectedCols.length <= MIN_SPLOM) return;
         _selectedCols = _selectedCols.filter(c => c !== col);
+      } else {
+        if (_selectedCols.length >= MAX_SPLOM) return;
+        _selectedCols = [..._selectedCols, col];
       }
       refresh();
       onchange();
     });
 
-    const lbl = el("label", { cls: "col-selector-label", for: `cs-col-${CSS.escape(col)}`, text: col });
-    lbl.title = col;
-    wrap.appendChild(cb);
-    wrap.appendChild(lbl);
-    grid.appendChild(wrap);
+    chipRow.appendChild(chip);
   }
 
-  panel.appendChild(grid);
+  allBtn.addEventListener("click", () => {
+    _selectedCols = columns.slice(0, MAX_SPLOM);
+    refresh();
+    onchange();
+  });
+
+  clearBtn.addEventListener("click", () => {
+    _selectedCols = _selectedCols.slice(0, MIN_SPLOM);
+    if (_selectedCols.length < MIN_SPLOM) _selectedCols = columns.slice(0, MIN_SPLOM);
+    refresh();
+    onchange();
+  });
+
+  wrap.appendChild(header);
+  wrap.appendChild(chipRow);
+
+  _selectorRefreshFn = refresh;
   refresh();
-  return panel;
+  return wrap;
+}
+
+/**
+ * Update the column selector default selection when designation changes.
+ * Called from main.js after the user confirms column roles.
+ *
+ * @param {string[]} inputCols  - Designated input column names.
+ * @param {string[]} outputCols - Designated output column names.
+ */
+export function updateColumnSelectorRoles(inputCols, outputCols) {
+  if (!_allColumns.length) return;
+  const MAX_SPLOM = 12;
+  const outCols   = (outputCols || []).filter(c => _allColumns.includes(c));
+  const inCols    = (inputCols  || []).filter(c => _allColumns.includes(c));
+  const rest      = _allColumns.filter(c => !outCols.includes(c) && !inCols.includes(c));
+  _selectedCols   = [...outCols, ...inCols, ...rest].slice(0, MAX_SPLOM);
+  _currentColumns = _selectedCols;
+  if (_selectorRefreshFn) _selectorRefreshFn();
+  _outlierIndices = detectOutliers(_currentRows, _currentColumns);
+  _rerender();
 }

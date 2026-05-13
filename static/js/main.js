@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.7.0
+// Version: 0.7.1
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, handles the single data-
 //              type gate, and navigates to the exploration view. Wires the full
@@ -14,7 +14,7 @@ import { get, post, put } from "./api.js";
 import { refreshState } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
-import { initExploration } from "./modules/data_explorer.js";
+import { initExploration, updateColumnSelectorRoles } from "./modules/data_explorer.js";
 import { initCleaning } from "./modules/data_cleaning.js";
 import { initDesignation } from "./modules/column_designation.js";
 import { initNormalization } from "./modules/normalization.js";
@@ -358,7 +358,7 @@ async function _renderExploration(uploadResponse) {
     meta2.n_rows,
     initInputs,
     initOutputs,
-    ({ input_columns }) => {
+    ({ input_columns, output_columns }) => {
       // Reveal normalization and training config on first designation confirmation
       normCard.classList.remove("hidden");
       clearEl(normCard);
@@ -366,6 +366,8 @@ async function _renderExploration(uploadResponse) {
       trainConfigCard.classList.remove("hidden");
       clearEl(trainConfigCard);
       initModelConfig(trainConfigCard, onTrain);
+      // Update SPLOM column selector to show outputs first, then inputs
+      updateColumnSelectorRoles(input_columns, output_columns);
       normCard.scrollIntoView({ behavior: "smooth", block: "start" });
     },
   );

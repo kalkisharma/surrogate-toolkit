@@ -6,6 +6,31 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.1] — 2026-05-12
+
+### Phase 3 — Column Selector UX Patch (v0.7.1)
+
+#### Changed
+
+- **Column selector always visible** — the SPLOM column selector now appears for every dataset regardless of column count. Previously hidden for datasets with ≤ 10 columns.
+- **Chip/tag row UI** — replaced the `<details>` checkbox-grid panel with a compact pill-chip row. Each chip toggles a column on/off. Selected chips highlight in the accent colour. Chips wrap to multiple lines for wide datasets. Takes ~40–80px of vertical space vs the old 200–300px scrollable grid.
+- **"All" and "Clear" buttons** — "All" selects all columns up to the cap; "Clear" reduces selection to the minimum 2 columns.
+- **Cap raised: 10 → 12** — `SPLOM_MAX_COLS` in `charts.js` raised from 10 to 12. The selector cap matches.
+- **Minimum selection: 2** — users can select any subset from 2 to 12 columns. Previously the selector forced exactly 10 selected (all or nothing behaviour was broken for small datasets).
+- **Smart default after designation** — when the user confirms column roles (Step 4), the SPLOM reorders its default selection to show output columns first, then input columns, then remaining. Updates live via `updateColumnSelectorRoles()` export called from `main.js`.
+- **Smart default on load** — when `initExploration` is called with an `uploadResponse` that already carries `input_columns`/`output_columns` (e.g. after dataset switch), the initial chip selection uses the same outputs-first ordering.
+
+#### Files changed
+
+- `static/js/modules/data_explorer.js` — chip selector, `updateColumnSelectorRoles` export, smart default logic
+- `static/js/charts.js` — `SPLOM_MAX_COLS` 10 → 12
+- `static/js/main.js` — import `updateColumnSelectorRoles`; designation callback passes `output_columns` and calls `updateColumnSelectorRoles`
+- `static/css/main.css` — replaced old `.col-selector-panel/grid/item/label` with `.col-selector-wrap`, `.col-selector-header`, `.col-selector-count`, `.col-selector-btn`, `.col-selector-row`, `.col-chip`, `.col-chip--selected`
+- `config/settings.py` — `VERSION = "0.7.1"`
+- `app/templates/index.html` — version bump (8 locations)
+
+---
+
 ## [0.7.0] — 2026-05-12
 
 ### Phase 3 — A-Series: Model Training & Metrics (v0.7.0)
