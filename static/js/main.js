@@ -2,14 +2,13 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.7.1
+// Version: 0.8.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
-//              learning mode), renders the upload view, handles the single data-
-//              type gate, and navigates to the exploration view. Wires the full
-//              data pipeline through to model training and results (Step 7).
+//              learning mode), renders the upload view, and drives the workflow
+//              panel router (sidebar + 8 lazy-init panels).
 // =============================================================================
 
-import { initLearningMode, registerPrimer, registerTooltip } from "./learning_mode.js";
+import { initLearningMode, registerPrimer } from "./learning_mode.js";
 import { get, post, put } from "./api.js";
 import { refreshState } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
@@ -28,10 +27,14 @@ import { el, clearEl } from "./utils.js";
   const learningToggle = document.getElementById("learning-toggle");
   initLearningMode(learningToggle);
   _initGlobalHeader();
-
   await refreshState();
   renderUploadView();
 })();
+
+// ── Module state ──────────────────────────────────────────────────────────────
+
+/** Stored so it can be removed before re-wiring when the active dataset changes. */
+let _headerFileHandler = null;
 
 // ── Views ─────────────────────────────────────────────────────────────────────
 
@@ -39,20 +42,24 @@ function getApp() {
   return document.getElementById("app");
 }
 
+/** Show or hide the global header "Load File" button. */
+function _setLoadFileVisible(visible) {
+  const btn = document.getElementById("header-load-file-btn");
+  if (btn) btn.classList.toggle("hidden", !visible);
+}
+
 /** Render the entry / upload view into #app. */
 function renderUploadView() {
+  _setLoadFileVisible(false);
   const app = getApp();
   clearEl(app);
 
-  // ── Hero section ──────────────────────────────────────────────────────────
   const hero = el("div", { cls: "hero" });
   hero.innerHTML = `
     <div class="hero__badge">Surrogate Modeling Toolkit</div>
     <h1 class="hero__title">Build fast surrogate models from your data</h1>
     <p class="hero__subtitle">Upload your data. Normalize. Train. Validate. All on your machine.</p>
   `;
-
-  // Learning mode primer for the entry screen
   registerPrimer(
     "entry",
     hero,
@@ -65,13 +72,10 @@ function renderUploadView() {
      sensitivity studies — anywhere you need many evaluations but can't afford to run
      the full model each time.</p>`
   );
-
   app.appendChild(hero);
 
-  // ── Upload zone ───────────────────────────────────────────────────────────
   const uploadSection = el("div", { cls: "card", style: "max-width: 640px; margin: 0 auto;" });
-
-  const uploadTitle = el("div", { cls: "section-header" });
+  const uploadTitle   = el("div", { cls: "section-header" });
   uploadTitle.innerHTML = `
     <h2 class="section-title">Step 1 — Upload Your Data</h2>
     <p class="section-desc">CSV format. All columns must be numeric. Maximum 500 MB.</p>
@@ -101,7 +105,6 @@ function renderUploadView() {
   uploadSection.appendChild(dropZone);
   app.appendChild(uploadSection);
 
-  // ── Wire upload events ────────────────────────────────────────────────────
   const fileInput = uploadSection.querySelector("#file-input");
   let dropEnabled = true;
   _wireDropZone(dropZone, fileInput, uploadSection, (response) => {
@@ -116,10 +119,9 @@ function renderUploadView() {
 }
 
 /**
- * Modal gate for additional file uploads (from the exploration view).
+ * Modal gate for additional file uploads.
  * Opens a <dialog> overlay; blocks interaction until the user selects a
- * data type and confirms, or cancels. The underlying exploration view stays
- * visible behind the backdrop.
+ * data type and confirms, or cancels. The workflow view stays visible behind.
  */
 function _renderAdditionalFileGate(app, uploadResponse) {
   const existing = document.getElementById("additional-gate");
@@ -142,7 +144,7 @@ function _renderAdditionalFileGate(app, uploadResponse) {
     </div>
   `;
 
-  let selectedType = null;
+  let selectedType  = null;
   const confirmBtn  = dialog.querySelector("#ag-confirm");
   const optionsWrap = dialog.querySelector("#ag-options");
 
@@ -173,7 +175,6 @@ function _renderAdditionalFileGate(app, uploadResponse) {
 
   const closeModal = () => { dialog.close(); dialog.remove(); };
   dialog.querySelector("#ag-cancel").addEventListener("click", closeModal);
-  // Backdrop click dismisses
   dialog.addEventListener("click", (e) => { if (e.target === dialog) closeModal(); });
 
   document.body.appendChild(dialog);
@@ -182,7 +183,6 @@ function _renderAdditionalFileGate(app, uploadResponse) {
 
 /** Render the single data-type gate after a successful upload. */
 function _renderGates(app, uploadResponse) {
-  // Append gate below the upload section (don't clear — keep the zone visible)
   const gatesSection = el("div", { cls: "gates-container", id: "gates-container",
     style: "max-width: 640px; margin: var(--space-8) auto 0;" });
 
@@ -202,7 +202,6 @@ function _renderGates(app, uploadResponse) {
   });
   confirmBtn.disabled = true;
 
-  // ── Gate 1: Data type ─────────────────────────────────────────────────────
   const gate1 = _makeGate(
     1,
     "What type of data are you working with?",
@@ -211,18 +210,14 @@ function _renderGates(app, uploadResponse) {
       { value: "experimental", label: "Experimental measurements" },
       { value: "mixed",        label: "Mixed / Unknown" },
     ],
-    (val) => {
-      selectedDataType = val;
-      confirmBtn.disabled = false;
-    }
+    (val) => { selectedDataType = val; confirmBtn.disabled = false; }
   );
   gate1.classList.add("active");
   gatesSection.appendChild(gate1);
 
   confirmBtn.addEventListener("click", async () => {
-    confirmBtn.disabled = true;
+    confirmBtn.disabled    = true;
     confirmBtn.textContent = "Saving…";
-
     await put("/api/state/session", { data_type: selectedDataType });
     await refreshState();
     _renderExploration(uploadResponse);
@@ -232,206 +227,307 @@ function _renderGates(app, uploadResponse) {
   app.appendChild(gatesSection);
 }
 
-/** Render the data preview and exploration view. */
+// ── Workflow exploration view ─────────────────────────────────────────────────
+
+/** Render the workflow panel router (sidebar + 8 lazy-init panels) into #app. */
 async function _renderExploration(uploadResponse) {
   const app = getApp();
   clearEl(app);
+  _setLoadFileVisible(true);
 
-  // ── File summary bar ──────────────────────────────────────────────────────
-  const summaryBar = el("div", {
-    cls: "preview-header",
-    style: "margin-bottom: var(--space-6);",
-  });
+  // Re-wire the header "Load File" input for this dataset's upload flow.
+  const headerAddInput = document.getElementById("header-add-file-input");
+  if (headerAddInput) {
+    if (_headerFileHandler) headerAddInput.removeEventListener("change", _headerFileHandler);
+    _headerFileHandler = () => {
+      if (!headerAddInput.files[0]) return;
+      const file = headerAddInput.files[0];
+      headerAddInput.value = "";
+      _handleFile(file, document.getElementById("header-load-file-btn"), (resp) => {
+        _renderAdditionalFileGate(app, resp);
+      });
+    };
+    headerAddInput.addEventListener("change", _headerFileHandler);
+  }
+
   const meta = uploadResponse.metadata;
-  summaryBar.innerHTML = `
-    <div>
-      <h2 class="section-title">Data Explorer</h2>
-      <p class="preview-meta">
-        <strong>${meta.filename}</strong>
-        — ${meta.n_rows.toLocaleString()} rows × ${meta.n_cols} columns
-        &nbsp;·&nbsp; uploaded ${new Date(meta.upload_timestamp).toLocaleTimeString()}
-      </p>
-    </div>
-    <div style="display:flex;gap:var(--space-3);">
-      <input type="file" id="add-file-input" accept=".csv" style="display:none" aria-label="Load additional CSV">
-      <button class="btn btn-secondary" id="add-file-btn">+ Load another file</button>
-      <button class="btn btn-secondary" id="back-btn">← Upload new file</button>
-    </div>
-  `;
-  app.appendChild(summaryBar);
-  summaryBar.querySelector("#back-btn").addEventListener("click", renderUploadView);
 
-  // "Load another file" — uploads without clearing the current exploration view
-  const addFileInput = summaryBar.querySelector("#add-file-input");
-  summaryBar.querySelector("#add-file-btn").addEventListener("click", () => addFileInput.click());
-  addFileInput.addEventListener("change", () => {
-    if (!addFileInput.files[0]) return;
-    const file = addFileInput.files[0];
-    addFileInput.value = "";
-    _handleFile(file, summaryBar.querySelector("#add-file-btn"), (response) => {
-      _renderAdditionalFileGate(app, response);
+  // Mutable cross-panel state — updated by designation callback
+  let _currentInputCols  = meta.input_columns  || [];
+  let _currentOutputCols = meta.output_columns || [];
+  let _currentNorm       = meta.normalization_method || null;
+
+  // ── Layout skeleton ───────────────────────────────────────────────────────
+  const layout    = el("div", { cls: "workflow-layout" });
+  const sidebarEl = el("nav",  { cls: "workflow-sidebar", id: "workflow-sidebar",
+    "aria-label": "Workflow steps" });
+  const panelArea = el("div",  { cls: "workflow-panel-area" });
+  layout.appendChild(sidebarEl);
+  layout.appendChild(panelArea);
+  app.appendChild(layout);
+
+  // ── Panel containers ──────────────────────────────────────────────────────
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results"];
+  const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
+                        designate: "Designate", normalize: "Normalize", configure: "Configure", results: "Results" };
+  const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
+                        designate: 5, normalize: 6, configure: 7, results: 8 };
+
+  const panelEls  = {};
+  const panelDone = {};
+  for (const key of STEP_KEYS) {
+    const p = el("div", { cls: "workflow-panel hidden" });
+    panelArea.appendChild(p);
+    panelEls[key]  = p;
+    panelDone[key] = false;
+  }
+
+  // ── Step state ────────────────────────────────────────────────────────────
+  const hasDesignation = _currentInputCols.length > 0;
+  const stepUnlocked = {
+    upload: true, preview: true, explore: true, clean: true, designate: true,
+    normalize: hasDesignation, configure: hasDesignation, results: false,
+  };
+  const stepCompleted = {
+    upload: true, preview: false, explore: false, clean: false,
+    designate: hasDesignation, normalize: false, configure: false, results: false,
+  };
+
+  let _activeKey = "explore";
+
+  // ── Sidebar ───────────────────────────────────────────────────────────────
+  function buildSidebar() {
+    clearEl(sidebarEl);
+
+    const collapseBtn  = el("button", { cls: "sidebar-collapse-btn" });
+    collapseBtn.type   = "button";
+    collapseBtn.title  = "Toggle sidebar";
+    collapseBtn.setAttribute("aria-label", "Toggle sidebar");
+    collapseBtn.textContent = "‹";
+    collapseBtn.addEventListener("click", () => {
+      const collapsed = sidebarEl.classList.toggle("workflow-sidebar--collapsed");
+      collapseBtn.textContent = collapsed ? "›" : "‹";
     });
-  });
+    sidebarEl.appendChild(collapseBtn);
 
-  // ── Data preview table ────────────────────────────────────────────────────
-  const previewSection = el("div", { cls: "preview-section card",
-    style: "margin-bottom: var(--space-6);" });
-  const previewTitle = el("h3", {
-    cls: "section-title",
-    text: `Data Preview — first ${uploadResponse.preview.rows.length} rows`,
-    style: "margin-bottom: var(--space-4);",
-  });
-  previewSection.appendChild(previewTitle);
-  previewSection.appendChild(_buildPreviewTable(uploadResponse.preview, meta.null_counts));
-  app.appendChild(previewSection);
+    for (const key of STEP_KEYS) {
+      const isActive   = key === _activeKey;
+      const isLocked   = !stepUnlocked[key];
+      const isComplete = stepCompleted[key] && !isActive;
 
-  // ── Exploration module ────────────────────────────────────────────────────
-  const exploreSection = el("div", { cls: "card", id: "explore-section" });
-  app.appendChild(exploreSection);
-  await initExploration(exploreSection, uploadResponse);
+      let cls = "step-item";
+      if (isActive)   cls += " step-item--active";
+      if (isLocked)   cls += " step-item--locked";
+      if (isComplete) cls += " step-item--complete";
 
-  // ── Data cleaning ─────────────────────────────────────────────────────────
-  const cleanCard = el("div", { cls: "card", id: "cleaning-section",
-    style: "margin-top: var(--space-6);" });
-  app.appendChild(cleanCard);
+      const item  = el("div", { cls });
+      const numEl = el("span", { cls: "step-item__num",   text: String(STEP_NUMS[key]) });
+      const lblEl = el("span", { cls: "step-item__label", text: STEP_LABELS[key] });
+      const icnEl = el("span", { cls: "step-item__icon",
+        text: isLocked ? "🔒" : isComplete ? "✓" : "" });
 
-  const onClean = async () => {
-    // Re-render exploration with fresh data from server, then refresh cleaning summary.
-    clearEl(exploreSection);
-    await initExploration(exploreSection, uploadResponse);
-    await initCleaning(cleanCard, onClean);
-  };
-  await initCleaning(cleanCard, onClean);
+      item.appendChild(numEl);
+      item.appendChild(lblEl);
+      item.appendChild(icnEl);
+      sidebarEl.appendChild(item);
 
-  // ── Column designation ────────────────────────────────────────────────────
-  const meta2         = uploadResponse.metadata;
-  const designCard    = el("div", { cls: "card", id: "designation-section",
-    style: "margin-top: var(--space-6);" });
-  app.appendChild(designCard);
-
-  // Normalization card — hidden until designation is confirmed
-  const normCard = el("div", { cls: "card hidden", id: "normalization-section",
-    style: "margin-top: var(--space-6);" });
-  app.appendChild(normCard);
-
-  // Training config card — hidden until designation is confirmed
-  const trainConfigCard = el("div", { cls: "card hidden", id: "model-config-section",
-    style: "margin-top: var(--space-6);" });
-  app.appendChild(trainConfigCard);
-
-  // Results card — hidden until model training completes
-  const resultsCard = el("div", { cls: "card hidden", id: "results-section",
-    style: "margin-top: var(--space-6);" });
-  app.appendChild(resultsCard);
-
-  const initInputs  = meta2.input_columns  || [];
-  const initOutputs = meta2.output_columns || [];
-  const currentNorm = meta2.normalization_method || null;
-
-  const onTrain = async () => {
-    resultsCard.classList.remove("hidden");
-    clearEl(resultsCard);
-    await initResults(resultsCard);
-    resultsCard.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  // If designation already exists, render normalization and training config immediately
-  if (initInputs.length > 0) {
-    normCard.classList.remove("hidden");
-    initNormalization(normCard, currentNorm, initInputs.length);
-    trainConfigCard.classList.remove("hidden");
-    initModelConfig(trainConfigCard, onTrain);
-
-    // If a model was already trained in this session, show results immediately
-    const resultsCheck = await get("/api/model/results");
-    if (resultsCheck.success && resultsCheck.results) {
-      resultsCard.classList.remove("hidden");
-      await initResults(resultsCard);
+      if (!isLocked) item.addEventListener("click", () => activatePanel(key));
     }
   }
 
-  initDesignation(
-    designCard,
-    meta2.columns || uploadResponse.preview.columns,
-    meta2.dtypes || {},
-    meta2.null_counts || {},
-    meta2.n_rows,
-    initInputs,
-    initOutputs,
-    ({ input_columns, output_columns }) => {
-      // Reveal normalization and training config on first designation confirmation
-      normCard.classList.remove("hidden");
-      clearEl(normCard);
-      initNormalization(normCard, null, input_columns.length);
-      trainConfigCard.classList.remove("hidden");
-      clearEl(trainConfigCard);
-      initModelConfig(trainConfigCard, onTrain);
-      // Update SPLOM column selector to show outputs first, then inputs
-      updateColumnSelectorRoles(input_columns, output_columns);
-      normCard.scrollIntoView({ behavior: "smooth", block: "start" });
-    },
-  );
+  // ── Panel activation ──────────────────────────────────────────────────────
+  async function activatePanel(key) {
+    if (!stepUnlocked[key]) return;
+    _activeKey = key;
+    for (const k of STEP_KEYS) panelEls[k].classList.toggle("hidden", k !== key);
+    buildSidebar();
+    put("/api/state/session", { active_tab: key }).catch(() => {});
+    if (!panelDone[key]) {
+      panelDone[key] = true;
+      await _initPanel(key, panelEls[key]);
+    }
+  }
+
+  // ── Per-panel subtitle ────────────────────────────────────────────────────
+  function _subtitle(container) {
+    const sub = el("p", { cls: "panel-file-meta" });
+    sub.innerHTML = `<strong>${meta.filename}</strong> — ${meta.n_rows.toLocaleString()} rows × ${meta.n_cols} columns`;
+    container.appendChild(sub);
+  }
+
+  // ── Panel dispatch ────────────────────────────────────────────────────────
+  async function _initPanel(key, container) {
+    switch (key) {
+      case "upload":    _initUploadPanel(container);         break;
+      case "preview":   _initPreviewPanel(container);        break;
+      case "explore":   await _initExplorePanel(container);  break;
+      case "clean":     await _initCleanPanel(container);    break;
+      case "designate": _initDesignatePanel(container);      break;
+      case "normalize": _initNormalizePanel(container);      break;
+      case "configure": _initConfigurePanel(container);      break;
+      case "results":   await _initResultsPanel(container);  break;
+    }
+  }
+
+  // ── Step 1 — Upload (status panel; actual upload is the separate view) ────
+  function _initUploadPanel(container) {
+    _subtitle(container);
+    const card = el("div", { cls: "card" });
+    card.innerHTML = `
+      <h2 class="section-title">Step 1 — Upload</h2>
+      <p class="section-desc" style="margin-top:var(--space-3)">
+        <strong>${meta.filename}</strong> is loaded
+        (${meta.n_rows.toLocaleString()} rows × ${meta.n_cols} columns).
+        Use <strong>+ Load File</strong> in the header to add a second dataset,
+        or <strong>✕ Clear</strong> to reset and start over.
+      </p>
+    `;
+    container.appendChild(card);
+  }
+
+  // ── Step 2 — Preview ──────────────────────────────────────────────────────
+  function _initPreviewPanel(container) {
+    _subtitle(container);
+    const card  = el("div", { cls: "card" });
+    const title = el("h3", { cls: "section-title",
+      text: `Data Preview — first ${uploadResponse.preview.rows.length} rows`,
+      style: "margin-bottom: var(--space-4);" });
+    card.appendChild(title);
+    card.appendChild(_buildPreviewTable(uploadResponse.preview, meta.null_counts));
+    container.appendChild(card);
+  }
+
+  // ── Step 3 — Explore ──────────────────────────────────────────────────────
+  async function _initExplorePanel(container) {
+    _subtitle(container);
+    await initExploration(container, uploadResponse);
+  }
+
+  // ── Step 4 — Clean ────────────────────────────────────────────────────────
+  async function _initCleanPanel(container) {
+    clearEl(container);
+    _subtitle(container);
+    const onClean = async () => {
+      // Invalidate explore so it re-fetches fresh data on next visit
+      panelDone["explore"] = false;
+      clearEl(panelEls["explore"]);
+      // Refresh clean panel itself to show updated stats
+      await _initCleanPanel(container);
+    };
+    await initCleaning(container, onClean);
+  }
+
+  // ── Step 5 — Designate ────────────────────────────────────────────────────
+  function _initDesignatePanel(container) {
+    _subtitle(container);
+    initDesignation(
+      container,
+      meta.columns || uploadResponse.preview.columns,
+      meta.dtypes      || {},
+      meta.null_counts  || {},
+      meta.n_rows,
+      _currentInputCols,
+      _currentOutputCols,
+      ({ input_columns, output_columns }) => {
+        _currentInputCols  = input_columns;
+        _currentOutputCols = output_columns;
+        _currentNorm       = null;
+
+        stepUnlocked["normalize"]  = true;
+        stepUnlocked["configure"]  = true;
+        stepCompleted["designate"] = true;
+        buildSidebar();
+
+        // Update SPLOM selector ordering if explore has been rendered
+        updateColumnSelectorRoles(input_columns, output_columns);
+
+        // Invalidate normalize and configure so they re-init with the new roles
+        if (panelDone["normalize"]) { panelDone["normalize"] = false; clearEl(panelEls["normalize"]); }
+        if (panelDone["configure"]) { panelDone["configure"] = false; clearEl(panelEls["configure"]); }
+
+        activatePanel("normalize");
+      },
+    );
+  }
+
+  // ── Step 6 — Normalize ────────────────────────────────────────────────────
+  function _initNormalizePanel(container) {
+    clearEl(container);
+    _subtitle(container);
+    initNormalization(container, _currentNorm, _currentInputCols.length);
+  }
+
+  // ── Step 7 — Configure + Train ────────────────────────────────────────────
+  function _initConfigurePanel(container) {
+    clearEl(container);
+    _subtitle(container);
+    initModelConfig(container, async () => {
+      stepUnlocked["results"] = true;
+      buildSidebar();
+      panelDone["results"] = false;
+      clearEl(panelEls["results"]);
+      await activatePanel("results");
+    });
+  }
+
+  // ── Step 8 — Results ──────────────────────────────────────────────────────
+  async function _initResultsPanel(container) {
+    clearEl(container);
+    _subtitle(container);
+    await initResults(container);
+    stepCompleted["results"] = true;
+    buildSidebar();
+  }
+
+  // ── Check for existing trained model ─────────────────────────────────────
+  const resultsCheck = await get("/api/model/results");
+  if (resultsCheck.success && resultsCheck.results) {
+    stepUnlocked["results"] = true;
+  }
+
+  // ── Initial render ────────────────────────────────────────────────────────
+  buildSidebar();
+  await activatePanel("explore");
 }
 
 // ── Reusable helpers ──────────────────────────────────────────────────────────
 
 /** Build a gate card with radio-button options. */
 function _makeGate(number, title, options, onSelect) {
-  const gate = el("div", { cls: "gate-step" });
-
-  const num = el("div", { cls: "gate-step__number", text: String(number) });
-  const titleEl = el("div", { cls: "gate-step__title", text: title });
-  const optionsWrap = el("div", { cls: "gate-options" });
+  const gate       = el("div", { cls: "gate-step" });
+  const num        = el("div", { cls: "gate-step__number", text: String(number) });
+  const titleEl    = el("div", { cls: "gate-step__title",  text: title });
+  const optWrap    = el("div", { cls: "gate-options" });
 
   for (const opt of options) {
-    const wrapper = el("div", { cls: "gate-option" });
-    const radio = el("input", {
-      type: "radio",
-      name: `gate-${number}`,
-      id: `gate-${number}-${opt.value}`,
-      value: opt.value,
-    });
-    const label = el("label", {
-      cls: "gate-option__label",
-      for: `gate-${number}-${opt.value}`,
-      text: opt.label,
-    });
-
-    radio.addEventListener("change", () => {
-      if (radio.checked) {
-        gate.classList.add("completed");
-        onSelect(opt.value);
-      }
-    });
-
+    const wrapper = el("div",   { cls: "gate-option" });
+    const radio   = el("input", { type: "radio", name: `gate-${number}`, id: `gate-${number}-${opt.value}`, value: opt.value });
+    const label   = el("label", { cls: "gate-option__label", for: `gate-${number}-${opt.value}`, text: opt.label });
+    radio.addEventListener("change", () => { if (radio.checked) { gate.classList.add("completed"); onSelect(opt.value); } });
     wrapper.appendChild(radio);
     wrapper.appendChild(label);
-    optionsWrap.appendChild(wrapper);
+    optWrap.appendChild(wrapper);
   }
 
   gate.appendChild(num);
   gate.appendChild(titleEl);
-  gate.appendChild(optionsWrap);
+  gate.appendChild(optWrap);
   return gate;
 }
 
 /** Build the preview table from upload response data. */
 function _buildPreviewTable(preview, nullCounts) {
-  const wrap = el("div", { cls: "preview-table-wrap" });
+  const wrap  = el("div",   { cls: "preview-table-wrap" });
   const table = el("table", { cls: "preview-table" });
 
-  const thead = el("thead");
+  const thead     = el("thead");
   const headerRow = el("tr");
   for (const col of preview.columns) {
     const th = el("th");
     th.innerHTML = `${col}`;
     const nullCount = nullCounts?.[col] ?? 0;
     if (nullCount > 0) {
-      const indicator = el("span", {
-        cls: "null-indicator",
-        text: `${nullCount} null(s)`,
-      });
-      th.appendChild(indicator);
+      th.appendChild(el("span", { cls: "null-indicator", text: `${nullCount} null(s)` }));
     }
     headerRow.appendChild(th);
   }
@@ -443,7 +539,7 @@ function _buildPreviewTable(preview, nullCounts) {
     const tr = el("tr");
     for (const col of preview.columns) {
       const val = row[col];
-      const td = el("td");
+      const td  = el("td");
       if (val === null || val === undefined) {
         td.textContent = "null";
         td.classList.add("null-cell");
@@ -461,36 +557,25 @@ function _buildPreviewTable(preview, nullCounts) {
 
 /** Wire drag-and-drop and file input on the upload zone. */
 function _wireDropZone(dropZone, fileInput, containerEl, onSuccess, isActive = () => true) {
-  // Prevent browser from opening the file on drag
   ["dragenter", "dragover", "dragleave", "drop"].forEach((evt) => {
     dropZone.addEventListener(evt, (e) => { e.preventDefault(); e.stopPropagation(); });
     document.body.addEventListener(evt, (e) => e.preventDefault());
   });
-
   dropZone.addEventListener("dragenter", () => dropZone.classList.add("drag-over"));
   dropZone.addEventListener("dragover",  () => dropZone.classList.add("drag-over"));
   dropZone.addEventListener("dragleave", () => dropZone.classList.remove("drag-over"));
-
   dropZone.addEventListener("drop", (e) => {
     dropZone.classList.remove("drag-over");
     const file = e.dataTransfer.files[0];
     if (file && isActive()) _handleFile(file, dropZone, onSuccess);
   });
-
-  dropZone.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") fileInput.click();
-  });
-
+  dropZone.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") fileInput.click(); });
   dropZone.addEventListener("click", (e) => {
-    if (!e.target.classList.contains("upload-zone__browse") &&
-        e.target.tagName !== "LABEL") {
-      fileInput.click();
-    }
+    if (!e.target.classList.contains("upload-zone__browse") && e.target.tagName !== "LABEL") fileInput.click();
   });
-
   fileInput.addEventListener("change", () => {
     if (fileInput.files[0] && isActive()) _handleFile(fileInput.files[0], dropZone, onSuccess);
-    fileInput.value = ""; // reset so same file can be re-uploaded
+    fileInput.value = "";
   });
 }
 
@@ -502,18 +587,17 @@ async function _refreshDatasetSwitcher() {
   const resp = await get("/api/data/datasets");
   if (!resp.success) return;
 
-  const nav = document.querySelector(".global-header__controls");
-  let switcher = document.getElementById("dataset-switcher-group");
+  const nav      = document.querySelector(".global-header__controls");
+  let   switcher = document.getElementById("dataset-switcher-group");
 
   if (resp.count < 2) {
     if (switcher) switcher.remove();
     return;
   }
 
-  // Build or rebuild the switcher control group
   if (switcher) switcher.remove();
   switcher = el("div", { cls: "global-header__control-group", id: "dataset-switcher-group" });
-  const label = el("span", { cls: "global-header__control-label", text: "Dataset" });
+  const label  = el("span",   { cls: "global-header__control-label", text: "Dataset" });
   const select = el("select", { cls: "global-header__select", id: "dataset-switcher",
     "aria-label": "Active dataset" });
 
@@ -527,35 +611,31 @@ async function _refreshDatasetSwitcher() {
   select.addEventListener("change", async () => {
     await put("/api/state/session", { active_dataset_key: select.value });
     await refreshState();
-    const activeDs = resp.datasets.find((d) => d.key === select.value);
-    if (activeDs) {
-      const dsResp = await get("/api/data/datasets");
-      const active = dsResp.datasets?.find((d) => d.key === select.value);
-      if (active) {
-        // Re-render exploration with refreshed data
-        const uploadMeta = {
-          metadata: {
-            filename:             active.filename,
-            n_rows:               active.n_rows,
-            n_cols:               active.n_cols,
-            upload_timestamp:     new Date().toISOString(),
-            null_counts:          active.null_counts    || {},
-            dtypes:               active.dtypes         || {},
-            coercion_warnings:    [],
-            input_columns:        active.input_columns  || [],
-            output_columns:       active.output_columns || [],
-            normalization_method: active.normalization_method || null,
-            columns:              active.columns || [],
-          },
-          preview: {
-            columns:    active.columns     || [],
-            rows:       active.preview_rows || [],
-            total_rows: active.n_rows,
-          },
-        };
-        _renderExploration(uploadMeta);
-        showSuccess(`Switched to "${active.filename}"`);
-      }
+    const dsResp = await get("/api/data/datasets");
+    const active = dsResp.datasets?.find((d) => d.key === select.value);
+    if (active) {
+      const uploadMeta = {
+        metadata: {
+          filename:             active.filename,
+          n_rows:               active.n_rows,
+          n_cols:               active.n_cols,
+          upload_timestamp:     new Date().toISOString(),
+          null_counts:          active.null_counts          || {},
+          dtypes:               active.dtypes               || {},
+          coercion_warnings:    [],
+          input_columns:        active.input_columns        || [],
+          output_columns:       active.output_columns       || [],
+          normalization_method: active.normalization_method || null,
+          columns:              active.columns              || [],
+        },
+        preview: {
+          columns:    active.columns      || [],
+          rows:       active.preview_rows || [],
+          total_rows: active.n_rows,
+        },
+      };
+      _renderExploration(uploadMeta);
+      showSuccess(`Switched to "${active.filename}"`);
     }
     _refreshDatasetSwitcher();
   });
@@ -568,11 +648,12 @@ async function _refreshDatasetSwitcher() {
   nav.insertBefore(switcher, themeBtn);
 }
 
-/** Wire global header controls: theme toggle, level select, classification, cores, clear session. */
+/** Wire global header controls: theme, level, classification, cores, clear, load-file. */
 function _initGlobalHeader() {
-  const themeBtn  = document.getElementById("theme-toggle");
-  const levelSel  = document.getElementById("level-select");
-  const classSel  = document.getElementById("classification-select");
+  const themeBtn = document.getElementById("theme-toggle");
+  const levelSel = document.getElementById("level-select");
+  const classSel = document.getElementById("classification-select");
+
   if (classSel) {
     classSel.addEventListener("change", async () => {
       await put("/api/state/session", { classification: classSel.value });
@@ -581,7 +662,6 @@ function _initGlobalHeader() {
     });
   }
 
-  // Clear session
   document.getElementById("clear-session-btn").addEventListener("click", async () => {
     if (!confirm("Clear all loaded datasets and return to the upload screen?")) return;
     await post("/api/state/reset", {});
@@ -591,13 +671,18 @@ function _initGlobalHeader() {
     showSuccess("Session cleared.");
   });
 
-  // Apply stored theme on load (default: light)
+  // "Load File" button in header triggers the hidden file input
+  const headerAddBtn   = document.getElementById("header-load-file-btn");
+  const headerAddInput = document.getElementById("header-add-file-input");
+  if (headerAddBtn && headerAddInput) {
+    headerAddBtn.addEventListener("click", () => headerAddInput.click());
+  }
+
   const storedTheme = localStorage.getItem("theme") || "light";
   _applyTheme(storedTheme, themeBtn);
-
   themeBtn.addEventListener("click", () => {
     const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-    const next = isDark ? "light" : "dark";
+    const next   = isDark ? "light" : "dark";
     _applyTheme(next, themeBtn);
     localStorage.setItem("theme", next);
   });
@@ -607,12 +692,11 @@ function _initGlobalHeader() {
     await refreshState();
   });
 
-  // Cores — number input; max and placeholder set from detected CPU count
   const coresInput = document.getElementById("cores-input");
-  const cpuCount = navigator.hardwareConcurrency || 8;
-  coresInput.max = cpuCount;
+  const cpuCount   = navigator.hardwareConcurrency || 8;
+  coresInput.max         = cpuCount;
   coresInput.placeholder = cpuCount;
-  coresInput.title = `Detected: ${cpuCount} logical processors`;
+  coresInput.title       = `Detected: ${cpuCount} logical processors`;
 
   coresInput.addEventListener("input", () => {
     const count = parseInt(coresInput.value, 10);
@@ -620,7 +704,7 @@ function _initGlobalHeader() {
     const over = count > 4;
     coresInput.classList.toggle("input-caution", over);
     coresInput.title = over
-      ? `⚠ More than 4 processors may violate head-node policies`
+      ? "⚠ More than 4 processors may violate head-node policies"
       : `Detected: ${cpuCount} logical processors`;
   });
 
@@ -656,13 +740,10 @@ async function _handleFile(file, dropZone, onSuccess) {
     showError("Only .csv files are supported. Please select a CSV file.");
     return;
   }
-
   showSpinner(dropZone);
-
   const formData = new FormData();
   formData.append("file", file);
   const result = await post("/api/data/upload", formData);
-
   hideSpinner(dropZone);
 
   if (!result.success) {
@@ -674,14 +755,10 @@ async function _handleFile(file, dropZone, onSuccess) {
   showSuccess(`"${file.name}" loaded — ${result.preview.total_rows.toLocaleString()} rows × ${result.metadata.n_cols} columns`);
 
   if (result.metadata.coercion_warnings?.length) {
-    for (const w of result.metadata.coercion_warnings) {
-      showWarning(w, 8000);
-    }
+    for (const w of result.metadata.coercion_warnings) showWarning(w, 8000);
   }
   if (result.eviction_warnings?.length) {
-    for (const w of result.eviction_warnings) {
-      showWarning(w, 10000);
-    }
+    for (const w of result.eviction_warnings) showWarning(w, 10000);
   }
 
   await _refreshDatasetSwitcher();
