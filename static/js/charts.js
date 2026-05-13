@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.7.1
+// Version: 0.8.1
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -229,4 +229,99 @@ export function updateScatterMatrixOutliers(containerEl, rows, outlierIndices, p
 export function relayout(containerEl = document.body) {
   // eslint-disable-next-line no-undef
   containerEl.querySelectorAll(".js-plotly-plot").forEach((div) => Plotly.Plots.resize(div));
+}
+
+/**
+ * Render a parity plot (y_true vs y_pred) for one output column.
+ *
+ * @param {HTMLElement} containerEl - Element to render into.
+ * @param {number[]}    yTrue       - Actual test values.
+ * @param {number[]}    yPred       - Predicted test values.
+ * @param {string}      colName     - Output column name (used for axis labels).
+ * @param {string}      [badgeCls="green"] - "green" | "amber" | "red" — sets point colour.
+ */
+export function renderParityPlot(containerEl, yTrue, yPred, colName, badgeCls = "green") {
+  const isDark  = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr = isDark ? "#8b94b3" : "#4b5478";
+  const ptColor = badgeCls === "red" ? "rgba(239,68,68,0.70)"
+                : badgeCls === "amber" ? "rgba(245,158,11,0.70)"
+                : "rgba(75,110,245,0.70)";
+
+  const mn = Math.min(...yTrue, ...yPred);
+  const mx = Math.max(...yTrue, ...yPred);
+
+  const scatter = {
+    type: "scatter", mode: "markers",
+    x: yTrue, y: yPred,
+    name: "Test points",
+    marker: { color: ptColor, size: 7, line: { width: 0 } },
+  };
+  const diagonal = {
+    type: "scatter", mode: "lines",
+    x: [mn, mx], y: [mn, mx],
+    name: "Ideal",
+    line: { color: isDark ? "#555e80" : "#c0c9e8", width: 1.5, dash: "dash" },
+    showlegend: false,
+  };
+
+  const layout = {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor:  "rgba(0,0,0,0)",
+    height: 280,
+    margin: { l: 52, r: 16, t: 36, b: 48 },
+    font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
+    xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
+    yaxis:  { title: { text: "Predicted", font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
+    showlegend: false,
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.newPlot(containerEl, [diagonal, scatter], layout, { responsive: true, displayModeBar: false });
+}
+
+/**
+ * Render a residual plot (y_true vs residual) for one output column.
+ *
+ * @param {HTMLElement} containerEl - Element to render into.
+ * @param {number[]}    yTrue       - Actual test values (x-axis).
+ * @param {number[]}    yPred       - Predicted test values.
+ * @param {string}      colName     - Output column name.
+ * @param {string}      [badgeCls="green"]
+ */
+export function renderResidualPlot(containerEl, yTrue, yPred, colName, badgeCls = "green") {
+  const isDark     = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr    = isDark ? "#8b94b3" : "#4b5478";
+  const ptColor    = badgeCls === "red" ? "rgba(239,68,68,0.70)"
+                   : badgeCls === "amber" ? "rgba(245,158,11,0.70)"
+                   : "rgba(75,110,245,0.70)";
+  const residuals  = yTrue.map((v, i) => v - yPred[i]);
+  const mn         = Math.min(...yTrue);
+  const mx         = Math.max(...yTrue);
+
+  const scatter = {
+    type: "scatter", mode: "markers",
+    x: yTrue, y: residuals,
+    name: "Residual",
+    marker: { color: ptColor, size: 7, line: { width: 0 } },
+  };
+  const zeroline = {
+    type: "scatter", mode: "lines",
+    x: [mn, mx], y: [0, 0],
+    line: { color: isDark ? "#555e80" : "#c0c9e8", width: 1.5, dash: "dash" },
+    showlegend: false,
+  };
+
+  const layout = {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor:  "rgba(0,0,0,0)",
+    height: 280,
+    margin: { l: 52, r: 16, t: 36, b: 48 },
+    font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
+    xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
+    yaxis:  { title: { text: "Residual (actual − predicted)", font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
+    showlegend: false,
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.newPlot(containerEl, [zeroline, scatter], layout, { responsive: true, displayModeBar: false });
 }

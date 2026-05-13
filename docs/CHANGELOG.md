@@ -6,6 +6,60 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.1] — 2026-05-12
+
+### Phase 3 — Parity & Residual Plots (v0.8.1)
+
+#### Added
+
+- **Parity plots (test set)** — per-output scatter of actual vs predicted values. A dashed diagonal shows the ideal 1:1 line. Point colour inherits the R² badge colour (green ≥ 0.85, amber ≥ 0.70, red < 0.70).
+- **Residual plots (test set)** — per-output scatter of actual vs residual (actual − predicted). A dashed zero line shows the ideal no-error baseline.
+- **Plot section in Step 7** — parity + residual plots rendered in a two-column grid per output, below the CV table. Shows up to 4 outputs; a note appears when more are present. Learning mode primer explains both chart types.
+- **`test_actuals` / `test_predictions` arrays in train response** — `POST /api/model/train` now includes raw test-set arrays (shape: n_test × n_outputs) in the results dict and STATE, enabling client-side plot rendering without an extra API round-trip.
+- **`renderParityPlot()` / `renderResidualPlot()`** added to `static/js/charts.js` — both accept `containerEl, yTrue, yPred, colName, badgeCls`; use `Plotly.newPlot` with `displayModeBar: false`; height 280px; transparent background.
+
+#### Files changed
+
+- `app/api/model_api.py` — added `test_actuals` / `test_predictions` to `results` dict in `train()`
+- `static/js/charts.js` — added `renderParityPlot`, `renderResidualPlot`
+- `static/js/modules/results.js` — import and render parity/residual plot section after CV table
+- `static/css/main.css` — added `.parity-section`, `.parity-row`, `.parity-col-label`, `.parity-plots`, `.parity-plot-wrap`, `.results-plot-note`
+- `config/settings.py` — `VERSION = "0.8.1"`
+- `app/templates/index.html` — version bump (8 locations)
+
+---
+
+## [0.8.0] — 2026-05-12
+
+### Phase 3 — Sidebar Layout + Panel Router (v0.8.0)
+
+#### Added
+
+- **Left sidebar navigation** — 200px fixed sidebar with 8 step items (number · label · status icon). Steps unlock sequentially: Upload/Preview/Explore always accessible; Designate unlocks after upload; Normalize/Configure unlock after designation; Results unlocks after training. Sidebar is sticky within the viewport.
+- **Collapsible sidebar** — "‹" toggle button collapses sidebar to 52px icon-only mode, maximising content area on small screens. Arrow reverses on collapse/expand.
+- **Single-panel router** — clicking a sidebar step shows exactly one panel at a time. Panels are lazy-initialised on first activation and cached (Plotly charts not re-rendered on revisit). `panelDone` dict prevents double-init.
+- **Step completion indicators** — sidebar step items show a green checkmark (✓) when the step is complete and a lock (🔒) when locked. Active step highlighted with accent background and left border.
+- **Active tab persistence** — every panel switch writes `active_tab` to `state["ui"]` via `PUT /api/state/session`. Field already existed in `_CANONICAL_STATE`; no schema change required.
+- **Panel subtitles** — each panel shows a one-line metadata subtitle (filename, rows × cols) beneath the step title, replacing the old standalone summary bar card.
+- **"+ Load File" in global header** — the "Load another file" action is now a persistent header button, visible whenever a dataset is loaded. Previously lived in the per-view summary bar.
+- **Panel invalidation** — re-designating columns (Step 4) invalidates Normalize (Step 5) and Configure (Step 6) panels (`panelDone` cleared, DOM wiped) so they re-init with the updated column lists.
+- **Cross-panel column state** — `_currentInputCols`, `_currentOutputCols`, `_currentNorm` mutable closure variables updated by designation/normalization callbacks and shared by all panel init functions.
+
+#### Changed
+
+- `main.js` — `_renderExploration()` completely rewritten as a sidebar + panel router. "← Upload new file" button removed (sidebar Step 1 replaces it and `✕ Clear` covers the full-reset case).
+- `index.html` — `#header-load-file-btn` and `#header-add-file-input` moved into `<header>`. All 8 version strings bumped to 0.8.0.
+- `main.css` — added `.workflow-layout`, `.workflow-sidebar`, `.workflow-sidebar--collapsed`, `.workflow-panel-area`, `.sidebar-collapse-btn`, `.step-item` variants, `.panel-file-meta`.
+
+#### Files changed
+
+- `static/js/main.js`
+- `static/css/main.css`
+- `app/templates/index.html`
+- `config/settings.py` — `VERSION = "0.8.0"`
+
+---
+
 ## [0.7.1] — 2026-05-12
 
 ### Phase 3 — Column Selector UX Patch (v0.7.1)

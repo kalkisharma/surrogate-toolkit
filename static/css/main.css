@@ -1518,3 +1518,37 @@ body,
   padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border-subtle);
 }
+
+/* ── Parity & Residual Plots ──────────────────────────────────────────────── */
+
+.parity-section { margin-top: var(--space-6); }
+
+.results-plot-note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-3);
+}
+
+.parity-row {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.parity-row:first-of-type { border-top: none; }
+
+.parity-col-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semi);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.parity-plots {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.parity-plot-wrap {
+  flex: 1;
+  min-width: 0;
+}

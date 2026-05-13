@@ -2,16 +2,17 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.7.0
+// Version: 0.8.1
 // Description: Step 7 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
-//              cross-validation summary and train/test row counts.
+//              cross-validation summary and parity/residual plots (test set).
 // =============================================================================
 
 import { get } from "../api.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
+import { renderParityPlot, renderResidualPlot } from "../charts.js";
 
 // R² thresholds — mirror config/settings.py constants
 const R2_MINIMUM = 0.70;
@@ -133,6 +134,61 @@ function _render(containerEl, r) {
   const cvTable = _buildCVTable(r.cv_results.per_output);
   cvSection.appendChild(cvTable);
   containerEl.appendChild(cvSection);
+
+  // ── Parity & Residual Plots ────────────────────────────────────────────────
+  if (r.test_actuals && r.test_predictions && r.output_columns) {
+    const MAX_PLOT_OUTPUTS = 4;
+    const outputs = r.output_columns;
+    const shown   = outputs.slice(0, MAX_PLOT_OUTPUTS);
+
+    const plotSection = el("div", { cls: "results-section parity-section" });
+    const plotTitle   = el("h3", { cls: "results-section-title", text: "Parity & Residual Plots (test set)" });
+    registerPrimer(
+      "results-parity",
+      plotTitle,
+      "How do I read parity and residual plots?",
+      `<p>A <strong>parity plot</strong> shows actual values (x-axis) vs predicted values
+       (y-axis). Points on the dashed diagonal line are perfect predictions — points far
+       from the line represent large errors.</p>
+       <p>A <strong>residual plot</strong> shows actual values (x-axis) vs the error
+       (actual − predicted). Ideally, residuals scatter randomly around zero with no
+       visible pattern; a systematic pattern means the model is consistently wrong in
+       some region of the input space.</p>`
+    );
+    plotSection.appendChild(plotTitle);
+
+    if (outputs.length > MAX_PLOT_OUTPUTS) {
+      const note = el("p", {
+        cls:  "results-plot-note",
+        text: `Showing ${MAX_PLOT_OUTPUTS} of ${outputs.length} outputs. Remaining outputs omitted for readability.`,
+      });
+      plotSection.appendChild(note);
+    }
+
+    shown.forEach((colName, j) => {
+      const metric   = r.test_metrics.find(m => m.column === colName);
+      const badgeCls = metric ? _r2Class(metric.r2) : "green";
+      const yTrue    = r.test_actuals.map(row => row[j]);
+      const yPred    = r.test_predictions.map(row => row[j]);
+
+      const row        = el("div", { cls: "parity-row" });
+      const colLabel   = el("p",   { cls: "parity-col-label", text: colName });
+      const plotsWrap  = el("div", { cls: "parity-plots" });
+      const parityWrap = el("div", { cls: "parity-plot-wrap" });
+      const residWrap  = el("div", { cls: "parity-plot-wrap" });
+
+      plotsWrap.appendChild(parityWrap);
+      plotsWrap.appendChild(residWrap);
+      row.appendChild(colLabel);
+      row.appendChild(plotsWrap);
+      plotSection.appendChild(row);
+
+      renderParityPlot(parityWrap, yTrue, yPred, colName, badgeCls);
+      renderResidualPlot(residWrap, yTrue, yPred, colName, badgeCls);
+    });
+
+    containerEl.appendChild(plotSection);
+  }
 }
 
 // ── Table builders ─────────────────────────────────────────────────────────────

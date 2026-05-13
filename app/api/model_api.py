@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.7.0
+VERSION: 0.8.1
 ================================================================================
 """
 
@@ -322,14 +322,17 @@ def train():
 
     # ── Persist to STATE ──────────────────────────────────────────────────────
     results = {
-        "model_type":     model_type,
-        "n_train":        int(len(X_train)),
-        "n_test":         int(len(X_test)),
-        "input_columns":  input_cols,
-        "output_columns": output_cols,
-        "test_metrics":   test_metrics,
-        "cv_results":     cv_results,
-        "warnings":       warnings,
+        "model_type":       model_type,
+        "n_train":          int(len(X_train)),
+        "n_test":           int(len(X_test)),
+        "input_columns":    input_cols,
+        "output_columns":   output_cols,
+        "test_metrics":     test_metrics,
+        "cv_results":       cv_results,
+        "warnings":         warnings,
+        # Raw arrays for parity and residual plots (shape: n_test × n_outputs).
+        "test_actuals":     y_test.tolist(),
+        "test_predictions": y_pred_test.tolist(),
     }
     models_dict = state["surrogate_sessions"]["primary"]["models"]
     models_dict["trained"] = model

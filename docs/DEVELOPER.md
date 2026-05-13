@@ -160,7 +160,8 @@ The major version (`0`) stays at `0` during active development. It bumps to `1` 
 | Phase 2 — C-series (train/test split stub + model type selector) | 0.6.x | ✅ Complete |
 | Phase 3 — model training, cross-validation, metrics | 0.7.x | ✅ Complete |
 | Phase 3 — column selector UX patch (chip row, 12-col cap) | 0.7.1 | ✅ Complete |
-| Phase 3 — predictions, residual plots, parity plots | 0.8.x | Planned |
+| Phase 3 — sidebar layout + panel router | 0.8.0 | ✅ Complete |
+| Phase 3 — parity & residual plots (test set) | 0.8.1 | ✅ Complete |
 | **1.0.0 milestone** | Phase 3 complete: full end-to-end workflow (upload → clean → designate → normalize → train → validate → predict) | Planned |
 | **2.0.0 milestone** | Phase 4/5 complete (active learning, export) or major architectural change | Reserved |
 
