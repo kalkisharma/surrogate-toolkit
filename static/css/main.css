@@ -1275,3 +1275,96 @@ body,
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
+
+/* ── Model Config — Train button ─────────────────────────────────────────────── */
+.model-config-train-btn {
+  margin-top: var(--space-4);
+  width: 100%;
+}
+
+/* ── Results card ────────────────────────────────────────────────────────────── */
+.results-section {
+  margin-top: var(--space-6);
+}
+.results-section:first-of-type {
+  margin-top: var(--space-4);
+}
+.results-section-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-3);
+}
+.results-table-wrap {
+  overflow-x: auto;
+}
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.results-table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+}
+.results-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle, var(--color-border));
+  vertical-align: middle;
+}
+.results-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.results-col-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.results-metric {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+}
+.results-std {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-left: var(--space-1);
+}
+.results-badge {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+}
+.results-badge--green {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+.results-badge--amber {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+.results-badge--red {
+  background: var(--color-error-soft);
+  color: var(--color-error);
+}
+.results-warning-box {
+  background: var(--color-warning-soft);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.results-warning-text {
+  font-size: var(--text-sm);
+  color: var(--color-warning);
+}

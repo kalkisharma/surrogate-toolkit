@@ -2,14 +2,15 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 0.6.0
+// Version: 0.7.0
 // Description: Step 6 — Configure Training. Lets users choose a model type,
-//              train/test split, and cross-validation folds before Phase 3
-//              training pipeline is available. Saves to POST /api/model/configure.
+//              train/test split, and cross-validation folds. Saves configuration
+//              to POST /api/model/configure, then initiates training via
+//              POST /api/model/train. Calls onTrain(results) on success.
 // =============================================================================
 
 import { get, post } from "../api.js";
-import { showError, showSuccess } from "../notifications.js";
+import { showError, showSuccess, showWarning } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
@@ -36,9 +37,10 @@ const MODEL_TYPES = [
  * Render the training configuration card into containerEl.
  *
  * @param {HTMLElement} containerEl - Target card element.
- * @param {Function}    onConfigure - Called after a successful save. No arguments.
+ * @param {Function}    onTrain     - Called after a successful train with the
+ *                                    results object from POST /api/model/train.
  */
-export async function initModelConfig(containerEl, onConfigure) {
+export async function initModelConfig(containerEl, onTrain) {
   clearEl(containerEl);
   showSpinner(containerEl);
 
@@ -230,18 +232,51 @@ export async function initModelConfig(containerEl, onConfigure) {
 
     if (resp.success) {
       const typeLabel = MODEL_TYPES.find((m) => m.value === resp.config.model_type)?.label || resp.config.model_type;
-      showSuccess(`Training configuration saved — ${typeLabel}, ${Math.round(resp.config.test_split * 100)}% test split, ${resp.config.cv_folds}-fold CV.`);
+      showSuccess(`Configuration saved — ${typeLabel}, ${Math.round(resp.config.test_split * 100)}% test split, ${resp.config.cv_folds}-fold CV.`);
+
       statusDiv.style.display = "";
       statusDiv.innerHTML = `
         <div class="model-config-status-saved">
           <span class="model-config-status-icon">✓</span>
           <span>Configuration saved.</span>
         </div>
-        <p class="model-config-status-next">
-          Model training is the next step and will be available in the next update.
-        </p>
       `;
-      onConfigure();
+
+      // ── Train button ───────────────────────────────────────────────────────
+      let trainBtn = containerEl.querySelector("#model-train-btn");
+      if (!trainBtn) {
+        trainBtn = el("button", {
+          cls:  "btn btn-primary model-config-train-btn",
+          text: "Train Model →",
+          id:   "model-train-btn",
+        });
+        statusDiv.appendChild(trainBtn);
+      }
+
+      trainBtn.onclick = async () => {
+        trainBtn.disabled    = true;
+        trainBtn.textContent = "Training…";
+        showSpinner(trainBtn);
+
+        const trainResp = await post("/api/model/train", {});
+        hideSpinner(trainBtn);
+        trainBtn.disabled    = false;
+        trainBtn.textContent = "Train Model →";
+
+        if (!trainResp.success) {
+          showError(trainResp.message || "Training failed. Check your data and configuration.");
+          return;
+        }
+
+        if (trainResp.results?.warnings?.length) {
+          for (const w of trainResp.results.warnings) {
+            showWarning(w, 10000);
+          }
+        }
+
+        showSuccess("Model trained successfully.");
+        await onTrain(trainResp.results);
+      };
     } else {
       showError(resp.message || "Failed to save configuration.");
     }

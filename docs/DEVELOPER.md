@@ -56,7 +56,7 @@ gunicorn "app:create_app()"
 python -m pytest tests/ -v
 ```
 
-127 tests (48 unit, 79 integration). Target: 80%+ coverage on `app/data/ingestion.py`, `app/data/cleaning.py`, and `app/api/data_api.py`.
+154 tests (65 unit, 89 integration). Target: 80%+ coverage on `app/data/ingestion.py`, `app/data/cleaning.py`, `app/api/data_api.py`, and `app/ml/`.
 
 Test fixtures live in `tests/fixtures/`. They are synthetic — no real program data.
 
@@ -105,6 +105,8 @@ State sync: the frontend calls `GET /api/state/` after every mutating POST via `
 | `POST` | `/api/data/clean/transform` | Apply log(1+x) transform to selected columns |
 | `GET`  | `/api/model/config` | Return current training configuration |
 | `POST` | `/api/model/configure` | Save model type, test split, and CV folds |
+| `POST` | `/api/model/train` | Train model, run CV, store results in STATE |
+| `GET`  | `/api/model/results` | Return stored training metrics from STATE |
 | `GET` | `/api/state/` | Full STATE snapshot |
 | `PUT` | `/api/state/session` | Update session fields (level, cores, theme, etc.) |
 | `POST` | `/api/state/reset` | Clear all loaded datasets and reset STATE |
@@ -156,7 +158,7 @@ The major version (`0`) stays at `0` during active development. It bumps to `1` 
 | Phase 2 — B-series (data cleaning) | 0.5.x | ✅ Complete |
 | Phase 2 — B-series patch (log-transform) | 0.5.1 | ✅ Complete |
 | Phase 2 — C-series (train/test split stub + model type selector) | 0.6.x | ✅ Complete |
-| Phase 3 — model training, cross-validation, metrics | 0.7.x | Planned |
+| Phase 3 — model training, cross-validation, metrics | 0.7.x | ✅ Complete |
 | Phase 3 — predictions, residual plots, parity plots | 0.8.x | Planned |
 | **1.0.0 milestone** | Phase 3 complete: full end-to-end workflow (upload → clean → designate → normalize → train → validate → predict) | Planned |
 | **2.0.0 milestone** | Phase 4/5 complete (active learning, export) or major architectural change | Reserved |

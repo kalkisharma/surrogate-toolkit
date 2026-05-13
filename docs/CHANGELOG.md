@@ -6,6 +6,37 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.7.0] — 2026-05-12
+
+### Phase 3 — A-Series: Model Training & Metrics (v0.7.0)
+
+#### Added
+
+- **Model training pipeline** — `POST /api/model/train` trains the configured surrogate model. Selects normalized data if available, falls back to clean. Runs k-fold cross-validation on the training set, fits the final model on the full training set, and evaluates on the held-out test set. Stores model and results in STATE.
+- **Three surrogate model classes** — all implemented from the `BaseSurrogateModel` ABC:
+  - **`GPRModel`** (`app/ml/models/gpr_model.py`) — Gaussian Process Regression wrapped in `MultiOutputRegressor` (one GPR per output column). Kernel: RBF, `alpha=0.1`, `normalize_y=True`.
+  - **`RFModel`** (`app/ml/models/rf_model.py`) — `RandomForestRegressor(n_estimators=100)`. Handles multi-output natively.
+  - **`LinearModel`** (`app/ml/models/linear_model.py`) — `Ridge(alpha=1.0)`. Fast, interpretable baseline.
+  - All models: non-mutating inputs, always return 2D predictions `(n_samples, n_outputs)`.
+- **`BaseSurrogateModel`** (`app/ml/models/base_model.py`) — abstract base class requiring `fit()`, `predict()`, `get_summary()`. `get_summary()` returns a JSON-serializable dict used by `get_state_json_safe()`.
+- **`compute_metrics(y_true, y_pred, output_columns)`** (`app/ml/validation/diagnostics.py`) — computes R², RMSE, MAE per output column. Returns list of dicts.
+- **`run_cross_validation(model, X, y, ...)`** (`app/ml/validation/cross_validation.py`) — k-fold CV using deep copies of the model per fold. Returns per-output mean ± std for R², RMSE, MAE.
+- **`GET /api/model/results`** — returns stored training results from STATE. Returns 404 `NO_TRAINED_MODEL` if no model has been trained.
+- **Step 7 — Training Results card** (`static/js/modules/results.js`) — fetches `GET /api/model/results` and renders a test-set metrics table and a CV summary table. R² badges colour-coded: green ≥ 0.85, amber 0.70–0.85, red < 0.70. Learning mode primers on both tables. Appears automatically after training completes and on page re-render if results exist.
+- **"Train Model →" button in Step 6** — appended to the config status div after a successful `POST /api/model/configure`. Triggers `POST /api/model/train` with a spinner and `showWarning` for GPR-on-large-dataset warning. Calls `onTrain()` on success, which reveals the results card.
+- **`get_state_json_safe()` extended** — now replaces model objects via duck-typing (`hasattr get_summary`). Eliminates the deep-copy-before-walk (avoids deep-copying large Random Forest objects needlessly).
+- **GPR large-dataset warning** — if GPR is selected and the training set exceeds 2,000 rows, a warning is included in the train response and surfaced as `showWarning` in the UI.
+- **Error codes for training** — `NO_CLEAN_DATA` (422), `DESIGNATION_REQUIRED` (422), `CONFIG_REQUIRED` (422), `NO_TRAINED_MODEL` (404).
+- **27 new tests** — 17 unit tests (`test_models.py`: fit/predict/get_summary for each model, multi-output, source-not-mutated, predict-before-fit, `compute_metrics` happy path and errors); 10 integration tests for `POST /api/model/train` and `GET /api/model/results` (error cases + happy paths + STATE safety + audit event + multi-output). 3 end-to-end tests in `test_full_workflow.py` (linear full pipeline, RF full pipeline, normalised-data selection). **Total: 154 tests (65 unit, 89 integration).**
+
+#### Changed
+
+- `model_config.js` — `onConfigure` callback renamed to `onTrain`; `initModelConfig` now accepts `onTrain(results)` called after successful training.
+- `main.js` — imports `initResults`; adds `resultsCard` to the exploration view; `onTrain` reveals and populates `resultsCard`; on re-render with existing designation, checks `GET /api/model/results` and shows results if a trained model exists.
+- `app/api/model_api.py` — added `POST /api/model/train` and `GET /api/model/results` routes; imports `sklearn.model_selection.train_test_split`, `app.ml.models`, `app.ml.validation`.
+
+---
+
 ## [0.6.0] — 2026-05-12
 
 ### Phase 2 — C-Series: Training Configuration (v0.6.0)

@@ -2,14 +2,14 @@
 ================================================================================
 FILE: __init__.py
 MODULE: app/ml/validation/
-PURPOSE: Package marker for model validation modules
-DEPENDENCIES: None
-FUTURE EXTENSIONS: None
+PURPOSE: Package marker — exports cross-validation and diagnostic functions
+DEPENDENCIES: cross_validation, diagnostics
+FUTURE EXTENSIONS: Stratified CV, nested CV, learning curves
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.7.0
 ================================================================================
 """
 
@@ -17,4 +17,7 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
-# TODO: implement
+from app.ml.validation.cross_validation import run_cross_validation
+from app.ml.validation.diagnostics import compute_metrics
+
+__all__ = ["run_cross_validation", "compute_metrics"]

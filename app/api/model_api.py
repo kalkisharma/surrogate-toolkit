@@ -3,16 +3,16 @@
 FILE: model_api.py
 MODULE: app/api/
 PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
-         configuration: model type, train/test split, and cross-validation
-         folds. Actual model training is wired up in Phase 3 (0.7.x).
-DEPENDENCIES: flask, app.state.schema, config.settings
-FUTURE EXTENSIONS: POST /api/model/train, GET /api/model/results,
-                   GET /api/model/metrics, POST /api/model/predict.
+         configuration, model training, and results retrieval.
+DEPENDENCIES: flask, app.state.schema, app.ml.models, app.ml.validation,
+              config.settings, sklearn.model_selection
+FUTURE EXTENSIONS: GET /api/model/metrics, POST /api/model/predict,
+                   per-output model type selection, hyperparameter overrides.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.6.0
+VERSION: 0.7.0
 ================================================================================
 """
 
@@ -21,11 +21,16 @@ VERSION: 0.6.0
 # See LICENSE.md for full terms.
 
 from flask import Blueprint, current_app, jsonify, request
+from sklearn.model_selection import train_test_split
 
+from app.ml.models import GPRModel, LinearModel, RFModel
+from app.ml.validation import compute_metrics, run_cross_validation
 from app.state.schema import append_audit_event
 from config.settings import (
     CV_FOLDS_MAX,
     CV_FOLDS_MIN,
+    DEFAULT_RANDOM_STATE,
+    MAX_PLOT_ROWS,
     SUPPORTED_MODEL_TYPES,
     TEST_SPLIT_MAX,
     TEST_SPLIT_MIN,
@@ -36,9 +41,13 @@ bp = Blueprint("model", __name__)
 # ─── ERROR CODE → HTTP STATUS ─────────────────────────────────────────────────
 
 _ERROR_HTTP_STATUS = {
-    "UNKNOWN_MODEL_TYPE": 422,
-    "INVALID_TEST_SPLIT": 422,
-    "INVALID_CV_FOLDS":   422,
+    "UNKNOWN_MODEL_TYPE":    422,
+    "INVALID_TEST_SPLIT":    422,
+    "INVALID_CV_FOLDS":      422,
+    "NO_CLEAN_DATA":         422,
+    "DESIGNATION_REQUIRED":  422,
+    "CONFIG_REQUIRED":       422,
+    "NO_TRAINED_MODEL":      404,
 }
 
 
@@ -179,3 +188,243 @@ def configure():
     )
 
     return jsonify({"success": True, "config": config}), 200
+
+
+@bp.route("/train", methods=["POST"])
+def train():
+    """
+    Train the configured surrogate model and store results in STATE.
+
+    The endpoint:
+    1. Resolves training data (normalized → clean fallback).
+    2. Validates designation and config are present.
+    3. Splits into train/test sets.
+    4. Runs k-fold cross-validation on the training set.
+    5. Fits the final model on the full training set.
+    6. Evaluates the final model on the held-out test set.
+    7. Stores model object and results dict in STATE.
+
+    Args (JSON body):
+        None required — all parameters come from STATE.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "results": {
+                "model_type":      str,
+                "n_train":         int,
+                "n_test":          int,
+                "input_columns":   list[str],
+                "output_columns":  list[str],
+                "test_metrics":    [...],
+                "cv_results":      {...},
+                "warnings":        list[str]
+              }
+            }
+        JSON 422: Validation error envelope (NO_CLEAN_DATA, DESIGNATION_REQUIRED,
+                  CONFIG_REQUIRED).
+
+    Notes:
+        Stores the fitted model in
+        state["surrogate_sessions"]["primary"]["models"]["trained"] and the
+        serializable results in ["models"]["results"].
+
+        get_state_json_safe() in schema.py detects the model object via
+        duck-typing (hasattr "get_summary") and replaces it with its summary
+        dict so the /api/state/ endpoint remains safe.
+
+    Future:
+        Async training for GPR on large datasets; per-output model type.
+    """
+    state = current_app.config["STATE"]
+
+    # ── Resolve training data ─────────────────────────────────────────────────
+    # Cannot use `or` — bool(DataFrame) raises ValueError.
+    primary = state["datasets"]["primary"]
+    _norm  = primary.get("normalized")
+    _clean = primary.get("clean")
+    df = _norm if _norm is not None else _clean
+    if df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_CLEAN_DATA",
+                "message": "No clean data is loaded. Upload and prepare a dataset first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            422,
+        )
+
+    # ── Validate designation ──────────────────────────────────────────────────
+    meta        = primary["metadata"]
+    input_cols  = meta.get("input_columns") or []
+    output_cols = meta.get("output_columns") or []
+    if not input_cols or not output_cols:
+        return (
+            jsonify({
+                "success": False, "error_code": "DESIGNATION_REQUIRED",
+                "message": "Input and output columns must be designated before training.",
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+
+    # ── Validate config ───────────────────────────────────────────────────────
+    config = state["surrogate_sessions"]["primary"]["config"]
+    if config.get("model_type") is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "CONFIG_REQUIRED",
+                "message": "Training configuration has not been saved. "
+                           "Complete Step 6 — Configure Training first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["configure"],
+            }),
+            422,
+        )
+
+    model_type = config["model_type"]
+    test_split = config["test_split"]
+    cv_folds   = config["cv_folds"]
+
+    # ── Build feature / target arrays ─────────────────────────────────────────
+    X = df[input_cols].values
+    y = df[output_cols].values
+
+    # ── Train/test split ──────────────────────────────────────────────────────
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_split, random_state=DEFAULT_RANDOM_STATE
+    )
+
+    # ── Build model ───────────────────────────────────────────────────────────
+    model = _make_model(model_type)
+
+    # ── GPR large-dataset warning ─────────────────────────────────────────────
+    warnings = []
+    if model_type == "gpr" and len(X_train) > MAX_PLOT_ROWS:
+        warnings.append(
+            f"GPR training time scales as O(n³). Your training set has "
+            f"{len(X_train):,} rows — this may take several minutes."
+        )
+
+    # ── Cross-validation on training set ─────────────────────────────────────
+    # Guard: k-fold requires at least n_folds samples in the training set.
+    safe_folds = min(cv_folds, len(X_train))
+    cv_results = run_cross_validation(
+        model, X_train, y_train, output_cols, safe_folds, input_cols
+    )
+
+    # ── Fit final model on full training set ──────────────────────────────────
+    model.fit(X_train, y_train, input_cols, output_cols)
+
+    # ── Evaluate on held-out test set ─────────────────────────────────────────
+    y_pred_test = model.predict(X_test)
+    test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
+
+    # ── Persist to STATE ──────────────────────────────────────────────────────
+    results = {
+        "model_type":     model_type,
+        "n_train":        int(len(X_train)),
+        "n_test":         int(len(X_test)),
+        "input_columns":  input_cols,
+        "output_columns": output_cols,
+        "test_metrics":   test_metrics,
+        "cv_results":     cv_results,
+        "warnings":       warnings,
+    }
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    models_dict["trained"] = model
+    models_dict["results"] = results
+
+    append_audit_event(state, "model_train", {
+        "model_type": model_type,
+        "n_train":    int(len(X_train)),
+        "n_test":     int(len(X_test)),
+    })
+
+    current_app.logger.info(
+        f"Model trained — type={model_type}, n_train={len(X_train)}, "
+        f"n_test={len(X_test)}"
+    )
+
+    return jsonify({"success": True, "results": results}), 200
+
+
+@bp.route("/results", methods=["GET"])
+def get_results():
+    """
+    Return stored training results from STATE.
+
+    Args:
+        None
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "results": {
+                "model_type":      str,
+                "n_train":         int,
+                "n_test":          int,
+                "input_columns":   list[str],
+                "output_columns":  list[str],
+                "test_metrics":    [...],
+                "cv_results":      {...},
+                "warnings":        list[str]
+              }
+            }
+        JSON 404:
+            {
+              "success": false,
+              "error_code": "NO_TRAINED_MODEL",
+              "message": str
+            }
+
+    Notes:
+        Returns 404 if no model has been trained in this session. The frontend
+        uses this to decide whether to render the results card on page re-render.
+
+    Future:
+        Return history of all trained models once MAX_MODEL_HISTORY is enforced.
+    """
+    state   = current_app.config["STATE"]
+    results = state["surrogate_sessions"]["primary"]["models"].get("results")
+
+    if results is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_TRAINED_MODEL",
+                "message": "No trained model in this session. Train a model first.",
+            }),
+            404,
+        )
+
+    return jsonify({"success": True, "results": results}), 200
+
+
+# ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+
+def _make_model(model_type: str):
+    """Instantiate the correct model class for model_type.
+
+    Args:
+        model_type: One of "gpr", "rf", "linear".
+
+    Returns:
+        BaseSurrogateModel subclass instance (unfitted).
+
+    Raises:
+        Nothing — caller validates model_type before calling this.
+
+    Notes:
+        Imports happen here (not at module top) to keep the module importable
+        even when sklearn is not installed — error surfaces at training time.
+
+    Future:
+        Accept hyperparameter overrides dict.
+    """
+    if model_type == "gpr":
+        return GPRModel()
+    if model_type == "rf":
+        return RFModel()
+    return LinearModel()

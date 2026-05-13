@@ -2,10 +2,11 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.6.0
+// Version: 0.7.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, handles the single data-
-//              type gate, and navigates to the exploration view.
+//              type gate, and navigates to the exploration view. Wires the full
+//              data pipeline through to model training and results (Step 7).
 // =============================================================================
 
 import { initLearningMode, registerPrimer, registerTooltip } from "./learning_mode.js";
@@ -18,6 +19,7 @@ import { initCleaning } from "./modules/data_cleaning.js";
 import { initDesignation } from "./modules/column_designation.js";
 import { initNormalization } from "./modules/normalization.js";
 import { initModelConfig } from "./modules/model_config.js";
+import { initResults } from "./modules/results.js";
 import { el, clearEl } from "./utils.js";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -317,16 +319,35 @@ async function _renderExploration(uploadResponse) {
     style: "margin-top: var(--space-6);" });
   app.appendChild(trainConfigCard);
 
+  // Results card — hidden until model training completes
+  const resultsCard = el("div", { cls: "card hidden", id: "results-section",
+    style: "margin-top: var(--space-6);" });
+  app.appendChild(resultsCard);
+
   const initInputs  = meta2.input_columns  || [];
   const initOutputs = meta2.output_columns || [];
   const currentNorm = meta2.normalization_method || null;
+
+  const onTrain = async () => {
+    resultsCard.classList.remove("hidden");
+    clearEl(resultsCard);
+    await initResults(resultsCard);
+    resultsCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // If designation already exists, render normalization and training config immediately
   if (initInputs.length > 0) {
     normCard.classList.remove("hidden");
     initNormalization(normCard, currentNorm, initInputs.length);
     trainConfigCard.classList.remove("hidden");
-    initModelConfig(trainConfigCard, () => {});
+    initModelConfig(trainConfigCard, onTrain);
+
+    // If a model was already trained in this session, show results immediately
+    const resultsCheck = await get("/api/model/results");
+    if (resultsCheck.success && resultsCheck.results) {
+      resultsCard.classList.remove("hidden");
+      await initResults(resultsCard);
+    }
   }
 
   initDesignation(
@@ -344,7 +365,7 @@ async function _renderExploration(uploadResponse) {
       initNormalization(normCard, null, input_columns.length);
       trainConfigCard.classList.remove("hidden");
       clearEl(trainConfigCard);
-      initModelConfig(trainConfigCard, () => {});
+      initModelConfig(trainConfigCard, onTrain);
       normCard.scrollIntoView({ behavior: "smooth", block: "start" });
     },
   );

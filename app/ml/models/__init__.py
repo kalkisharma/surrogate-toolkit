@@ -2,14 +2,14 @@
 ================================================================================
 FILE: __init__.py
 MODULE: app/ml/models/
-PURPOSE: Package marker for surrogate model implementations
-DEPENDENCIES: None
-FUTURE EXTENSIONS: None
+PURPOSE: Package marker — exports the three concrete surrogate model classes
+DEPENDENCIES: gpr_model, rf_model, linear_model
+FUTURE EXTENSIONS: Export additional model types (XGBoost, neural surrogate)
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.7.0
 ================================================================================
 """
 
@@ -17,4 +17,8 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
-# TODO: implement
+from app.ml.models.gpr_model import GPRModel
+from app.ml.models.linear_model import LinearModel
+from app.ml.models.rf_model import RFModel
+
+__all__ = ["GPRModel", "RFModel", "LinearModel"]

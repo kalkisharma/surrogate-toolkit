@@ -11,7 +11,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.6.0
+VERSION: 0.7.0
 ================================================================================
 """
 
@@ -288,10 +288,19 @@ def get_state_json_safe() -> dict:
                 "shape": list(obj.shape),
                 "columns": list(obj.columns),
             }
+        # Model objects: duck-type on get_summary() to avoid importing sklearn
+        # here. BaseSurrogateModel subclasses implement get_summary() and return
+        # a JSON-serializable dict.
+        if hasattr(obj, "get_summary") and callable(getattr(obj, "get_summary")):
+            return obj.get_summary()
         if isinstance(obj, dict):
             return {k: _safe(v) for k, v in obj.items()}
         if isinstance(obj, list):
             return [_safe(i) for i in obj]
         return obj
 
-    return _safe(copy.deepcopy(STATE))
+    # Walk STATE directly rather than deep-copying first: deep-copying a fitted
+    # Random Forest (100 trees) is expensive and the copy is discarded immediately.
+    # _safe builds a brand-new dict/list structure at every level so the returned
+    # dict is fully independent of the live STATE.
+    return _safe(STATE)

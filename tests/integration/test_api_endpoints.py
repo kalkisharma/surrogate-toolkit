@@ -10,7 +10,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.6.0
+VERSION: 0.7.0
 ================================================================================
 """
 
@@ -1020,3 +1020,149 @@ def test_model_configure_audit_event(client):
     )
     events = json.loads(client.get("/api/state/").data)["state"]["audit"]["events"]
     assert any(e["event_type"] == "model_configure" for e in events)
+
+
+# ─── HELPERS (train pipeline) ─────────────────────────────────────────────────
+
+
+def _designate(client, input_columns, output_columns):
+    return client.post(
+        "/api/data/designate",
+        data=json.dumps({"input_columns": input_columns, "output_columns": output_columns}),
+        content_type="application/json",
+    )
+
+
+def _configure_model(client, model_type="linear", test_split=0.2, cv_folds=3):
+    return client.post(
+        "/api/model/configure",
+        data=json.dumps({"model_type": model_type, "test_split": test_split, "cv_folds": cv_folds}),
+        content_type="application/json",
+    )
+
+
+def _train(client):
+    return client.post("/api/model/train", data=json.dumps({}), content_type="application/json")
+
+
+# ─── GET /api/model/results — no model ───────────────────────────────────────
+
+
+def test_model_results_no_model(client):
+    """GET /api/model/results before training returns 404 NO_TRAINED_MODEL."""
+    resp = client.get("/api/model/results")
+    assert resp.status_code == 404
+    assert json.loads(resp.data)["error_code"] == "NO_TRAINED_MODEL"
+
+
+# ─── POST /api/model/train — error cases ─────────────────────────────────────
+
+
+def test_model_train_no_data(client):
+    """POST /api/model/train with no dataset loaded returns 422 NO_CLEAN_DATA."""
+    resp = _train(client)
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "NO_CLEAN_DATA"
+
+
+def test_model_train_no_designation(client, csv_edge):
+    """POST /api/model/train without designation returns 422 DESIGNATION_REQUIRED."""
+    _upload(client, csv_edge, "sample_edge.csv")
+    resp = _train(client)
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "DESIGNATION_REQUIRED"
+
+
+def test_model_train_no_config(client, csv_edge):
+    """POST /api/model/train without saved config returns 422 CONFIG_REQUIRED."""
+    _upload(client, csv_edge, "sample_edge.csv")
+    _designate(client, ["input_x"], ["output_y"])
+    resp = _train(client)
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "CONFIG_REQUIRED"
+
+
+# ─── POST /api/model/train — happy paths ─────────────────────────────────────
+
+
+def test_model_train_linear_returns_results(client, csv_edge):
+    """Train a Linear model end-to-end; response has expected structure."""
+    _upload(client, csv_edge, "sample_edge.csv")
+    _designate(client, ["input_x"], ["output_y"])
+    _configure_model(client, model_type="linear", test_split=0.2, cv_folds=3)
+    resp = _train(client)
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    r = data["results"]
+    assert r["model_type"] == "linear"
+    assert r["n_train"] > 0
+    assert r["n_test"] > 0
+    assert len(r["test_metrics"]) == 1
+    assert r["test_metrics"][0]["column"] == "output_y"
+    assert "r2" in r["test_metrics"][0]
+    assert "rmse" in r["test_metrics"][0]
+    assert r["cv_results"]["n_folds"] == 3
+
+
+def test_model_train_rf_returns_results(client, csv_edge):
+    """Train a Random Forest model; response has expected structure."""
+    _upload(client, csv_edge, "sample_edge.csv")
+    _designate(client, ["input_x"], ["output_y"])
+    _configure_model(client, model_type="rf", test_split=0.2, cv_folds=3)
+    resp = _train(client)
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["results"]["model_type"] == "rf"
+
+
+def test_model_results_after_train(client, csv_edge):
+    """GET /api/model/results after training returns 200 with results."""
+    _upload(client, csv_edge, "sample_edge.csv")
+    _designate(client, ["input_x"], ["output_y"])
+    _configure_model(client, model_type="linear", test_split=0.2, cv_folds=3)
+    _train(client)
+    resp = client.get("/api/model/results")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["results"]["model_type"] == "linear"
+
+
+def test_state_endpoint_safe_after_train(client, csv_edge):
+    """GET /api/state/ does not crash after a model has been trained."""
+    _upload(client, csv_edge, "sample_edge.csv")
+    _designate(client, ["input_x"], ["output_y"])
+    _configure_model(client, model_type="linear", test_split=0.2, cv_folds=3)
+    _train(client)
+    resp = client.get("/api/state/")
+    assert resp.status_code == 200
+    state = json.loads(resp.data)["state"]
+    # The model object must have been replaced by its summary dict
+    trained = state["surrogate_sessions"]["primary"]["models"].get("trained")
+    if trained is not None:
+        assert trained.get("_type") == "model"
+
+
+def test_model_train_audit_event(client, csv_edge):
+    """POST /api/model/train creates a 'model_train' audit event."""
+    _upload(client, csv_edge, "sample_edge.csv")
+    _designate(client, ["input_x"], ["output_y"])
+    _configure_model(client, model_type="linear", test_split=0.2, cv_folds=3)
+    _train(client)
+    events = json.loads(client.get("/api/state/").data)["state"]["audit"]["events"]
+    assert any(e["event_type"] == "model_train" for e in events)
+
+
+def test_model_train_multi_output(client, csv_clean):
+    """Train on a multi-output dataset; test_metrics has one entry per output."""
+    _upload(client, csv_clean, "sample_clean.csv")
+    _designate(client, ["mach", "alpha", "beta", "altitude_ft", "q_bar", "reynolds"], ["cl", "cd"])
+    _configure_model(client, model_type="linear", test_split=0.2, cv_folds=3)
+    resp = _train(client)
+    assert resp.status_code == 200
+    metrics = json.loads(resp.data)["results"]["test_metrics"]
+    assert len(metrics) == 2
+    cols = [m["column"] for m in metrics]
+    assert "cl" in cols
+    assert "cd" in cols
