@@ -132,11 +132,13 @@ All constants live in `config/settings.py`. Never hardcode values elsewhere.
 This project uses an internal convention inspired by Semantic Versioning.
 It is **not** strict SemVer — there are no API compatibility guarantees.
 
+The major version (`0`) stays at `0` during active development. It bumps to `1` when the first complete end-to-end surrogate modeling workflow is functional (Phase 3 complete). `2.0.0` is reserved for Phase 4/5 features or a significant architectural change.
+
 ### Scheme: 0.SUBPHASE.PATCH
 
 | Number | When to increment | Reset? |
 |--------|-------------------|--------|
-| `0` (major) | Reserved — bumped to `1.0.0` when the full tool ships | — |
+| `MAJOR` | `0` → `1` when Phase 3 is complete (full end-to-end workflow). `1` → `2` for Phase 4/5 or major architectural change. | — |
 | `SUBPHASE` (middle) | Each new development sub-phase batch ships | patch → 0 |
 | `PATCH` (last) | Bug fixes, UX tweaks, hotfixes within a sub-phase | — |
 
@@ -149,8 +151,11 @@ It is **not** strict SemVer — there are no API compatibility guarantees.
 | Phase 1 — Sub-phase 3 (completion, caching, polish) | 0.3.x | ✅ Complete |
 | Phase 2 — A-series (designation, correlation, normalization) | 0.4.x | ✅ Complete |
 | Phase 2 — B-series (data cleaning) | 0.5.x | ✅ Complete |
-| Phase 2 — C-series (TBD) | 0.6.x | Planned |
-| Phase 3+ | TBD | Planned |
+| Phase 2 — C-series (log-transform patch + Phase 3 ramp-up) | 0.5.1 / 0.6.x | Planned |
+| Phase 3 — model training, cross-validation, metrics | 0.7.x | Planned |
+| Phase 3 — predictions, residual plots, parity plots | 0.8.x | Planned |
+| **1.0.0 milestone** | Phase 3 complete: full end-to-end workflow (upload → clean → designate → normalize → train → validate → predict) | Planned |
+| **2.0.0 milestone** | Phase 4/5 complete (active learning, export) or major architectural change | Reserved |
 
 ### Files to update on every version bump
 
