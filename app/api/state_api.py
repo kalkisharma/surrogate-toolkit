@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.8.2
+VERSION: 0.8.3
 ================================================================================
 """
 
@@ -127,6 +127,13 @@ def update_session():
                 404,
             )
         prev_key = state["datasets"]["active_dataset_key"]
+        # Save current surrogate session to the outgoing dataset so it can be
+        # restored when the user switches back.
+        if prev_key and prev_key in _datasets:
+            _datasets[prev_key]["surrogate_session"] = {
+                "models": state["surrogate_sessions"]["primary"]["models"],
+                "config": {**state["surrogate_sessions"]["primary"]["config"]},
+            }
         # Mirror selected dataset to primary
         ds = _datasets[new_key]
         ds["last_accessed"] = datetime.now(timezone.utc).isoformat()
@@ -138,15 +145,16 @@ def update_session():
         primary["metadata"].update(ds["metadata"])
         # Sync data_type to session
         session["data_type"] = ds["metadata"].get("data_type")
-        # The trained model and config belong to the previous dataset — clear them so
-        # GET /api/model/results correctly returns NO_TRAINED_MODEL for the new dataset.
+        # Restore the surrogate session for the incoming dataset.
+        # If it has never been trained, models is empty and results returns 404.
         surrogate = state["surrogate_sessions"]["primary"]
-        surrogate["models"] = {}
-        surrogate["config"]  = {
+        new_ss = ds.get("surrogate_session", {})
+        surrogate["models"] = new_ss.get("models", {})
+        surrogate["config"]  = new_ss.get("config", {
             "model_type": None,
             "test_split":  DEFAULT_TEST_SPLIT,
             "cv_folds":    DEFAULT_CV_FOLDS,
-        }
+        })
         from flask import current_app
         current_app.logger.info(f"Active dataset switched to '{new_key}'")
         append_audit_event(state, "dataset_switch", {

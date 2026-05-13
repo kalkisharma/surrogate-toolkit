@@ -6,6 +6,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.8.3] — 2026-05-12
+
+### Per-dataset surrogate session storage (v0.8.3)
+
+#### Fixed
+
+- **Results tab locked after switching datasets, even after prior training** — the surrogate session (trained model + config) was a single global slot that was cleared on every dataset switch with no way to restore it. Switching back to a previously-trained dataset always required retraining. Fixed by storing a `surrogate_session` entry (`models`, `config`) inside each `_datasets[key]` entry. The switch handler now saves the outgoing session to `_datasets[prev_key]` and restores from `_datasets[new_key]` — if the new dataset was previously trained, its model and results are immediately available; if not, `GET /api/model/results` correctly returns `NO_TRAINED_MODEL` and the Results step stays locked.
+- **Upload path bug — new file upload didn't clear the surrogate session** — `POST /api/data/upload` changed `active_dataset_key` directly (bypassing `PUT /api/state/session`), so the old model's surrogate session was never cleared. The Results step on the new file's exploration view would appear unlocked, showing the previous dataset's model. Fixed: the upload handler now saves the outgoing session and resets the surrogate session for the newly uploaded file (same save/restore pattern as the switch handler).
+
+#### Files changed
+
+- `app/api/state_api.py` — replace "clear on switch" with "save outgoing / restore incoming" surrogate session logic
+- `app/api/data_api.py` — add `surrogate_session` to each `ds_entry` at upload; save outgoing session before changing `active_dataset_key`; clear surrogate session for new uploads; add `DEFAULT_CV_FOLDS, DEFAULT_TEST_SPLIT` to imports
+- `config/settings.py` — `VERSION = "0.8.3"`
+- `app/templates/index.html` — version bump (8 locations)
+
+---
+
 ## [0.8.2] — 2026-05-12
 
 ### Dataset-switching correctness fixes (v0.8.2)

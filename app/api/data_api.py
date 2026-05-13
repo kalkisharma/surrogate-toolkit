@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.5.1
+VERSION: 0.8.3
 ================================================================================
 """
 
@@ -40,6 +40,8 @@ from config.settings import (
     CLEANING_STRATEGIES_NULL,
     CLEANING_STRATEGIES_OUTLIER,
     CORRELATION_WARNING_THRESHOLD,
+    DEFAULT_CV_FOLDS,
+    DEFAULT_TEST_SPLIT,
     LOG_TRANSFORM_SKEW_THRESHOLD,
     MAX_DATASETS,
     MAX_DATASETS_MEMORY_MB,
@@ -222,6 +224,14 @@ def upload():
         "metadata":     ds_meta,
         "memory_bytes": mem_bytes,
         "last_accessed": now_ts,
+        "surrogate_session": {
+            "models": {},
+            "config": {
+                "model_type": None,
+                "test_split":  DEFAULT_TEST_SPLIT,
+                "cv_folds":    DEFAULT_CV_FOLDS,
+            },
+        },
     }
 
     _datasets = state["datasets"]["_datasets"]
@@ -274,12 +284,29 @@ def upload():
             f"LRU eviction (memory cap): removed '{evicted_name}'"
         )
 
+    # ── Save current surrogate session before switching active dataset ────────
+    prev_key = state["datasets"].get("active_dataset_key")
+    if prev_key and prev_key in _datasets and prev_key != safe_name:
+        _datasets[prev_key]["surrogate_session"] = {
+            "models": state["surrogate_sessions"]["primary"]["models"],
+            "config": {**state["surrogate_sessions"]["primary"]["config"]},
+        }
+
     # ── Mirror active dataset to primary ─────────────────────────────────────
     state["datasets"]["active_dataset_key"] = safe_name
     primary = state["datasets"]["primary"]
     primary["raw"]   = ds_entry["raw"]
     primary["clean"] = ds_entry["clean"]
     primary["metadata"].update(ds_meta)
+
+    # New uploads always start with no trained model
+    surrogate = state["surrogate_sessions"]["primary"]
+    surrogate["models"] = {}
+    surrogate["config"]  = {
+        "model_type": None,
+        "test_split":  DEFAULT_TEST_SPLIT,
+        "cv_folds":    DEFAULT_CV_FOLDS,
+    }
 
     append_audit_event(state, "upload", {
         "filename": safe_name,

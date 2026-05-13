@@ -162,6 +162,8 @@ The major version (`0`) stays at `0` during active development. It bumps to `1` 
 | Phase 3 — column selector UX patch (chip row, 12-col cap) | 0.7.1 | ✅ Complete |
 | Phase 3 — sidebar layout + panel router | 0.8.0 | ✅ Complete |
 | Phase 3 — parity & residual plots (test set) | 0.8.1 | ✅ Complete |
+| Phase 3 — dataset-switching correctness | 0.8.2 | ✅ Complete |
+| Phase 3 — per-dataset surrogate session storage | 0.8.3 | ✅ Complete |
 | **1.0.0 milestone** | Phase 3 complete: full end-to-end workflow (upload → clean → designate → normalize → train → validate → predict) | Planned |
 | **2.0.0 milestone** | Phase 4/5 complete (active learning, export) or major architectural change | Reserved |
 
