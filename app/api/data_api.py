@@ -6,14 +6,13 @@ PURPOSE: Blueprint and route handlers for /api/data/*. Wires the ingestion
          pipeline to the HTTP API, updates STATE, and returns standardised
          JSON responses.
 DEPENDENCIES: flask, numpy, werkzeug.utils, app.data.ingestion, app.state.schema
-FUTURE EXTENSIONS: GET /api/data/summary (full-dataset stats), POST /api/data/clean,
-                   POST /api/data/normalize, POST /api/data/reduce,
-                   GET /api/data/visualization, POST /api/data/filter.
+FUTURE EXTENSIONS: POST /api/data/reduce, GET /api/data/visualization,
+                   POST /api/data/filter, winsorize (post-designation).
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.4.0
+VERSION: 0.5.0
 ================================================================================
 """
 
@@ -27,14 +26,23 @@ import numpy as np
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
+from app.data.cleaning import (
+    compute_cleaning_stats,
+    handle_nulls,
+    handle_outliers,
+    remove_duplicates,
+)
 from app.data.ingestion import ingest_csv
 from app.data.normalization import normalize_dataframe
 from app.state.schema import append_audit_event
 from config.settings import (
+    CLEANING_STRATEGIES_NULL,
+    CLEANING_STRATEGIES_OUTLIER,
     CORRELATION_WARNING_THRESHOLD,
     MAX_DATASETS,
     MAX_DATASETS_MEMORY_MB,
     MAX_PLOT_ROWS,
+    MIN_ROWS,
 )
 
 bp = Blueprint("data", __name__)
@@ -64,6 +72,8 @@ _ERROR_HTTP_STATUS = {
     "COLUMN_OVERLAP": 422,
     "INVALID_COLUMNS": 422,
     "UNKNOWN_METHOD": 422,
+    "UNKNOWN_STRATEGY": 422,
+    "CLEAN_ERROR": 400,
 }
 
 
@@ -356,17 +366,19 @@ def summary():
             400,
         )
 
-    # Serve from cache if available (populated at upload time).
+    # Serve from cache if available (populated at upload time; invalidated after cleaning).
     _datasets = state["datasets"]["_datasets"]
     cached    = _datasets.get(active_key, {}).get("metadata", {}).get("summary_stats")
+    cleaning  = compute_cleaning_stats(df)
     if cached:
         return jsonify(
             {
-                "success": True,
-                "stats": cached,
-                "n_rows": len(df),
-                "n_cols": len(df.columns),
-                "columns": list(df.columns),
+                "success":        True,
+                "stats":          cached,
+                "n_rows":         len(df),
+                "n_cols":         len(df.columns),
+                "columns":        list(df.columns),
+                "cleaning_stats": cleaning,
             }
         ), 200
 
@@ -384,11 +396,12 @@ def summary():
 
     return jsonify(
         {
-            "success": True,
-            "stats": stats,
-            "n_rows": len(df),
-            "n_cols": len(df.columns),
-            "columns": list(df.columns),
+            "success":        True,
+            "stats":          stats,
+            "n_rows":         len(df),
+            "n_cols":         len(df.columns),
+            "columns":        list(df.columns),
+            "cleaning_stats": cleaning,
         }
     ), 200
 
@@ -790,6 +803,334 @@ def normalize():
         "success":   True,
         "method":    method,
         "n_columns": len(input_columns),
+    }), 200
+
+
+# ─── CLEANING ROUTES ──────────────────────────────────────────────────────────
+
+
+def _no_data_error():
+    """Return standard 400 error envelope when no dataset is loaded."""
+    return (
+        jsonify({
+            "success": False, "error_code": "NO_DATA",
+            "message": "No dataset is loaded. Upload a CSV file first.",
+            "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+        }),
+        400,
+    )
+
+
+def _get_active_ds(state):
+    """Return (active_key, ds_entry) or (None, None) if no dataset is active."""
+    active_key = state["datasets"]["active_dataset_key"]
+    _datasets  = state["datasets"]["_datasets"]
+    if not active_key or active_key not in _datasets:
+        return None, None
+    return active_key, _datasets[active_key]
+
+
+def _apply_clean(state, active_key, ds, result_df):
+    """
+    Write a cleaned DataFrame to both the dataset accumulator and primary mirror.
+    Invalidates the summary stats cache so the next GET /api/data/summary recomputes.
+    """
+    ds["clean"]  = result_df
+    state["datasets"]["primary"]["clean"] = result_df
+    ds["metadata"]["n_rows_clean"]  = len(result_df)
+    ds["metadata"]["summary_stats"] = None   # invalidate cache
+
+
+@bp.route("/clean/nulls", methods=["POST"])
+def clean_nulls():
+    """
+    Apply a missing-value strategy to the active dataset's clean DataFrame.
+
+    Args (JSON body):
+        strategy (str): "drop_rows" | "mean_impute" | "median_impute"
+
+    Returns:
+        JSON 200: {
+            "success": true,
+            "strategy": "...",
+            "rows_before": N,
+            "rows_after": M,
+            "rows_affected": K
+        }
+        JSON 4xx: Standard error envelope.
+
+    Notes:
+        "drop_rows" removes any row with at least one null value. Impute strategies
+        replace nulls with column mean or median and preserve row count.
+        drop_rows is rejected if the result would have fewer than MIN_ROWS rows.
+
+    Future:
+        Per-column strategy overrides; forward/backward fill.
+    """
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+
+    data     = request.get_json(silent=True) or {}
+    strategy = data.get("strategy", "")
+
+    if strategy not in CLEANING_STRATEGIES_NULL:
+        return (
+            jsonify({
+                "success": False, "error_code": "UNKNOWN_STRATEGY",
+                "message": f"Unknown null strategy '{strategy}'. "
+                           f"Use one of: {', '.join(CLEANING_STRATEGIES_NULL)}.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    clean_df = state["datasets"]["primary"]["clean"]
+
+    try:
+        result_df, affected = handle_nulls(clean_df, strategy)
+    except Exception as exc:
+        current_app.logger.error(f"Null handling error: {exc}")
+        return (
+            jsonify({
+                "success": False, "error_code": "CLEAN_ERROR",
+                "message": "Null handling failed. See server log for details.",
+                "detail": str(exc), "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            400,
+        )
+
+    if len(result_df) < MIN_ROWS:
+        return (
+            jsonify({
+                "success": False, "error_code": "INSUFFICIENT_ROWS",
+                "message": f"Dropping rows with nulls would leave only {len(result_df)} row(s). "
+                           f"Minimum is {MIN_ROWS}. Try imputation instead.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    rows_before = len(clean_df)
+    _apply_clean(state, active_key, ds, result_df)
+    append_audit_event(state, "cleaning_nulls", {
+        "dataset":       active_key,
+        "strategy":      strategy,
+        "rows_before":   rows_before,
+        "rows_after":    len(result_df),
+        "rows_affected": affected,
+    })
+    current_app.logger.info(
+        f"Null handling: '{active_key}' — strategy={strategy}, affected={affected}"
+    )
+
+    return jsonify({
+        "success":       True,
+        "strategy":      strategy,
+        "rows_before":   rows_before,
+        "rows_after":    len(result_df),
+        "rows_affected": affected,
+    }), 200
+
+
+@bp.route("/clean/outliers", methods=["POST"])
+def clean_outliers():
+    """
+    Apply an outlier treatment strategy to the active dataset's clean DataFrame.
+
+    Args (JSON body):
+        strategy (str): "keep" | "drop_rows"
+
+    Returns:
+        JSON 200: {
+            "success": true,
+            "strategy": "...",
+            "rows_before": N,
+            "rows_after": M,
+            "rows_affected": K
+        }
+        JSON 4xx: Standard error envelope.
+
+    Notes:
+        IQR detection uses IQR_OUTLIER_MULTIPLIER (1.5). NaN values are excluded
+        from quartile computation. "keep" is a no-op but still appends an audit event.
+        drop_rows is rejected if the result would have fewer than MIN_ROWS rows.
+
+        "winsorize" is deferred to post-designation so it can be safely scoped to
+        input columns only, avoiding corruption of training targets.
+
+    Future:
+        Winsorize strategy (post-designation, input columns only).
+    """
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+
+    data     = request.get_json(silent=True) or {}
+    strategy = data.get("strategy", "")
+
+    if strategy not in CLEANING_STRATEGIES_OUTLIER:
+        return (
+            jsonify({
+                "success": False, "error_code": "UNKNOWN_STRATEGY",
+                "message": f"Unknown outlier strategy '{strategy}'. "
+                           f"Use one of: {', '.join(CLEANING_STRATEGIES_OUTLIER)}.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    clean_df = state["datasets"]["primary"]["clean"]
+
+    try:
+        result_df, affected = handle_outliers(clean_df, strategy)
+    except Exception as exc:
+        current_app.logger.error(f"Outlier handling error: {exc}")
+        return (
+            jsonify({
+                "success": False, "error_code": "CLEAN_ERROR",
+                "message": "Outlier handling failed. See server log for details.",
+                "detail": str(exc), "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            400,
+        )
+
+    if strategy == "drop_rows" and len(result_df) < MIN_ROWS:
+        return (
+            jsonify({
+                "success": False, "error_code": "INSUFFICIENT_ROWS",
+                "message": f"Dropping outlier rows would leave only {len(result_df)} row(s). "
+                           f"Minimum is {MIN_ROWS}. Use 'keep' to flag without removing.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    rows_before = len(clean_df)
+    if strategy != "keep":
+        _apply_clean(state, active_key, ds, result_df)
+
+    append_audit_event(state, "cleaning_outliers", {
+        "dataset":       active_key,
+        "strategy":      strategy,
+        "rows_before":   rows_before,
+        "rows_after":    len(result_df),
+        "rows_affected": affected,
+    })
+    current_app.logger.info(
+        f"Outlier handling: '{active_key}' — strategy={strategy}, affected={affected}"
+    )
+
+    return jsonify({
+        "success":       True,
+        "strategy":      strategy,
+        "rows_before":   rows_before,
+        "rows_after":    len(result_df),
+        "rows_affected": affected,
+    }), 200
+
+
+@bp.route("/clean/duplicates", methods=["POST"])
+def clean_duplicates():
+    """
+    Remove exact duplicate rows from the active dataset's clean DataFrame.
+
+    Returns:
+        JSON 200: {
+            "success": true,
+            "rows_before": N,
+            "rows_after": M,
+            "rows_removed": K
+        }
+        JSON 4xx: Standard error envelope.
+
+    Future:
+        Fuzzy deduplication via numeric distance threshold.
+    """
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+
+    clean_df = state["datasets"]["primary"]["clean"]
+
+    try:
+        result_df, removed = remove_duplicates(clean_df)
+    except Exception as exc:
+        current_app.logger.error(f"Deduplication error: {exc}")
+        return (
+            jsonify({
+                "success": False, "error_code": "CLEAN_ERROR",
+                "message": "Deduplication failed. See server log for details.",
+                "detail": str(exc), "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            400,
+        )
+
+    rows_before = len(clean_df)
+    if removed > 0:
+        _apply_clean(state, active_key, ds, result_df)
+
+    append_audit_event(state, "cleaning_duplicates", {
+        "dataset":      active_key,
+        "rows_before":  rows_before,
+        "rows_after":   len(result_df),
+        "rows_removed": removed,
+    })
+    current_app.logger.info(
+        f"Deduplication: '{active_key}' — removed={removed}"
+    )
+
+    return jsonify({
+        "success":      True,
+        "rows_before":  rows_before,
+        "rows_after":   len(result_df),
+        "rows_removed": removed,
+    }), 200
+
+
+@bp.route("/clean/reset", methods=["POST"])
+def clean_reset():
+    """
+    Reset the active dataset's clean DataFrame to a copy of raw (undo all cleaning).
+
+    Returns:
+        JSON 200: {
+            "success": true,
+            "rows_restored": N
+        }
+        JSON 4xx: Standard error envelope.
+
+    Notes:
+        primary["raw"] is immutable by design. This copies raw to clean,
+        restoring the original ingested state before any cleaning was applied.
+        Summary stats cache is also invalidated so stats reflect the restored data.
+
+    Future:
+        Per-operation undo via cleaning_log replay in reverse.
+    """
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+
+    raw_df   = state["datasets"]["primary"]["raw"]
+    restored = raw_df.copy()
+
+    _apply_clean(state, active_key, ds, restored)
+    append_audit_event(state, "cleaning_reset", {
+        "dataset":        active_key,
+        "rows_restored":  len(restored),
+    })
+    current_app.logger.info(
+        f"Cleaning reset: '{active_key}' — restored {len(restored)} rows from raw"
+    )
+
+    return jsonify({
+        "success":       True,
+        "rows_restored": len(restored),
     }), 200
 
 

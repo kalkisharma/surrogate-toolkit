@@ -56,7 +56,7 @@ gunicorn "app:create_app()"
 python -m pytest tests/ -v
 ```
 
-45 tests (24 unit, 21 integration). Target: 80%+ coverage on `app/data/ingestion.py` and `app/api/data_api.py`.
+109 tests (43 unit, 66 integration). Target: 80%+ coverage on `app/data/ingestion.py`, `app/data/cleaning.py`, and `app/api/data_api.py`.
 
 Test fixtures live in `tests/fixtures/`. They are synthetic — no real program data.
 
@@ -92,10 +92,19 @@ State sync: the frontend calls `GET /api/state/` after every mutating POST via `
 | Method | Path | Description |
 |---|---|---|
 | `POST` | `/api/data/upload` | Validate and ingest a CSV; returns 10-row preview |
-| `GET` | `/api/data/summary` | Per-column descriptive stats from full dataset |
+| `GET` | `/api/data/summary` | Per-column descriptive stats + `cleaning_stats` |
 | `GET` | `/api/data/rows` | Up to `MAX_PLOT_ROWS` (2,000) rows for the scatter matrix |
+| `GET` | `/api/data/datasets` | All loaded datasets with metadata |
+| `POST` | `/api/data/designate` | Set input/output/unused column roles |
+| `GET` | `/api/data/correlate` | Pearson correlation matrix for clean data |
+| `POST` | `/api/data/normalize` | Scale input columns (minmax or zscore) |
+| `POST` | `/api/data/clean/nulls` | Handle missing values (drop, mean/median impute) |
+| `POST` | `/api/data/clean/outliers` | Treat IQR outliers (keep or drop) |
+| `POST` | `/api/data/clean/duplicates` | Remove exact duplicate rows |
+| `POST` | `/api/data/clean/reset` | Restore clean DataFrame to original raw upload |
 | `GET` | `/api/state/` | Full STATE snapshot |
 | `PUT` | `/api/state/session` | Update session fields (level, cores, theme, etc.) |
+| `POST` | `/api/state/reset` | Clear all loaded datasets and reset STATE |
 
 ### Adding a new API endpoint
 

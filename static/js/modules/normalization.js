@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/normalization.js
-// Version: 0.4.0
+// Version: 0.5.0
 // Description: Normalization step — lets users pick a scaling method for input
 //              columns and applies it via POST /api/data/normalize.
 //              Gated: rendered only after column designation is confirmed.
@@ -30,7 +30,7 @@ const METHODS = [
 export function initNormalization(containerEl, currentMethod, nInputs) {
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 4 — Normalization</h2>
+    <h2 class="section-title">Step 5 — Normalization</h2>
     <p class="section-desc">Scale input columns before training. Outputs are left unchanged.</p>
   `;
   containerEl.appendChild(header);

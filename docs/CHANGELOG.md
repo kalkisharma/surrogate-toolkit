@@ -6,6 +6,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.5.0] — 2026-05-12
+
+### Phase 2 — B-Series: Data Cleaning (v0.5.0)
+
+#### Added
+
+- **Data cleaning section (B1)** — new "Step 3: Data Cleaning" card renders between the Exploration view and Column Designation. Displays actionable prompts: rows with missing values (count + %), duplicate rows detected, and IQR outlier rows detected. Counts sourced from `GET /api/data/summary` (extended response — no new round-trip). Recommended UI order: nulls → duplicates → outliers. New module: `static/js/modules/data_cleaning.js`.
+- **Missing value handling (B2)** — `POST /api/data/clean/nulls` with `strategy`: `drop_rows` (removes any row with ≥1 null), `mean_impute` (fills each null with the column mean), `median_impute` (fills each null with the column median). Impute strategies preserve row count. `drop_rows` is rejected with 422 `INSUFFICIENT_ROWS` if result would have fewer than `MIN_ROWS` (5) rows.
+- **Outlier treatment (B3)** — `POST /api/data/clean/outliers` with `strategy`: `keep` (flag only — no-op on the DataFrame), `drop_rows` (removes rows flagged as IQR outliers in any column). IQR multiplier is `IQR_OUTLIER_MULTIPLIER = 1.5` (from `settings.py`). NaN values are excluded from quartile computation via `dropna()` to avoid threshold distortion. `drop_rows` subject to same `MIN_ROWS` guard as null cleaning. Winsorize deferred to post-designation phase (would corrupt output columns if applied here).
+- **Duplicate row removal (B4)** — `POST /api/data/clean/duplicates` removes exact duplicate rows using `pandas.DataFrame.drop_duplicates()`. Returns `rows_removed` count.
+- **Cleaning reset (B5)** — `POST /api/data/clean/reset` restores `primary["clean"]` to a deep copy of `primary["raw"]` (undo all cleaning). Summary stats cache is invalidated so the next GET /api/data/summary reflects restored counts.
+- **Audit trail (B6)** — all cleaning operations append timestamped events via `append_audit_event()`: `cleaning_nulls`, `cleaning_outliers`, `cleaning_duplicates`, `cleaning_reset`. Each event includes `dataset`, `strategy`, and before/after row counts.
+- **`GET /api/data/summary` extended** — response now includes `cleaning_stats: { null_rows, duplicate_rows, outlier_rows }`. Computed from the live `primary["clean"]` DataFrame on every call (not cached, since cleaning changes these counts).
+- **`app/data/cleaning.py` implemented** — was a TODO stub. Now provides: `compute_cleaning_stats()`, `handle_nulls()`, `handle_outliers()`, `remove_duplicates()`, and shared `_outlier_mask()` helper. All functions are non-mutating.
+- **38 new tests** — 19 unit tests for `cleaning.py` (stats, null handling, outlier handling, deduplication — including source-not-mutated invariants); 19 integration tests for all cleaning endpoints plus audit trail. Total test count: 109 (43 unit, 66 integration).
+
+#### Changed
+
+- **Step renumbering** — Column Designation relabelled "Step 4" (was Step 3). Normalization relabelled "Step 5" (was Step 4). Data Cleaning is now Step 3.
+- `config/settings.py` — added `IQR_OUTLIER_MULTIPLIER = 1.5`, `CLEANING_STRATEGIES_NULL`, `CLEANING_STRATEGIES_OUTLIER`. Version bumped to `0.5.0`.
+- `app/api/data_api.py` — added `_no_data_error()`, `_get_active_ds()`, `_apply_clean()` private helpers to reduce duplication across cleaning routes. Added `UNKNOWN_STRATEGY` and `CLEAN_ERROR` to `_ERROR_HTTP_STATUS`.
+
+---
+
 ## [0.4.0] — 2026-05-12
 
 ### Phase 2 — Core Data Preparation (v0.4.0)

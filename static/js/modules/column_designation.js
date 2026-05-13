@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/column_designation.js
-// Version: 0.4.0
+// Version: 0.5.0
 // Description: Column designation step — lets users classify each column as
 //              Input, Output, or Unused. Sends POST /api/data/designate.
 //              Pre-populates from existing metadata on dataset switch.
@@ -38,7 +38,7 @@ export function initDesignation(
 ) {
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 3 — Column Designation</h2>
+    <h2 class="section-title">Step 4 — Column Designation</h2>
     <p class="section-desc">Classify each column as an input (feature), output (target), or unused.</p>
   `;
   containerEl.appendChild(header);

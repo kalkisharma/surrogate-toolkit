@@ -10,7 +10,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.4.0
+VERSION: 0.5.0
 ================================================================================
 """
 
@@ -598,3 +598,256 @@ def test_audit_event_on_normalization(client, csv_clean):
     state = json.loads(client.get("/api/state/").data)["state"]
     events = state["audit"]["events"]
     assert any(e["event_type"] == "normalization" for e in events)
+
+
+# ─── SUMMARY — CLEANING STATS ─────────────────────────────────────────────────
+
+
+def test_summary_includes_cleaning_stats_no_data(client):
+    """GET /api/data/summary returns 400 when no data is loaded."""
+    resp = client.get("/api/data/summary")
+    assert resp.status_code == 400
+
+
+def test_summary_includes_cleaning_stats(client, csv_dirty):
+    """GET /api/data/summary includes cleaning_stats after upload."""
+    _upload(client, csv_dirty, "dirty.csv")
+    resp = client.get("/api/data/summary")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert "cleaning_stats" in data
+    cs = data["cleaning_stats"]
+    assert cs["null_rows"] > 0
+    assert cs["duplicate_rows"] >= 5
+    assert "outlier_rows" in cs
+
+
+def test_summary_cleaning_stats_clean_dataset(client, csv_clean):
+    """GET /api/data/summary on a clean dataset reports zero duplicates and nulls."""
+    _upload(client, csv_clean, "clean.csv")
+    resp = client.get("/api/data/summary")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    cs = data["cleaning_stats"]
+    assert cs["null_rows"] == 0
+    assert cs["duplicate_rows"] == 0
+
+
+# ─── CLEAN / NULLS ────────────────────────────────────────────────────────────
+
+
+def test_clean_nulls_no_data(client):
+    """POST /api/data/clean/nulls returns 400 when no dataset is loaded."""
+    resp = client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "drop_rows"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_clean_nulls_unknown_strategy(client, csv_dirty):
+    """POST /api/data/clean/nulls with invalid strategy returns 422."""
+    _upload(client, csv_dirty, "dirty.csv")
+    resp = client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "interpolate"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "UNKNOWN_STRATEGY"
+
+
+def test_clean_nulls_drop_rows(client, csv_dirty):
+    """POST /api/data/clean/nulls with drop_rows removes rows and returns delta."""
+    _upload(client, csv_dirty, "dirty.csv")
+    rows_before = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    resp = client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "drop_rows"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["rows_before"] == rows_before
+    assert data["rows_after"] < rows_before
+    assert data["rows_affected"] == rows_before - data["rows_after"]
+
+
+def test_clean_nulls_mean_impute(client, csv_dirty):
+    """POST /api/data/clean/nulls with mean_impute preserves row count."""
+    _upload(client, csv_dirty, "dirty.csv")
+    rows_before = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    resp = client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "mean_impute"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["rows_after"] == rows_before
+    # After imputation, summary should report zero null rows
+    cs = json.loads(client.get("/api/data/summary").data)["cleaning_stats"]
+    assert cs["null_rows"] == 0
+
+
+def test_clean_nulls_median_impute(client, csv_dirty):
+    """POST /api/data/clean/nulls with median_impute preserves row count."""
+    _upload(client, csv_dirty, "dirty.csv")
+    rows_before = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    resp = client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "median_impute"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    assert json.loads(resp.data)["rows_after"] == rows_before
+
+
+# ─── CLEAN / OUTLIERS ─────────────────────────────────────────────────────────
+
+
+def test_clean_outliers_no_data(client):
+    """POST /api/data/clean/outliers returns 400 when no dataset is loaded."""
+    resp = client.post(
+        "/api/data/clean/outliers",
+        data=json.dumps({"strategy": "drop_rows"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_clean_outliers_unknown_strategy(client, csv_clean):
+    """POST /api/data/clean/outliers with invalid strategy returns 422."""
+    _upload(client, csv_clean, "clean.csv")
+    resp = client.post(
+        "/api/data/clean/outliers",
+        data=json.dumps({"strategy": "winsorize"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "UNKNOWN_STRATEGY"
+
+
+def test_clean_outliers_keep_noop(client, csv_clean):
+    """POST /api/data/clean/outliers with keep strategy leaves row count unchanged."""
+    _upload(client, csv_clean, "clean.csv")
+    rows_before = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    resp = client.post(
+        "/api/data/clean/outliers",
+        data=json.dumps({"strategy": "keep"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["rows_before"] == rows_before
+    assert data["rows_after"] == rows_before
+    assert data["rows_affected"] == 0
+
+
+def test_clean_outliers_drop_rows(client, csv_dirty):
+    """POST /api/data/clean/outliers with drop_rows removes outlier rows."""
+    _upload(client, csv_dirty, "dirty.csv")
+    # Impute nulls first so IQR computation is not skewed
+    client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "mean_impute"}),
+        content_type="application/json",
+    )
+    rows_before = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    resp = client.post(
+        "/api/data/clean/outliers",
+        data=json.dumps({"strategy": "drop_rows"}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["rows_after"] <= rows_before
+
+
+# ─── CLEAN / DUPLICATES ───────────────────────────────────────────────────────
+
+
+def test_clean_duplicates_no_data(client):
+    """POST /api/data/clean/duplicates returns 400 when no dataset is loaded."""
+    resp = client.post("/api/data/clean/duplicates")
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_clean_duplicates_removes_dupes(client, csv_dirty):
+    """POST /api/data/clean/duplicates removes the 5 known duplicate rows."""
+    _upload(client, csv_dirty, "dirty.csv")
+    rows_before = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    resp = client.post("/api/data/clean/duplicates")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is True
+    assert data["rows_removed"] == 5
+    assert data["rows_after"] == rows_before - 5
+
+
+def test_clean_duplicates_clean_dataset(client, csv_clean):
+    """POST /api/data/clean/duplicates on a clean dataset reports 0 removed."""
+    _upload(client, csv_clean, "clean.csv")
+    resp = client.post("/api/data/clean/duplicates")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["rows_removed"] == 0
+
+
+# ─── CLEAN / RESET ────────────────────────────────────────────────────────────
+
+
+def test_clean_reset_no_data(client):
+    """POST /api/data/clean/reset returns 400 when no dataset is loaded."""
+    resp = client.post("/api/data/clean/reset")
+    assert resp.status_code == 400
+    assert json.loads(resp.data)["error_code"] == "NO_DATA"
+
+
+def test_clean_reset_restores_raw(client, csv_dirty):
+    """POST /api/data/clean/reset restores original row count after cleaning."""
+    _upload(client, csv_dirty, "dirty.csv")
+    original_rows = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    # Apply cleaning
+    client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "drop_rows"}),
+        content_type="application/json",
+    )
+    reduced_rows = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    assert reduced_rows < original_rows
+    # Reset
+    resp = client.post("/api/data/clean/reset")
+    assert resp.status_code == 200
+    assert json.loads(resp.data)["rows_restored"] == original_rows
+    restored_rows = json.loads(client.get("/api/data/summary").data)["n_rows"]
+    assert restored_rows == original_rows
+
+
+# ─── AUDIT TRAIL — CLEANING ───────────────────────────────────────────────────
+
+
+def test_audit_event_on_null_cleaning(client, csv_dirty):
+    """Null handling creates a 'cleaning_nulls' audit event."""
+    _upload(client, csv_dirty, "dirty.csv")
+    client.post(
+        "/api/data/clean/nulls",
+        data=json.dumps({"strategy": "drop_rows"}),
+        content_type="application/json",
+    )
+    events = json.loads(client.get("/api/state/").data)["state"]["audit"]["events"]
+    assert any(e["event_type"] == "cleaning_nulls" for e in events)
+
+
+def test_audit_event_on_cleaning_reset(client, csv_dirty):
+    """Clean reset creates a 'cleaning_reset' audit event."""
+    _upload(client, csv_dirty, "dirty.csv")
+    client.post("/api/data/clean/reset")
+    events = json.loads(client.get("/api/state/").data)["state"]["audit"]["events"]
+    assert any(e["event_type"] == "cleaning_reset" for e in events)

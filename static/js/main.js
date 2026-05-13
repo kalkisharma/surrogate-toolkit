@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.4.0
+// Version: 0.5.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, handles the single data-
 //              type gate, and navigates to the exploration view.
@@ -14,6 +14,7 @@ import { refreshState } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
 import { initExploration } from "./modules/data_explorer.js";
+import { initCleaning } from "./modules/data_cleaning.js";
 import { initDesignation } from "./modules/column_designation.js";
 import { initNormalization } from "./modules/normalization.js";
 import { el, clearEl } from "./utils.js";
@@ -285,6 +286,19 @@ async function _renderExploration(uploadResponse) {
   const exploreSection = el("div", { cls: "card", id: "explore-section" });
   app.appendChild(exploreSection);
   await initExploration(exploreSection, uploadResponse);
+
+  // ── Data cleaning ─────────────────────────────────────────────────────────
+  const cleanCard = el("div", { cls: "card", id: "cleaning-section",
+    style: "margin-top: var(--space-6);" });
+  app.appendChild(cleanCard);
+
+  const onClean = async () => {
+    // Re-render exploration with fresh data from server, then refresh cleaning summary.
+    clearEl(exploreSection);
+    await initExploration(exploreSection, uploadResponse);
+    await initCleaning(cleanCard, onClean);
+  };
+  await initCleaning(cleanCard, onClean);
 
   // ── Column designation ────────────────────────────────────────────────────
   const meta2         = uploadResponse.metadata;

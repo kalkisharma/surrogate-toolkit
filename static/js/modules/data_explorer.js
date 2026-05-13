@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 0.4.0
+// Version: 0.5.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================

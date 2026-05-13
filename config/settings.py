@@ -10,7 +10,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.4.0
+VERSION: 0.5.0
 ================================================================================
 """
 
@@ -20,7 +20,7 @@ VERSION: 0.4.0
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
@@ -35,6 +35,12 @@ MAX_COLUMNS = 200
 
 MISSING_VALUE_THRESHOLD = 0.30       # max null fraction per column
 CORRELATION_WARNING_THRESHOLD = 0.90
+
+# ─── DATA CLEANING ─────────────────────────────────────────────────────────────
+
+IQR_OUTLIER_MULTIPLIER = 1.5         # rows outside Q1 - k*IQR or Q3 + k*IQR are flagged
+CLEANING_STRATEGIES_NULL     = ["drop_rows", "mean_impute", "median_impute"]
+CLEANING_STRATEGIES_OUTLIER  = ["keep", "drop_rows"]
 DIMENSIONALITY_WARNING_THRESHOLD = 10
 
 MAX_HEADER_LENGTH = 256              # characters per column name
