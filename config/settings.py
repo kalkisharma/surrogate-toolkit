@@ -10,7 +10,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.5.1
+VERSION: 0.6.0
 ================================================================================
 """
 
@@ -20,7 +20,7 @@ VERSION: 0.5.1
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "0.5.1"
+VERSION = "0.6.0"
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
@@ -42,6 +42,16 @@ IQR_OUTLIER_MULTIPLIER = 1.5         # rows outside Q1 - k*IQR or Q3 + k*IQR are
 CLEANING_STRATEGIES_NULL     = ["drop_rows", "mean_impute", "median_impute"]
 CLEANING_STRATEGIES_OUTLIER  = ["keep", "drop_rows"]
 LOG_TRANSFORM_SKEW_THRESHOLD = 1.0   # |skew| > this flags a column as a candidate for log-transform
+
+# ─── MODEL TRAINING ────────────────────────────────────────────────────────────
+
+SUPPORTED_MODEL_TYPES = ["gpr", "rf", "linear"]
+
+TEST_SPLIT_MIN = 0.05        # minimum fraction reserved for the test set
+TEST_SPLIT_MAX = 0.50        # maximum fraction reserved for the test set
+
+CV_FOLDS_MIN = 2             # minimum k for k-fold cross-validation
+CV_FOLDS_MAX = 20            # maximum k for k-fold cross-validation
 DIMENSIONALITY_WARNING_THRESHOLD = 10
 
 MAX_HEADER_LENGTH = 256              # characters per column name

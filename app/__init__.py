@@ -13,7 +13,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.1.3
+VERSION: 0.6.0
 ================================================================================
 """
 
@@ -98,6 +98,9 @@ def create_app() -> Flask:
 
     from app.api.data_api import bp as data_bp
     app.register_blueprint(data_bp, url_prefix="/api/data")
+
+    from app.api.model_api import bp as model_bp
+    app.register_blueprint(model_bp, url_prefix="/api/model")
 
     # ─── ERROR HANDLERS ───────────────────────────────────────────────────────
 

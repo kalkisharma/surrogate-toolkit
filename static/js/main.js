@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.5.0
+// Version: 0.6.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, handles the single data-
 //              type gate, and navigates to the exploration view.
@@ -17,6 +17,7 @@ import { initExploration } from "./modules/data_explorer.js";
 import { initCleaning } from "./modules/data_cleaning.js";
 import { initDesignation } from "./modules/column_designation.js";
 import { initNormalization } from "./modules/normalization.js";
+import { initModelConfig } from "./modules/model_config.js";
 import { el, clearEl } from "./utils.js";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -311,14 +312,21 @@ async function _renderExploration(uploadResponse) {
     style: "margin-top: var(--space-6);" });
   app.appendChild(normCard);
 
+  // Training config card — hidden until designation is confirmed
+  const trainConfigCard = el("div", { cls: "card hidden", id: "model-config-section",
+    style: "margin-top: var(--space-6);" });
+  app.appendChild(trainConfigCard);
+
   const initInputs  = meta2.input_columns  || [];
   const initOutputs = meta2.output_columns || [];
   const currentNorm = meta2.normalization_method || null;
 
-  // If designation already exists, also render normalization immediately
+  // If designation already exists, render normalization and training config immediately
   if (initInputs.length > 0) {
     normCard.classList.remove("hidden");
     initNormalization(normCard, currentNorm, initInputs.length);
+    trainConfigCard.classList.remove("hidden");
+    initModelConfig(trainConfigCard, () => {});
   }
 
   initDesignation(
@@ -330,10 +338,13 @@ async function _renderExploration(uploadResponse) {
     initInputs,
     initOutputs,
     ({ input_columns }) => {
-      // Reveal and refresh normalization section on first confirmation
+      // Reveal normalization and training config on first designation confirmation
       normCard.classList.remove("hidden");
       clearEl(normCard);
       initNormalization(normCard, null, input_columns.length);
+      trainConfigCard.classList.remove("hidden");
+      clearEl(trainConfigCard);
+      initModelConfig(trainConfigCard, () => {});
       normCard.scrollIntoView({ behavior: "smooth", block: "start" });
     },
   );

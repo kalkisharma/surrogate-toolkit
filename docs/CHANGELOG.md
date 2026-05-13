@@ -6,6 +6,27 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.0] — 2026-05-12
+
+### Phase 2 — C-Series: Training Configuration (v0.6.0)
+
+#### Added
+
+- **Step 6 — Configure Training card (C1)** — appears in the exploration view after designation is confirmed (same trigger as Step 5 Normalization; normalization is optional and does not gate this step). New module: `static/js/modules/model_config.js`.
+  - **Model type** — radio buttons with one-line descriptions: Gaussian Process (GPR), Random Forest, Linear (Ridge).
+  - **Test split** — number input, 0.05–0.50, default 0.20.
+  - **CV folds** — select: 3-fold / 5-fold / 10-fold, default 5.
+  - **"Save Configuration"** → `POST /api/model/configure`. On success: shows `✓ Configuration saved` status and a note that model training is available in the next update. Pre-fills existing config on re-render.
+  - Learning mode primers for all three controls.
+- **`GET /api/model/config`** — returns current training config (`model_type`, `test_split`, `cv_folds`) from `state["surrogate_sessions"]["primary"]["config"]`. Returns defaults until first save.
+- **`POST /api/model/configure`** — validates and saves training config. Validation: `model_type` in `["gpr", "rf", "linear"]`; `test_split` in [0.05, 0.50]; `cv_folds` integer in [2, 20]. Appends `model_configure` audit event. Error codes: `UNKNOWN_MODEL_TYPE`, `INVALID_TEST_SPLIT`, `INVALID_CV_FOLDS` (all 422).
+- **`app/api/model_api.py`** — new blueprint registered at `/api/model`. Was a TODO stub.
+- **STATE schema extended** — `state["surrogate_sessions"]["primary"]["config"]` added to `_CANONICAL_STATE` with defaults `{model_type: null, test_split: 0.20, cv_folds: 5}`.
+- **New settings constants** — `SUPPORTED_MODEL_TYPES`, `TEST_SPLIT_MIN/MAX`, `CV_FOLDS_MIN/MAX`.
+- **7 new integration tests** for `GET /api/model/config` and `POST /api/model/configure` (default state, happy path, persist check, three validation errors, audit event). Total: 127 (48 unit, 79 integration).
+
+---
+
 ## [0.5.1] — 2026-05-12
 
 ### Phase 2 — Log-Transform Patch (v0.5.1)

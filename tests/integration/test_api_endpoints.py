@@ -10,7 +10,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.5.1
+VERSION: 0.6.0
 ================================================================================
 """
 
@@ -930,3 +930,93 @@ def test_summary_includes_skew(client, csv_clean):
     assert resp.status_code == 200
     for col_stats in data["stats"].values():
         assert "skew" in col_stats
+
+
+# ─── GET /api/model/config ────────────────────────────────────────────────────
+
+
+def test_model_config_default(client):
+    """GET /api/model/config returns default config before any configuration."""
+    resp = client.get("/api/model/config")
+    data = json.loads(resp.data)
+    assert resp.status_code == 200
+    assert data["success"] is True
+    assert "config" in data
+    assert data["config"]["model_type"] is None
+    assert data["config"]["test_split"] == 0.20
+    assert data["config"]["cv_folds"] == 5
+
+
+# ─── POST /api/model/configure ───────────────────────────────────────────────
+
+
+def test_model_configure_happy_path(client):
+    """POST /api/model/configure saves and returns the training config."""
+    resp = client.post(
+        "/api/model/configure",
+        data=json.dumps({"model_type": "gpr", "test_split": 0.25, "cv_folds": 5}),
+        content_type="application/json",
+    )
+    data = json.loads(resp.data)
+    assert resp.status_code == 200
+    assert data["success"] is True
+    assert data["config"]["model_type"] == "gpr"
+    assert data["config"]["test_split"] == 0.25
+    assert data["config"]["cv_folds"] == 5
+
+
+def test_model_configure_persists(client):
+    """Config saved by POST is returned by a subsequent GET."""
+    client.post(
+        "/api/model/configure",
+        data=json.dumps({"model_type": "rf", "test_split": 0.20, "cv_folds": 10}),
+        content_type="application/json",
+    )
+    resp = client.get("/api/model/config")
+    data = json.loads(resp.data)
+    assert data["config"]["model_type"] == "rf"
+    assert data["config"]["cv_folds"] == 10
+
+
+def test_model_configure_invalid_model_type(client):
+    """POST /api/model/configure returns 422 for unknown model type."""
+    resp = client.post(
+        "/api/model/configure",
+        data=json.dumps({"model_type": "xgboost", "test_split": 0.20, "cv_folds": 5}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "UNKNOWN_MODEL_TYPE"
+
+
+def test_model_configure_invalid_test_split(client):
+    """POST /api/model/configure returns 422 for out-of-range test_split."""
+    resp = client.post(
+        "/api/model/configure",
+        data=json.dumps({"model_type": "gpr", "test_split": 0.99, "cv_folds": 5}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "INVALID_TEST_SPLIT"
+
+
+def test_model_configure_invalid_cv_folds(client):
+    """POST /api/model/configure returns 422 for out-of-range cv_folds."""
+    resp = client.post(
+        "/api/model/configure",
+        data=json.dumps({"model_type": "gpr", "test_split": 0.20, "cv_folds": 1}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 422
+    assert json.loads(resp.data)["error_code"] == "INVALID_CV_FOLDS"
+
+
+def test_model_configure_audit_event(client):
+    """POST /api/model/configure creates a 'model_configure' audit event."""
+    client.post(
+        "/api/model/configure",
+        data=json.dumps({"model_type": "linear", "test_split": 0.20, "cv_folds": 5}),
+        content_type="application/json",
+    )
+    events = json.loads(client.get("/api/state/").data)["state"]["audit"]["events"]
+    assert any(e["event_type"] == "model_configure" for e in events)

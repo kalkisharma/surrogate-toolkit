@@ -10,8 +10,8 @@ FUTURE EXTENSIONS: Persistent STATE (Redis or SQLite), per-user STATE isolation,
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-12
+VERSION: 0.6.0
 ================================================================================
 """
 
@@ -24,9 +24,11 @@ from datetime import datetime, timezone
 
 from config.settings import (
     DEFAULT_CLASSIFICATION,
+    DEFAULT_CV_FOLDS,
     DEFAULT_EXPERIENCE_LEVEL,
     DEFAULT_LEARNING_MODE,
     DEFAULT_PROCESSOR_MODE,
+    DEFAULT_TEST_SPLIT,
     MAX_AUDIT_EVENTS,
 )
 
@@ -102,6 +104,11 @@ _CANONICAL_STATE = {
         "primary": {
             "session_id": None,
             "dataset_ref": "primary",
+            "config": {
+                "model_type": None,
+                "test_split": DEFAULT_TEST_SPLIT,
+                "cv_folds":   DEFAULT_CV_FOLDS,
+            },
             "models": {},
         },
         "secondary": None,
