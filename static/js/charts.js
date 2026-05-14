@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.9.6
+// Version: 1.0.0
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -434,6 +434,75 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
     displaylogo: false,
     modeBarButtons: [["toImage"]],
     toImageButtonOptions: { filename: `${colName}_diagnostics`, scale: 2 },
+  });
+}
+
+/**
+ * Render a distance correlation heatmap (annotated Plotly heatmap, sequential blue scale).
+ *
+ * @param {HTMLElement} containerEl - Element to render into.
+ * @param {string[]}    columns     - Column names (x and y axes).
+ * @param {object}      matrix      - { col: { col: float } } — symmetric dCor matrix.
+ * @param {object}      [options]
+ * @param {number}      [options.fontSize=11]      - Font size for axis labels and annotations.
+ * @param {string|null} [options.fontColor=null]   - null = theme default.
+ */
+export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
+  const isDark    = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr   = isDark ? "#8b94b3" : "#4b5478";
+  const fontSize  = options.fontSize  ?? 11;
+  const fontColor = options.fontColor ?? fontClr;
+  const height    = Math.max(300, columns.length * 44 + 100);
+
+  // Row-major z matrix (row = y-axis col, col = x-axis col)
+  const z     = columns.map(r => columns.map(c => matrix[r]?.[c] ?? 0));
+  const zText = z.map(row => row.map(v => v.toFixed(2)));
+
+  const trace = {
+    type:          "heatmap",
+    x:             columns,
+    y:             columns,
+    z,
+    text:          zText,
+    texttemplate:  "%{text}",
+    colorscale:    "Blues",
+    zmin:          0,
+    zmax:          1,
+    hovertemplate: "%{y} — %{x}: %{z:.3f}<extra></extra>",
+    showscale:     true,
+    colorbar: {
+      thickness: 14,
+      len:       0.8,
+      tickfont:  { size: fontSize - 1, color: fontColor },
+    },
+  };
+
+  const layout = {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor:  "rgba(0,0,0,0)",
+    height,
+    margin: { t: 20, b: 90, l: 90, r: 60 },
+    font:  { color: fontColor, family: "Inter, system-ui, sans-serif", size: fontSize },
+    xaxis: { tickangle: -45, tickfont: { size: fontSize - 1 }, automargin: true },
+    yaxis: { tickfont: { size: fontSize - 1 }, automargin: true },
+    annotations: zText.flatMap((row, ri) =>
+      row.map((val, ci) => ({
+        x:         columns[ci],
+        y:         columns[ri],
+        text:      val,
+        showarrow: false,
+        font:      { size: fontSize - 2, color: parseFloat(val) > 0.6 ? "#ffffff" : fontColor },
+      }))
+    ),
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.newPlot(containerEl, [trace], layout, {
+    responsive:             true,
+    displayModeBar:         true,
+    displaylogo:            false,
+    modeBarButtons:         [["toImage"]],
+    toImageButtonOptions:   { filename: "dcor_heatmap", scale: 2 },
   });
 }
 

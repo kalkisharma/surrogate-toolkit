@@ -2,12 +2,12 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 0.9.8
+// Version: 1.0.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
 
-import { renderScatterMatrix } from "../charts.js";
+import { renderScatterMatrix, renderDCorHeatmap } from "../charts.js";
 import { registerPrimer, registerTooltip } from "../learning_mode.js";
 import { mean, stdDev, median, skewness, detectOutliers, el, formatNum, clearEl } from "../utils.js";
 import { get } from "../api.js";
@@ -231,6 +231,9 @@ export async function initExploration(containerEl, uploadResponse) {
   // ── Stats section (below chart) ───────────────────────────────────────────
   const statsEl = _buildStatsSection(_allColumns, plotRows, usingFullStats ? _fullStats : null, totalRows);
   containerEl.appendChild(statsEl);
+
+  // ── Distance Correlation heatmap (lazy — fetched on first expand) ─────────
+  containerEl.appendChild(_buildDCorSection());
 
   // ── Initial render ────────────────────────────────────────────────────────
   // Anchor container height before Plotly renders so the stats section below
@@ -713,6 +716,63 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
 
   section.appendChild(grid);
   return section;
+}
+
+// ── Distance Correlation section ──────────────────────────────────────────────
+
+function _buildDCorSection() {
+  const details = document.createElement("details");
+  details.className = "dcor-section";
+
+  const summary = document.createElement("summary");
+  summary.className = "dcor-section__summary";
+  summary.textContent = "Distance Correlation Heatmap";
+  details.appendChild(summary);
+
+  registerPrimer(
+    "dcor",
+    summary,
+    "What is distance correlation?",
+    `<p>Distance correlation (dCor) measures statistical dependence between any two variables
+     without assuming linearity. A value of <strong>0</strong> means the two variables are
+     completely independent; <strong>1</strong> means perfect dependence — linear or not.</p>
+     <p>Unlike Pearson's r, dCor detects curved relationships, clusters, and interactions.
+     Two variables that score near 0 in Pearson but high in dCor are non-linearly related —
+     a common pattern in aerodynamic and structural data.</p>
+     <p><strong>Tips:</strong>
+     High dCor between two inputs (≥ 0.9) suggests redundancy — one may be a candidate for
+     removal before training. High dCor between an input and an output confirms predictive power.</p>`
+  );
+
+  const wrap = el("div", { cls: "dcor-heatmap-wrap" });
+  details.appendChild(wrap);
+
+  details.addEventListener("toggle", async () => {
+    if (!details.open || details.dataset.loaded) return;
+    details.dataset.loaded = "1";
+    wrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">Computing distance correlations…</p>`;
+
+    const resp = await get("/api/data/dcor");
+    if (!resp.success) {
+      wrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">${resp.message || "Failed to compute dCor."}</p>`;
+      return;
+    }
+
+    if (resp.truncated) {
+      const notice = el("div", {
+        cls:  "limitation-notice",
+        text: `Distance correlation computed on ${resp.n_rows.toLocaleString()} rows (2,000-row limit).`,
+      });
+      wrap.appendChild(notice);
+    }
+
+    const plotEl = el("div");
+    wrap.appendChild(plotEl);
+    renderDCorHeatmap(plotEl, resp.columns, resp.matrix, _chartSettings);
+    requestAnimationFrame(() => Plotly.Plots.resize(plotEl));
+  });
+
+  return details;
 }
 
 // ── Column selector (chip row) ────────────────────────────────────────────────

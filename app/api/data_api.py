@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
-VERSION: 0.9.3
+VERSION: 1.0.0
 ================================================================================
 """
 
@@ -36,6 +36,7 @@ from app.data.cleaning import (
 )
 from app.data.ingestion import ingest_csv
 from app.data.normalization import normalize_dataframe
+from app.data.stats import compute_dcor_matrix
 from app.state.schema import append_audit_event
 from config.settings import (
     CLEANING_STRATEGIES_NULL,
@@ -736,6 +737,77 @@ def _high_corr_pairs(matrix: dict, columns: list) -> list:
     return sorted(pairs, key=lambda p: -abs(p["r"]))
 
 
+@bp.route("/dcor", methods=["GET"])
+def dcor():
+    """
+    Compute and return the distance correlation matrix for the active dataset.
+
+    Distance correlation detects both linear and non-linear dependencies.
+    Computed on up to MAX_PLOT_ROWS rows and up to 12 columns.
+    Result is cached in _datasets[key]["metadata"]["dcor_matrix"] after the
+    first computation. Cache is invalidated by any cleaning operation.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "columns": [...],
+              "matrix": {"col_a": {"col_a": 1.0, "col_b": 0.45, ...}, ...},
+              "n_rows": N,
+              "truncated": bool
+            }
+        JSON 400: No data loaded.
+    """
+    DCOR_MAX_COLS = 12
+
+    state      = current_app.config["STATE"]
+    active_key = state["datasets"]["active_dataset_key"]
+    _datasets  = state["datasets"]["_datasets"]
+    df         = state["datasets"]["primary"]["clean"]
+
+    if df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_DATA",
+                "message": "No dataset is loaded. Upload a CSV file first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            400,
+        )
+
+    # Serve from cache if available and valid
+    cached = _datasets.get(active_key, {}).get("metadata", {}).get("dcor_matrix")
+    if cached:
+        cols = list(cached.keys())
+        return jsonify({
+            "success":   True,
+            "columns":   cols,
+            "matrix":    cached,
+            "n_rows":    min(len(df), MAX_PLOT_ROWS),
+            "truncated": len(df) > MAX_PLOT_ROWS,
+        }), 200
+
+    # Cap rows and columns for O(n²) computation
+    cols      = list(df.select_dtypes(include=[np.number]).columns)[:DCOR_MAX_COLS]
+    total     = len(df)
+    subset    = df[cols].iloc[:MAX_PLOT_ROWS]
+    truncated = total > MAX_PLOT_ROWS
+
+    matrix = compute_dcor_matrix(subset, cols)
+
+    # Cache result
+    if active_key and active_key in _datasets:
+        _datasets[active_key]["metadata"]["dcor_matrix"] = matrix
+
+    return jsonify({
+        "success":   True,
+        "columns":   cols,
+        "matrix":    matrix,
+        "n_rows":    min(total, MAX_PLOT_ROWS),
+        "truncated": truncated,
+    }), 200
+
+
 @bp.route("/normalize", methods=["POST"])
 def normalize():
     """
@@ -888,7 +960,8 @@ def _apply_clean(state, active_key, ds, result_df, save_prev=True):
     ds["clean"]  = result_df
     state["datasets"]["primary"]["clean"] = result_df
     ds["metadata"]["n_rows_clean"]  = len(result_df)
-    ds["metadata"]["summary_stats"] = None   # invalidate cache
+    ds["metadata"]["summary_stats"] = None   # invalidate stats cache
+    ds["metadata"]["dcor_matrix"]   = None   # invalidate dCor cache
 
 
 @bp.route("/clean/nulls", methods=["POST"])

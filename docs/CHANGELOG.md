@@ -10,12 +10,30 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
-| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | 🔶 Phases 1–5 done; pending hyperparameter tuning + dCor heatmap |
+| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔲 Not started |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [1.0.0] — 2026-05-14
+
+### M1 milestone — Distance Correlation Heatmap (v1.0.0)
+
+#### Added
+
+- **Distance Correlation Heatmap (Explore step)** — a collapsible "Distance Correlation Heatmap" section now appears below Summary Statistics in the Explore panel.
+  - Rendered on first expand (lazy — no fetch on page load); shows "Computing…" while the server calculates.
+  - Backend: new `app/data/stats.py` implements `_dcor(x, y)` (pure numpy, Székely/Rizzo double-centering, O(n²)) and `compute_dcor_matrix(df, cols)` (symmetric, rows aligned by dropping any NaN). New `GET /api/data/dcor` endpoint in `data_api.py` — caps at 2,000 rows and 12 columns, caches per-dataset in `metadata["dcor_matrix"]`, cache invalidated by any cleaning operation (`_apply_clean`).
+  - Frontend: `renderDCorHeatmap(containerEl, columns, matrix, options)` in `charts.js` renders a Plotly annotated heatmap with Blues colorscale 0→1; annotation text color inverts to white for cells above 0.6 for legibility. `_buildDCorSection()` in `data_explorer.js` builds the `<details>` element with lazy toggle listener; reuses `_chartSettings` for font options. Truncation notice shown when row cap was applied.
+  - Learning mode primer registered on summary element: explains dCor vs Pearson, what 0/1 mean, and tips for spotting input redundancy and predictive power.
+
+#### Updated
+
+- Milestone Map: **M1 is complete** — `v1.0.0` reached with hyperparameter tuning (v0.9.10) and dCor heatmap.
 
 ---
 
