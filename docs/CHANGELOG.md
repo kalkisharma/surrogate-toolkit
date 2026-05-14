@@ -19,6 +19,26 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.8.9] — 2026-05-13
+
+### Bug fixes — log-transform primer, table alignment, dark mode header (v0.8.9)
+
+#### Fixed
+
+- **Log-transform learning primer** — Clean tab's "Log-Transform (Skew)" card now registers a learning-mode primer on the card title. Primer explains skewness, what `log(1+x)` does, and when not to apply it (negative values).
+- **Results table header alignment** — column headers for numeric columns (all but the first) are now right-aligned to match the right-aligned metric values below them. Added `.results-table th:not(:first-child) { text-align: right; }`.
+- **Results table overflow conflict** — `.results-table-wrap` had both `overflow-x: auto` and `overflow: hidden`; the shorthand overrode the x direction. Changed to `overflow-y: hidden` so horizontal scrolling works correctly on narrow viewports.
+- **Dark mode table header background** — `--color-bg-subtle` was used in `.results-table th` but never defined in `variables.css`, so the browser always fell back to `#f5f7fb` (near-white) even in dark mode. Defined in both light (`#f5f7fb`) and dark (`#252b3b`) theme sections.
+
+#### Files changed
+
+- `static/js/modules/data_cleaning.js` — `registerPrimer("cleaning_logtransform", ...)` in `_buildTransformCard()`
+- `static/css/main.css` — table header alignment rule; overflow fix on `.results-table-wrap`
+- `static/css/variables.css` — `--color-bg-subtle` defined for light and dark modes
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.8] — 2026-05-13
 
 ### Combined diagnostic figure + full plot settings parity (v0.8.8)

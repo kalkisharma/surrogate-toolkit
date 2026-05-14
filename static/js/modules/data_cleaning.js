@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_cleaning.js
-// Version: 0.5.1
+// Version: 0.8.9
 // Description: Data cleaning step — lets users handle missing values, remove
 //              duplicates, and flag/drop outliers before column designation.
 //              Sends POST /api/data/clean/* endpoints. Calls onClean() after
@@ -273,6 +273,22 @@ function _buildTransformCard(stats, onClean) {
     </div>
     <p class="cleaning-item-desc">Columns with high skewness can bias model training. log(1+x) compresses the tail.</p>
   `;
+
+  registerPrimer(
+    "cleaning_logtransform",
+    card.querySelector(".cleaning-item-title"),
+    "What is skewness, and when should I log-transform?",
+    `<p><strong>Skewness</strong> means most values cluster at one end with a long tail stretching
+     the other way — for example, a few very large values pulling the distribution right.
+     Surrogate models trained on skewed data can over-fit the tail region and perform poorly
+     across the rest of the range.</p>
+     <p><strong>log(1 + x)</strong> compresses large values and spreads small ones, making the
+     distribution more symmetric. The <em>+1</em> ensures log(0) is safe — the result is 0
+     rather than undefined.</p>
+     <p><strong>When not to use it:</strong> if a column contains negative values, adding 1 may
+     not be enough to make all values positive, and the transform will fail or produce
+     misleading results. Check the column's minimum value before applying.</p>`
+  );
 
   if (skewedCols.length === 0) {
     card.appendChild(el("p", { cls: "cleaning-item-none", text: "No action needed." }));

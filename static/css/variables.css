@@ -1,7 +1,7 @@
 /* =============================================================================
    variables.css — Design tokens (CSS custom properties)
    surrogate-toolkit | Copyright © 2026 Kalki Sharma. All rights reserved.
-   LAST MODIFIED: 2026-05-11
+   LAST MODIFIED: 2026-05-13
    ============================================================================= */
 
 :root {
@@ -9,6 +9,7 @@
   --color-bg-base:        #f5f7fb;
   --color-bg-surface:     #ffffff;
   --color-bg-elevated:    #eef1f8;
+  --color-bg-subtle:      #f5f7fb;
   --color-bg-input:       #f0f3f9;
   --color-bg-hover:       #e8ecf5;
 
@@ -100,6 +101,7 @@
   --color-bg-base:        #0f1117;
   --color-bg-surface:     #181c27;
   --color-bg-elevated:    #1e2333;
+  --color-bg-subtle:      #252b3b;
   --color-bg-input:       #242840;
   --color-bg-hover:       #2a2f4a;
 
