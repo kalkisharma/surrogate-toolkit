@@ -19,6 +19,32 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.7] — 2026-05-14
+
+### UI polish — filename consistency, post-upload routing, step numbering, results table alignment (v0.9.7)
+
+#### Fixed
+
+- **Filename missing on 5 of 9 panels** — modules that call `clearEl(containerEl)` at startup were erasing the subtitle (`filename — rows × cols`) added by main.js before the module was invoked. Fixed by splitting each panel into a stable subtitle div + a content div. `_subtitle(key)` now writes to the subtitle div; modules can freely clearEl their content div without touching the subtitle. All 9 panels now show the filename consistently.
+- **After upload, tool routed to Explore (Step 3) instead of Preview (Step 2)** — changed `activatePanel("explore")` → `activatePanel("preview")` in the initial render call.
+- **Step numbering off by one (Steps 3–7)** — `STEP_NUMS` in main.js correctly defines Clean=4, Designate=5, Normalize=6, Configure=7. The module section titles were all one lower. Corrected in every module file. Preview and Explore panels also now show their step numbers ("Step 2 — Data Preview", "Step 3 — Data Exploration").
+- **Results table columns misaligned across Test Set and CV tables** — without `table-layout: fixed`, each table sized columns independently (auto-layout), causing the stacked tables to be visually misaligned. Added `table-layout: fixed` with consistent column widths (32% output name, equal thirds for the three metric columns). Both tables now stack with pixel-accurate column alignment.
+
+#### Files changed
+
+- `static/js/main.js` — two-div panel structure; `_subtitle(key)` to stable subtitle area; all `_init*Panel` key param; post-upload routing fix; Preview/Explore step number titles
+- `static/js/modules/data_explorer.js` — "Step 3 — Data Exploration"
+- `static/js/modules/data_cleaning.js` — "Step 4 — Data Cleaning"
+- `static/js/modules/column_designation.js` — "Step 5 — Column Designation"
+- `static/js/modules/normalization.js` — "Step 6 — Normalization"
+- `static/js/modules/model_config.js` — "Step 7 — Configure Training"
+- `static/js/modules/results.js` — file header and cross-reference step numbers corrected
+- `static/css/main.css` — `.results-table` fixed layout + column widths; `.results-col-name` overflow handling
+- `config/settings.py` — VERSION bump
+- `app/templates/index.html` — version references updated
+
+---
+
 ## [0.9.6] — 2026-05-14
 
 ### Data verification — cleaning summary, box plot settings, sample table, CSV download (v0.9.6)

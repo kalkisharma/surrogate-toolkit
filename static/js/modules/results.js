@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
 // Version: 0.8.10
-// Description: Step 7 — Training Results. Fetches GET /api/model/results and
+// Description: Step 8 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
 //              figures (1×2 subplots, linked x-axes). Plot Settings panel mirrors
@@ -306,7 +306,7 @@ export async function initResults(containerEl) {
         <h2 class="section-title">Step 8 — Training Results</h2>
       </div>
       <p style="color: var(--color-text-muted); padding: var(--space-4) 0;">
-        No results yet. Train a model in Step 7 to see metrics here.
+        No results yet. Train a model in Step 7 — Configure Training to see metrics here.
       </p>`;
     return false;
   }

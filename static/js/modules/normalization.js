@@ -250,7 +250,7 @@ function _renderSampleTable(parentEl, sampleRows, inputCols, method) {
 export function initNormalization(containerEl, currentMethod, nInputs) {
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 5 — Normalization</h2>
+    <h2 class="section-title">Step 6 — Normalization</h2>
     <p class="section-desc">Scale input columns before training. Outputs are left unchanged.</p>
   `;
   containerEl.appendChild(header);

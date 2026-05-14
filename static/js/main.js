@@ -288,13 +288,21 @@ async function _renderExploration(uploadResponse) {
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
                         designate: 5, normalize: 6, configure: 7, results: 8, predict: 9 };
 
-  const panelEls  = {};
+  const panelEls      = {};   // outer panel div — used only for .hidden toggling
+  const _panelContent = {};   // inner content div — passed to modules; clearable
+  const _panelSubEl   = {};   // inner subtitle div — stable; never cleared by modules
   const panelDone = {};
   for (const key of STEP_KEYS) {
-    const p = el("div", { cls: "workflow-panel hidden" });
+    const p    = el("div", { cls: "workflow-panel hidden" });
+    const sub  = el("div");
+    const cont = el("div");
+    p.appendChild(sub);
+    p.appendChild(cont);
     panelArea.appendChild(p);
-    panelEls[key]  = p;
-    panelDone[key] = false;
+    panelEls[key]      = p;
+    _panelContent[key] = cont;
+    _panelSubEl[key]   = sub;
+    panelDone[key]     = false;
   }
 
   // ── Step state ────────────────────────────────────────────────────────────
@@ -359,7 +367,7 @@ async function _renderExploration(uploadResponse) {
     put("/api/state/session", { active_tab: key }).catch(() => {});
     if (!panelDone[key]) {
       panelDone[key] = true;
-      await _initPanel(key, panelEls[key]);
+      await _initPanel(key, _panelContent[key]);
     }
     if (key === "explore") {
       const splom = document.getElementById("splom-container");
@@ -368,30 +376,33 @@ async function _renderExploration(uploadResponse) {
   }
 
   // ── Per-panel subtitle ────────────────────────────────────────────────────
-  function _subtitle(container) {
+  // Writes to the stable _panelSubEl[key] div — outside the content div that
+  // modules can freely clearEl without touching the subtitle.
+  function _subtitle(key) {
+    clearEl(_panelSubEl[key]);
     const sub = el("p", { cls: "panel-file-meta" });
     sub.innerHTML = `<strong>${escHtml(meta.filename)}</strong> — ${meta.n_rows.toLocaleString()} rows × ${meta.n_cols} columns`;
-    container.appendChild(sub);
+    _panelSubEl[key].appendChild(sub);
   }
 
   // ── Panel dispatch ────────────────────────────────────────────────────────
   async function _initPanel(key, container) {
     switch (key) {
-      case "upload":    _initUploadPanel(container);         break;
-      case "preview":   _initPreviewPanel(container);        break;
-      case "explore":   await _initExplorePanel(container);  break;
-      case "clean":     await _initCleanPanel(container);    break;
-      case "designate": _initDesignatePanel(container);      break;
-      case "normalize": _initNormalizePanel(container);      break;
-      case "configure": _initConfigurePanel(container);       break;
-      case "results":   await _initResultsPanel(container);  break;
-      case "predict":   await _initPredictPanel(container);  break;
+      case "upload":    _initUploadPanel(container, key);         break;
+      case "preview":   _initPreviewPanel(container, key);        break;
+      case "explore":   await _initExplorePanel(container, key);  break;
+      case "clean":     await _initCleanPanel(container, key);    break;
+      case "designate": _initDesignatePanel(container, key);      break;
+      case "normalize": _initNormalizePanel(container, key);      break;
+      case "configure": _initConfigurePanel(container, key);      break;
+      case "results":   await _initResultsPanel(container, key);  break;
+      case "predict":   await _initPredictPanel(container, key);  break;
     }
   }
 
   // ── Step 1 — Upload (status panel; actual upload is the separate view) ────
-  function _initUploadPanel(container) {
-    _subtitle(container);
+  function _initUploadPanel(container, key) {
+    _subtitle(key);
     const card = el("div", { cls: "card" });
     card.innerHTML = `
       <h2 class="section-title">Step 1 — Upload</h2>
@@ -406,11 +417,11 @@ async function _renderExploration(uploadResponse) {
   }
 
   // ── Step 2 — Preview ──────────────────────────────────────────────────────
-  function _initPreviewPanel(container) {
-    _subtitle(container);
+  function _initPreviewPanel(container, key) {
+    _subtitle(key);
     const card  = el("div", { cls: "card" });
     const title = el("h3", { cls: "section-title",
-      text: `Data Preview — first ${uploadResponse.preview.rows.length} rows`,
+      text: `Step 2 — Data Preview (first ${uploadResponse.preview.rows.length} rows)`,
       style: "margin-bottom: var(--space-4);" });
     card.appendChild(title);
     card.appendChild(_buildPreviewTable(uploadResponse.preview, meta.null_counts));
@@ -418,28 +429,28 @@ async function _renderExploration(uploadResponse) {
   }
 
   // ── Step 3 — Explore ──────────────────────────────────────────────────────
-  async function _initExplorePanel(container) {
-    _subtitle(container);
+  async function _initExplorePanel(container, key) {
+    _subtitle(key);
     await initExploration(container, uploadResponse);
   }
 
   // ── Step 4 — Clean ────────────────────────────────────────────────────────
-  async function _initCleanPanel(container) {
+  async function _initCleanPanel(container, key) {
     clearEl(container);
-    _subtitle(container);
+    _subtitle(key);
     const onClean = async () => {
       // Invalidate explore so it re-fetches fresh data on next visit
       panelDone["explore"] = false;
-      clearEl(panelEls["explore"]);
+      clearEl(_panelContent["explore"]);
       // Refresh clean panel itself to show updated stats
-      await _initCleanPanel(container);
+      await _initCleanPanel(container, key);
     };
     await initCleaning(container, onClean);
   }
 
   // ── Step 5 — Designate ────────────────────────────────────────────────────
-  function _initDesignatePanel(container) {
-    _subtitle(container);
+  function _initDesignatePanel(container, key) {
+    _subtitle(key);
     initDesignation(
       container,
       meta.columns || uploadResponse.preview.columns,
@@ -462,8 +473,8 @@ async function _renderExploration(uploadResponse) {
         updateColumnSelectorRoles(input_columns, output_columns);
 
         // Invalidate normalize and configure so they re-init with the new roles
-        if (panelDone["normalize"]) { panelDone["normalize"] = false; clearEl(panelEls["normalize"]); }
-        if (panelDone["configure"]) { panelDone["configure"] = false; clearEl(panelEls["configure"]); }
+        if (panelDone["normalize"]) { panelDone["normalize"] = false; clearEl(_panelContent["normalize"]); }
+        if (panelDone["configure"]) { panelDone["configure"] = false; clearEl(_panelContent["configure"]); }
 
         activatePanel("normalize");
       },
@@ -471,29 +482,29 @@ async function _renderExploration(uploadResponse) {
   }
 
   // ── Step 6 — Normalize ────────────────────────────────────────────────────
-  function _initNormalizePanel(container) {
+  function _initNormalizePanel(container, key) {
     clearEl(container);
-    _subtitle(container);
+    _subtitle(key);
     initNormalization(container, _currentNorm, _currentInputCols.length);
   }
 
   // ── Step 7 — Configure + Train ────────────────────────────────────────────
-  function _initConfigurePanel(container) {
+  function _initConfigurePanel(container, key) {
     clearEl(container);
-    _subtitle(container);
+    _subtitle(key);
     initModelConfig(container, async () => {
       stepUnlocked["results"] = true;
       buildSidebar();
       panelDone["results"] = false;
-      clearEl(panelEls["results"]);
+      clearEl(_panelContent["results"]);
       await activatePanel("results");
     });
   }
 
   // ── Step 8 — Results ──────────────────────────────────────────────────────
-  async function _initResultsPanel(container) {
+  async function _initResultsPanel(container, key) {
     clearEl(container);
-    _subtitle(container);
+    _subtitle(key);
     const hasResults = await initResults(container);
     if (hasResults) {
       stepCompleted["results"] = true;
@@ -503,9 +514,9 @@ async function _renderExploration(uploadResponse) {
   }
 
   // ── Step 9 — Predict ──────────────────────────────────────────────────────
-  async function _initPredictPanel(container) {
+  async function _initPredictPanel(container, key) {
     clearEl(container);
-    _subtitle(container);
+    _subtitle(key);
     await initPrediction(container);
   }
 
@@ -518,7 +529,7 @@ async function _renderExploration(uploadResponse) {
 
   // ── Initial render ────────────────────────────────────────────────────────
   buildSidebar();
-  await activatePanel("explore");
+  await activatePanel("preview");
 }
 
 // ── Reusable helpers ──────────────────────────────────────────────────────────

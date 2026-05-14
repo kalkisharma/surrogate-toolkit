@@ -57,7 +57,7 @@ export async function initModelConfig(containerEl, onTrain) {
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 6 — Configure Training</h2>
+    <h2 class="section-title">Step 7 — Configure Training</h2>
     <p class="section-desc">Choose a model type and evaluation strategy. You can change these any time before training.</p>
   `;
   containerEl.appendChild(header);

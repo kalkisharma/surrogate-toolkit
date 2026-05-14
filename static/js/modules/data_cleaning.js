@@ -52,7 +52,7 @@ export async function initCleaning(containerEl, onClean) {
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 3 — Data Cleaning</h2>
+    <h2 class="section-title">Step 4 — Data Cleaning</h2>
     <p class="section-desc">Optionally remove or repair problematic rows before designating columns. All operations are reversible with Undo.</p>
   `;
   containerEl.appendChild(header);

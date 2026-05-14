@@ -154,7 +154,7 @@ export async function initExploration(containerEl, uploadResponse) {
   // ── Header ────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Data Exploration</h2>
+    <h2 class="section-title">Step 3 — Data Exploration</h2>
     <p class="section-desc">
       ${totalRows.toLocaleString()} rows × ${columns.length} columns
       — scatter matrix using ${shownRows.toLocaleString()} rows
