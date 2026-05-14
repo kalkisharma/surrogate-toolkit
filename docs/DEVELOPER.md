@@ -137,35 +137,48 @@ All constants live in `config/settings.py`. Never hardcode values elsewhere.
 This project uses an internal convention inspired by Semantic Versioning.
 It is **not** strict SemVer — there are no API compatibility guarantees.
 
-The major version (`0`) stays at `0` during active development. It bumps to `1` when the first complete end-to-end surrogate modeling workflow is functional (Phase 3 complete). `2.0.0` is reserved for Phase 4/5 features or a significant architectural change.
+The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full phase definitions including scope, backend/frontend components, dependencies, and definitions of done.
 
-### Scheme: 0.SUBPHASE.PATCH
+### Milestone map
+
+| Milestone | Version | Phases | Theme |
+|---|---|---|---|
+| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML |
+| **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration |
+
+### Scheme: 0.SUBPHASE.PATCH (pre-1.0.0) → MILESTONE.PHASE.PATCH (post-1.0.0)
 
 | Number | When to increment | Reset? |
 |--------|-------------------|--------|
-| `MAJOR` | `0` → `1` when Phase 3 is complete (full end-to-end workflow). `1` → `2` for Phase 4/5 or major architectural change. | — |
-| `SUBPHASE` (middle) | Each new development sub-phase batch ships | patch → 0 |
-| `PATCH` (last) | Bug fixes, UX tweaks, hotfixes within a sub-phase | — |
+| `MAJOR` | `0` → `1` at v1.0.0 (Milestone 1 complete). `1` → `2` at v2.0.0 (Milestone 2 complete). `2` → `3` at v3.0.0 (Milestone 3 complete). | — |
+| `SUBPHASE` (middle) | Each new phase or development batch ships | patch → 0 |
+| `PATCH` (last) | Bug fixes, UX tweaks, hotfixes within a phase | — |
 
 ### Phase → version map
 
-| Phase / Sub-phase | Version range | Status |
-|---|---|---|
-| Phase 1 — Sub-phase 1 (scaffold, ingestion, exploration) | 0.1.x | ✅ Complete |
-| Phase 1 — Sub-phase 2 (multi-file, stats, UX) | 0.2.x | ✅ Complete |
-| Phase 1 — Sub-phase 3 (completion, caching, polish) | 0.3.x | ✅ Complete |
-| Phase 2 — A-series (designation, correlation, normalization) | 0.4.x | ✅ Complete |
-| Phase 2 — B-series (data cleaning) | 0.5.x | ✅ Complete |
-| Phase 2 — B-series patch (log-transform) | 0.5.1 | ✅ Complete |
-| Phase 2 — C-series (train/test split stub + model type selector) | 0.6.x | ✅ Complete |
-| Phase 3 — model training, cross-validation, metrics | 0.7.x | ✅ Complete |
-| Phase 3 — column selector UX patch (chip row, 12-col cap) | 0.7.1 | ✅ Complete |
-| Phase 3 — sidebar layout + panel router | 0.8.0 | ✅ Complete |
-| Phase 3 — parity & residual plots (test set) | 0.8.1 | ✅ Complete |
-| Phase 3 — dataset-switching correctness | 0.8.2 | ✅ Complete |
-| Phase 3 — per-dataset surrogate session storage | 0.8.3 | ✅ Complete |
-| **1.0.0 milestone** | Phase 3 complete: full end-to-end workflow (upload → clean → designate → normalize → train → validate → predict) | Planned |
-| **2.0.0 milestone** | Phase 4/5 complete (active learning, export) or major architectural change | Reserved |
+| Phase | Name | Version range | Status |
+|---|---|---|---|
+| Phase 1 | Load & Explore | v0.1.x – v0.3.x | ✅ Complete |
+| Phase 2 | Data Cleaning | v0.5.x | ✅ Complete |
+| Phase 3 | Feature Engineering | v0.4.x + v0.6.x | ✅ Complete |
+| Phase 4 | Model Training & Validation | v0.6.x – v0.8.x + v0.9.x (tuning) | 🔶 Mostly complete |
+| Phase 5 | Prediction & Inference | v0.9.x | 🔲 Not started |
+| **v1.0.0** | **Milestone 1** | — | Planned |
+| Phase 6 | Design Space Optimization | v1.1.x | 🔲 Not started |
+| Phase 7 | Session Persistence | v1.2.x | 🔲 Not started |
+| Phase 8 | Model Interpretation | v1.3.x | 🔲 Not started |
+| Phase 9 | Active Learning | v1.4.x | 🔲 Not started |
+| Phase 10 | Multi-Dataset Comparison | v1.5.x | 🔲 Not started |
+| Phase 11 | Export & Compliance | v1.6.x – v1.9.x | 🔲 Not started |
+| **v2.0.0** | **Milestone 2** | — | Planned |
+| Phase 12 | Experience Levels | v2.1.x | 🔲 Not started |
+| Phase 13 | Guided Learning & Exercises | v2.2.x | 🔲 Not started |
+| Phase 14 | Advanced Surrogate Models | v2.3.x | 🔲 Not started |
+| Phase 15 | Multi-Fidelity Modeling | v2.4.x | 🔲 Not started |
+| Phase 16 | Ensemble Surrogates | v2.5.x | 🔲 Not started |
+| **v3.0.0** | **Milestone 3** | — | Planned |
 
 ### Files to update on every version bump
 

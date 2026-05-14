@@ -6,6 +6,46 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## Milestone Map
+
+| Milestone | Version | Phases | Theme | Status |
+|---|---|---|---|---|
+| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | 🔶 Phases 1–4 done; Phase 5 not started |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔲 Not started |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
+| **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
+
+See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [0.8.4] — 2026-05-13
+
+### Phase documentation + header corrections (v0.8.4)
+
+#### Added
+
+- **`docs/PHASES.md`** — full documentation for all 16 phases across 3 milestones. Each phase includes: purpose, user story, complete feature scope, backend components (new files and API endpoints), frontend components, dependencies, and definition of done. Covers Phases 1–5 (M1), Phases 6–11 (M2), and Phases 12–16 (M3). Four new pip dependencies identified: `pymoo` (Phase 6), `SALib` (Phase 8), `weasyprint` (Phase 11), `chaospy` (Phase 14).
+
+#### Changed
+
+- **`docs/DEVELOPER.md`** — versioning table rewritten to reflect the full 16-phase / 3-milestone structure. Milestone map added. Phase→version map updated with all phases and their version bands.
+- **`docs/CHANGELOG.md`** — milestone map added at the top of the file for quick orientation.
+- **`config/settings.py` header** — corrected stale `VERSION: 0.7.0` header to `VERSION: 0.8.4`.
+- **`app/__init__.py` header** — corrected stale `VERSION: 0.6.0` header to `VERSION: 0.8.4`.
+- **`app/templates/index.html`** — version bumped to 0.8.4 (8 locations: inline script, version span, 5 CSS cache-busters, JS entry point cache-buster).
+
+#### Files changed
+
+- `docs/PHASES.md` — new file, 16 phase definitions
+- `docs/DEVELOPER.md` — versioning section rewritten
+- `docs/CHANGELOG.md` — milestone map added
+- `config/settings.py` — header + VERSION constant corrected
+- `app/__init__.py` — header corrected
+- `app/templates/index.html` — version bump (8 locations)
+
+---
+
 ## [0.8.3] — 2026-05-12
 
 ### Per-dataset surrogate session storage (v0.8.3)

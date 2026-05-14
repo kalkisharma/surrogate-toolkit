@@ -12,8 +12,8 @@ FUTURE EXTENSIONS: Flask-CORS for Vite dev server (Phase 2), per-request
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.6.0
+LAST MODIFIED: 2026-05-13
+VERSION: 0.8.4
 ================================================================================
 """
 
