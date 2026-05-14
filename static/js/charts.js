@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.8.5
+// Version: 0.8.6
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -240,12 +240,18 @@ export function relayout(containerEl = document.body) {
  * @param {string}      colName     - Output column name (used for axis labels).
  * @param {string}      [badgeCls="green"] - "green" | "amber" | "red" — sets point colour.
  */
-export function renderParityPlot(containerEl, yTrue, yPred, colName, badgeCls = "green") {
-  const isDark  = document.documentElement.getAttribute("data-theme") === "dark";
-  const fontClr = isDark ? "#8b94b3" : "#4b5478";
-  const ptColor = badgeCls === "red" ? "rgba(239,68,68,0.70)"
-                : badgeCls === "amber" ? "rgba(245,158,11,0.70)"
-                : "rgba(75,110,245,0.70)";
+export function renderParityPlot(containerEl, yTrue, yPred, colName, badgeCls = "green", opts = {}) {
+  const isDark   = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr  = isDark ? "#8b94b3" : "#4b5478";
+  const opac     = opts.opacity    ?? 0.70;
+  const mSize    = opts.markerSize ?? 7;
+  const height   = opts.height     ?? 300;
+  const showGrid = opts.showGrid   ?? true;
+  const gridClr  = opts.gridColor  ?? (isDark ? "#2d3250" : "#e2e6f2");
+
+  const ptColor = badgeCls === "red"   ? `rgba(239,68,68,${opac})`
+                : badgeCls === "amber" ? `rgba(245,158,11,${opac})`
+                :                        `rgba(75,110,245,${opac})`;
 
   const mn = Math.min(...yTrue, ...yPred);
   const mx = Math.max(...yTrue, ...yPred);
@@ -254,7 +260,7 @@ export function renderParityPlot(containerEl, yTrue, yPred, colName, badgeCls = 
     type: "scatter", mode: "markers",
     x: yTrue, y: yPred,
     name: "Test points",
-    marker: { color: ptColor, size: 7, line: { width: 0 } },
+    marker: { color: ptColor, size: mSize, line: { width: 0 } },
   };
   const diagonal = {
     type: "scatter", mode: "lines",
@@ -267,11 +273,11 @@ export function renderParityPlot(containerEl, yTrue, yPred, colName, badgeCls = 
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
-    height: 300,
+    height,
     margin: { l: 52, r: 16, t: 36, b: 48 },
     font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
-    xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
-    yaxis:  { title: { text: "Predicted", font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
+    xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: gridClr, showgrid: showGrid },
+    yaxis:  { title: { text: "Predicted", font: { size: 11 } }, gridcolor: gridClr, showgrid: showGrid },
     showlegend: false,
   };
 
@@ -288,12 +294,18 @@ export function renderParityPlot(containerEl, yTrue, yPred, colName, badgeCls = 
  * @param {string}      colName     - Output column name.
  * @param {string}      [badgeCls="green"]
  */
-export function renderResidualPlot(containerEl, yTrue, yPred, colName, badgeCls = "green") {
+export function renderResidualPlot(containerEl, yTrue, yPred, colName, badgeCls = "green", opts = {}) {
   const isDark     = document.documentElement.getAttribute("data-theme") === "dark";
   const fontClr    = isDark ? "#8b94b3" : "#4b5478";
-  const ptColor    = badgeCls === "red" ? "rgba(239,68,68,0.70)"
-                   : badgeCls === "amber" ? "rgba(245,158,11,0.70)"
-                   : "rgba(75,110,245,0.70)";
+  const opac       = opts.opacity    ?? 0.70;
+  const mSize      = opts.markerSize ?? 7;
+  const height     = opts.height     ?? 300;
+  const showGrid   = opts.showGrid   ?? true;
+  const gridClr    = opts.gridColor  ?? (isDark ? "#2d3250" : "#e2e6f2");
+
+  const ptColor    = badgeCls === "red"   ? `rgba(239,68,68,${opac})`
+                   : badgeCls === "amber" ? `rgba(245,158,11,${opac})`
+                   :                        `rgba(75,110,245,${opac})`;
   const residuals  = yTrue.map((v, i) => v - yPred[i]);
   const mn         = Math.min(...yTrue);
   const mx         = Math.max(...yTrue);
@@ -302,7 +314,7 @@ export function renderResidualPlot(containerEl, yTrue, yPred, colName, badgeCls 
     type: "scatter", mode: "markers",
     x: yTrue, y: residuals,
     name: "Residual",
-    marker: { color: ptColor, size: 7, line: { width: 0 } },
+    marker: { color: ptColor, size: mSize, line: { width: 0 } },
   };
   const zeroline = {
     type: "scatter", mode: "lines",
@@ -314,11 +326,11 @@ export function renderResidualPlot(containerEl, yTrue, yPred, colName, badgeCls 
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
-    height: 300,
+    height,
     margin: { l: 52, r: 16, t: 36, b: 48 },
     font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
-    xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
-    yaxis:  { title: { text: "Residual (actual − predicted)", font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
+    xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: gridClr, showgrid: showGrid },
+    yaxis:  { title: { text: "Residual (actual − predicted)", font: { size: 11 } }, gridcolor: gridClr, showgrid: showGrid },
     showlegend: false,
   };
 

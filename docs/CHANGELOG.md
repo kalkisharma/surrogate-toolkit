@@ -19,6 +19,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.8.6] — 2026-05-13
+
+### Results tab plot settings panel (v0.8.6)
+
+#### Added
+
+- **Plot Settings panel on results tab** — a collapsible `<details>` panel (same visual pattern as the explore tab) appears above the parity/residual plots. Controls: marker size (3–12 px), marker opacity (0.1–1.0 slider), plot height (200–600 px), show/hide gridlines, grid color. Settings persist to localStorage under `"surrogate_result_chart_settings"` and are restored on next visit. Point color (red/amber/green by R² quality) is intentionally not user-overridable.
+- `renderParityPlot()` and `renderResidualPlot()` in `charts.js` now accept an optional `opts` parameter (`{ markerSize, opacity, height, showGrid, gridColor }`) — backwards-compatible; all existing callers continue to work with defaults.
+
+#### Files changed
+
+- `static/js/modules/results.js` — settings state, `_buildSettingsPanel()`, `_rerenderPlots()`, settings passed to chart calls
+- `static/js/charts.js` — `opts` parameter on both render functions
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.5] — 2026-05-13
 
 ### Results tab polish — overlap fix + table/plot refinements (v0.8.5)

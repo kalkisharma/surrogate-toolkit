@@ -2,10 +2,12 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.8.2
+// Version: 0.8.6
 // Description: Step 7 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and parity/residual plots (test set).
+//              Includes a shared Plot Settings panel (marker size, opacity,
+//              height, gridlines) that persists to localStorage.
 // =============================================================================
 
 import { get } from "../api.js";
@@ -17,6 +19,118 @@ import { renderParityPlot, renderResidualPlot } from "../charts.js";
 // R² thresholds — mirror config/settings.py constants
 const R2_MINIMUM = 0.70;
 const R2_CAUTION = 0.85;
+
+// ── Plot settings (persisted to localStorage) ─────────────────────────────────
+
+const _RESULT_SETTINGS_KEY = "surrogate_result_chart_settings";
+const _DEFAULT_RESULT_SETTINGS = {
+  markerSize: 7,
+  opacity:    0.70,
+  height:     300,
+  showGrid:   true,
+  gridColor:  "#cccccc",
+};
+
+let _resultSettings = { ..._DEFAULT_RESULT_SETTINGS };
+let _plotItems = [];   // cache for re-render on settings change
+
+function _loadResultSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(_RESULT_SETTINGS_KEY) || "{}");
+    _resultSettings = { ..._DEFAULT_RESULT_SETTINGS, ...stored };
+  } catch { _resultSettings = { ..._DEFAULT_RESULT_SETTINGS }; }
+}
+
+function _saveResultSettings() {
+  localStorage.setItem(_RESULT_SETTINGS_KEY, JSON.stringify(_resultSettings));
+}
+
+function _rerenderPlots() {
+  for (const p of _plotItems) {
+    p.parityWrap.style.height    = `${_resultSettings.height}px`;
+    p.parityWrap.style.minHeight = `${_resultSettings.height}px`;
+    p.residWrap.style.height     = `${_resultSettings.height}px`;
+    p.residWrap.style.minHeight  = `${_resultSettings.height}px`;
+    renderParityPlot(p.parityWrap, p.yTrue, p.yPred, p.colName, p.badgeCls, _resultSettings);
+    renderResidualPlot(p.residWrap, p.yTrue, p.yPred, p.colName, p.badgeCls, _resultSettings);
+  }
+}
+
+function _buildSettingsPanel() {
+  const details = document.createElement("details");
+  details.className = "chart-settings-panel";
+  details.innerHTML = `
+    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <div class="chart-settings-controls">
+      <div class="settings-divider">Markers</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-marker-size">Marker size (px)</label>
+        <input id="rs-marker-size" type="number" class="chart-settings-input"
+               min="3" max="12" step="1" value="${_resultSettings.markerSize}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Opacity</span>
+        <div class="range-with-value">
+          <input id="rs-opacity" type="range" class="chart-settings-range"
+                 min="0.1" max="1.0" step="0.05" value="${_resultSettings.opacity}">
+          <span id="rs-opacity-val" class="chart-settings-range-val">${_resultSettings.opacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="settings-divider">Figure</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-height">Height (px)</label>
+        <input id="rs-height" type="number" class="chart-settings-input"
+               min="200" max="600" step="50" value="${_resultSettings.height}">
+      </div>
+      <div class="settings-divider">Gridlines</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label chart-settings-check" for="rs-show-grid">
+          <input type="checkbox" id="rs-show-grid"${_resultSettings.showGrid ? " checked" : ""}> Show grid
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-grid-color">Grid color</label>
+        <input id="rs-grid-color" type="color" class="chart-settings-color"
+               value="${_resultSettings.gridColor}"${_resultSettings.showGrid ? "" : " disabled"}>
+      </div>
+    </div>
+  `;
+
+  const sizeIn   = details.querySelector("#rs-marker-size");
+  const opacIn   = details.querySelector("#rs-opacity");
+  const opacVal  = details.querySelector("#rs-opacity-val");
+  const heightIn = details.querySelector("#rs-height");
+  const gridChk  = details.querySelector("#rs-show-grid");
+  const gridClr  = details.querySelector("#rs-grid-color");
+
+  function _commit() { _saveResultSettings(); _rerenderPlots(); }
+
+  sizeIn.addEventListener("change", () => {
+    const v = parseInt(sizeIn.value, 10);
+    if (!isNaN(v) && v >= 3 && v <= 12) { _resultSettings.markerSize = v; _commit(); }
+  });
+  opacIn.addEventListener("input", () => {
+    const v = parseFloat(opacIn.value);
+    opacVal.textContent = v.toFixed(2);
+    _resultSettings.opacity = v;
+    _commit();
+  });
+  heightIn.addEventListener("change", () => {
+    const v = parseInt(heightIn.value, 10);
+    if (!isNaN(v) && v >= 200 && v <= 600) { _resultSettings.height = v; _commit(); }
+  });
+  gridChk.addEventListener("change", () => {
+    _resultSettings.showGrid = gridChk.checked;
+    gridClr.disabled = !gridChk.checked;
+    _commit();
+  });
+  gridClr.addEventListener("input", () => {
+    _resultSettings.gridColor = gridClr.value;
+    _commit();
+  });
+
+  return details;
+}
 
 /**
  * Render the training results card into containerEl.
@@ -54,6 +168,8 @@ export async function initResults(containerEl) {
 
 function _render(containerEl, r) {
   clearEl(containerEl);
+  _loadResultSettings();
+  _plotItems = [];
 
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
@@ -158,6 +274,7 @@ function _render(containerEl, r) {
        some region of the input space.</p>`
     );
     plotSection.appendChild(plotTitle);
+    plotSection.appendChild(_buildSettingsPanel());
 
     if (outputs.length > MAX_PLOT_OUTPUTS) {
       const note = el("p", {
@@ -179,14 +296,20 @@ function _render(containerEl, r) {
       const parityWrap = el("div", { cls: "parity-plot-wrap" });
       const residWrap  = el("div", { cls: "parity-plot-wrap" });
 
+      parityWrap.style.height    = `${_resultSettings.height}px`;
+      parityWrap.style.minHeight = `${_resultSettings.height}px`;
+      residWrap.style.height     = `${_resultSettings.height}px`;
+      residWrap.style.minHeight  = `${_resultSettings.height}px`;
+
       plotsWrap.appendChild(parityWrap);
       plotsWrap.appendChild(residWrap);
       row.appendChild(colLabel);
       row.appendChild(plotsWrap);
       plotSection.appendChild(row);
 
-      renderParityPlot(parityWrap, yTrue, yPred, colName, badgeCls);
-      renderResidualPlot(residWrap, yTrue, yPred, colName, badgeCls);
+      _plotItems.push({ parityWrap, residWrap, yTrue, yPred, colName, badgeCls });
+      renderParityPlot(parityWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
+      renderResidualPlot(residWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
     });
 
     containerEl.appendChild(plotSection);
