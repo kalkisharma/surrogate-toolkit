@@ -17,10 +17,11 @@ import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
 
 // ── Cleaning history (module-level, persists across onClean re-renders) ────────
-let _cleaningOps    = [];
-let _currentRows    = 0;
-let _initialRows    = 0;
-let _summaryCardEl  = null;
+let _cleaningOps      = [];
+let _currentRows      = 0;
+let _initialRows      = 0;
+let _summaryCardEl    = null;
+let _onCleanCallback  = null;   // stored so Undo Last can trigger it
 
 /**
  * Render the data cleaning section into containerEl.
@@ -45,9 +46,10 @@ export async function initCleaning(containerEl, onClean) {
   const nRows = summaryResp.n_rows || 0;
 
   // Reset cleaning history for this dataset
-  _cleaningOps   = [];
-  _currentRows   = nRows;
-  _initialRows   = nRows;
+  _cleaningOps      = [];
+  _currentRows      = nRows;
+  _initialRows      = nRows;
+  _onCleanCallback  = onClean;
 
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
@@ -83,7 +85,7 @@ export async function initCleaning(containerEl, onClean) {
 
   grid.appendChild(_buildNullCard(cs.null_rows, nRows, onClean));
   grid.appendChild(_buildDuplicatesCard(cs.duplicate_rows, onClean));
-  grid.appendChild(_buildOutlierCard(cs.outlier_rows, nRows, onClean));
+  grid.appendChild(await _buildOutlierCard(cs.outlier_rows, nRows, onClean));
   grid.appendChild(_buildTransformCard(summaryResp.stats || {}, onClean));
 
   // ── Undo all ─────────────────────────────────────────────────────────────────
@@ -159,10 +161,31 @@ function _renderCleaningSummary() {
   table.appendChild(tfoot);
   _summaryCardEl.appendChild(table);
 
+  const btnRow = el("div", { cls: "cleaning-summary-btn-row" });
+
   const dlBtn = el("button", { cls: "btn btn-secondary btn-sm", text: "⬇ Download cleaned CSV", id: "download-clean-btn" });
-  dlBtn.style.marginTop = "var(--space-3)";
   dlBtn.addEventListener("click", () => { window.location.href = "/api/export/clean"; });
-  _summaryCardEl.appendChild(dlBtn);
+  btnRow.appendChild(dlBtn);
+
+  const undoBtn = el("button", { cls: "btn btn-secondary btn-sm", text: "↩ Undo Last", id: "undo-clean-btn" });
+  undoBtn.addEventListener("click", async () => {
+    undoBtn.disabled = true;
+    const resp = await post("/api/data/clean/undo", {});
+    undoBtn.disabled = false;
+    if (resp.success) {
+      showSuccess(`Undid last operation. ${resp.rows_restored.toLocaleString()} rows restored.`);
+      _cleaningOps.pop();
+      _currentRows = resp.rows_restored;
+      _renderCleaningSummary();
+      // Notify parent so explore re-fetches cleaned data
+      if (typeof _onCleanCallback === "function") _onCleanCallback();
+    } else {
+      showError(resp.message || "Undo failed.");
+    }
+  });
+  btnRow.appendChild(undoBtn);
+
+  _summaryCardEl.appendChild(btnRow);
 }
 
 // ── Null card ─────────────────────────────────────────────────────────────────
@@ -280,7 +303,7 @@ function _buildDuplicatesCard(dupRows, onClean) {
 
 // ── Outlier card ──────────────────────────────────────────────────────────────
 
-function _buildOutlierCard(outlierRows, nRows, onClean) {
+async function _buildOutlierCard(outlierRows, nRows, onClean) {
   const card = el("div", { cls: "cleaning-item-card" });
 
   const hasOutliers = outlierRows > 0;
@@ -294,16 +317,66 @@ function _buildOutlierCard(outlierRows, nRows, onClean) {
       <span class="cleaning-item-title">Outlier Rows (IQR)</span>
       ${badge}
     </div>
-    <p class="cleaning-item-desc">Rows with at least one value outside Q1 − 1.5×IQR or Q3 + 1.5×IQR.</p>
+    <p class="cleaning-item-desc">Rows outside Q1 − 1.5×IQR or Q3 + 1.5×IQR. Select which columns to consider.</p>
   `;
 
   const strategies = [
     { value: "keep",      label: "Keep (flag only)", desc: "Outliers remain in the data. They are highlighted in the scatter matrix but not removed." },
-    { value: "drop_rows", label: "Drop outlier rows", desc: "Removes every row that contains an IQR outlier in any column." },
+    { value: "drop_rows", label: "Drop outlier rows", desc: "Removes every row that contains an IQR outlier in the selected columns." },
   ];
 
   const stratSel = _buildStrategySelect("outlier-strategy", strategies);
   card.appendChild(stratSel);
+
+  // ── Per-column checklist ─────────────────────────────────────────────────────
+  const checklistWrap = el("div", { cls: "outlier-checklist-wrap" });
+  card.appendChild(checklistWrap);
+
+  // Fetch per-column counts
+  const countsResp = await get("/api/data/clean/outlier_counts");
+  const counts = (countsResp.success && countsResp.counts) ? countsResp.counts : {};
+  const colNames = Object.keys(counts);
+
+  if (colNames.length > 0) {
+    const header = el("div", { cls: "outlier-checklist-header" });
+    header.innerHTML = `<span class="outlier-checklist-label">Columns to include:</span>`;
+    const selectAllBtn = el("button", { cls: "btn-link outlier-select-all", text: "Select All" });
+    const clearAllBtn  = el("button", { cls: "btn-link outlier-clear-all",  text: "Clear All" });
+    header.appendChild(selectAllBtn);
+    header.appendChild(document.createTextNode(" / "));
+    header.appendChild(clearAllBtn);
+    checklistWrap.appendChild(header);
+
+    const list = el("div", { cls: "outlier-checklist" });
+    for (const col of colNames) {
+      const count    = counts[col] || 0;
+      const hasOut   = count > 0;
+      const row      = el("label", { cls: `outlier-checklist-row${hasOut ? "" : " outlier-checklist-row--none"}` });
+      const cb       = document.createElement("input");
+      cb.type        = "checkbox";
+      cb.value       = col;
+      cb.checked     = hasOut;
+      cb.disabled    = !hasOut;
+      const nameSpan = el("span", { cls: "outlier-col-name", text: col });
+      nameSpan.title = col;
+      const cntSpan  = el("span", {
+        cls:  `outlier-col-count${hasOut ? " outlier-col-count--warn" : ""}`,
+        text: hasOut ? `${count} outlier${count !== 1 ? "s" : ""}` : "none",
+      });
+      row.appendChild(cb);
+      row.appendChild(nameSpan);
+      row.appendChild(cntSpan);
+      list.appendChild(row);
+    }
+    checklistWrap.appendChild(list);
+
+    selectAllBtn.addEventListener("click", () => {
+      list.querySelectorAll("input[type=checkbox]:not(:disabled)").forEach(c => { c.checked = true; });
+    });
+    clearAllBtn.addEventListener("click", () => {
+      list.querySelectorAll("input[type=checkbox]:not(:disabled)").forEach(c => { c.checked = false; });
+    });
+  }
 
   const applyBtn = el("button", {
     cls:  "btn btn-primary btn-sm cleaning-apply-btn",
@@ -314,15 +387,19 @@ function _buildOutlierCard(outlierRows, nRows, onClean) {
 
   applyBtn.addEventListener("click", async () => {
     const strategy = card.querySelector("#outlier-strategy").value;
+    const checked  = [...checklistWrap.querySelectorAll("input[type=checkbox]:checked")].map(c => c.value);
+    const columns  = checked.length > 0 ? checked : null;   // null = all (backend default)
     applyBtn.disabled = true;
-    const resp = await post("/api/data/clean/outliers", { strategy });
+    const resp = await post("/api/data/clean/outliers", { strategy, columns });
     applyBtn.disabled = false;
     if (resp.success) {
       if (strategy === "keep") {
         showSuccess("Outliers flagged. No rows were removed.");
       } else {
+        const colNote = columns ? ` (${columns.length} column${columns.length !== 1 ? "s" : ""})` : "";
+        const label   = `Drop outlier rows${colNote}`;
         showSuccess(`Dropped ${resp.rows_affected.toLocaleString()} outlier row(s). ${resp.rows_after.toLocaleString()} remain.`);
-        _recordOp("Drop outlier rows", resp.rows_affected, resp.rows_after);
+        _recordOp(label, resp.rows_affected, resp.rows_after);
         onClean();
       }
     } else {

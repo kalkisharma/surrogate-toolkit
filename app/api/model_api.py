@@ -20,6 +20,8 @@ VERSION: 0.9.2
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
+import time
+
 from flask import Blueprint, current_app, jsonify, request
 from sklearn.model_selection import train_test_split
 
@@ -30,6 +32,7 @@ from config.settings import (
     CV_FOLDS_MAX,
     CV_FOLDS_MIN,
     DEFAULT_RANDOM_STATE,
+    MAX_MODEL_HISTORY,
     MAX_PLOT_ROWS,
     SUPPORTED_MODEL_TYPES,
     TEST_SPLIT_MAX,
@@ -340,6 +343,29 @@ def train():
     models_dict["trained"] = model
     models_dict["results"] = results
 
+    # Append compact history entries (one per output) for the Previous Runs table.
+    history     = models_dict.setdefault("history", [])
+    cv_r2_by_col = {
+        entry["column"]: entry["mean_r2"]
+        for entry in cv_results.get("metrics", [])
+    }
+    run_num = len(history) + 1
+    now_ts  = int(time.time())
+    for m in test_metrics:
+        history.append({
+            "run":        run_num,
+            "timestamp":  now_ts,
+            "model_type": model_type,
+            "n_rows":     int(len(X_train)) + int(len(X_test)),
+            "output":     m["column"],
+            "r2_test":    round(float(m["r2"]),   4),
+            "rmse_test":  round(float(m["rmse"]), 4),
+            "r2_cv":      round(float(cv_r2_by_col.get(m["column"], 0)), 4),
+        })
+    # Trim to MAX_MODEL_HISTORY most-recent entries across all outputs
+    if len(history) > MAX_MODEL_HISTORY:
+        models_dict["history"] = history[-MAX_MODEL_HISTORY:]
+
     append_audit_event(state, "model_train", {
         "model_type": model_type,
         "n_train":    int(len(X_train)),
@@ -391,8 +417,10 @@ def get_results():
     Future:
         Return history of all trained models once MAX_MODEL_HISTORY is enforced.
     """
-    state   = current_app.config["STATE"]
-    results = state["surrogate_sessions"]["primary"]["models"].get("results")
+    state       = current_app.config["STATE"]
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    results     = models_dict.get("results")
+    history     = models_dict.get("history", [])
 
     if results is None:
         return (
@@ -403,7 +431,7 @@ def get_results():
             404,
         )
 
-    return jsonify({"success": True, "results": results}), 200
+    return jsonify({"success": True, "results": results, "history": history}), 200
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────

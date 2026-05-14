@@ -29,6 +29,7 @@ from werkzeug.utils import secure_filename
 from app.data.cleaning import (
     apply_log_transform,
     compute_cleaning_stats,
+    compute_column_outlier_counts,
     handle_nulls,
     handle_outliers,
     remove_duplicates,
@@ -875,11 +876,15 @@ def _get_active_ds(state):
     return active_key, _datasets[active_key]
 
 
-def _apply_clean(state, active_key, ds, result_df):
+def _apply_clean(state, active_key, ds, result_df, save_prev=True):
     """
     Write a cleaned DataFrame to both the dataset accumulator and primary mirror.
+    Stores the previous clean state for one-level undo before overwriting (unless
+    save_prev=False, used by reset so the raw restore itself is not undoable).
     Invalidates the summary stats cache so the next GET /api/data/summary recomputes.
     """
+    if save_prev:
+        ds["clean_prev"] = ds["clean"].copy()    # one-level undo snapshot
     ds["clean"]  = result_df
     state["datasets"]["primary"]["clean"] = result_df
     ds["metadata"]["n_rows_clean"]  = len(result_df)
@@ -1015,6 +1020,7 @@ def clean_outliers():
 
     data     = request.get_json(silent=True) or {}
     strategy = data.get("strategy", "")
+    columns  = data.get("columns", None)     # optional per-column selection
 
     if strategy not in CLEANING_STRATEGIES_OUTLIER:
         return (
@@ -1030,7 +1036,7 @@ def clean_outliers():
     clean_df = state["datasets"]["primary"]["clean"]
 
     try:
-        result_df, affected = handle_outliers(clean_df, strategy)
+        result_df, affected = handle_outliers(clean_df, strategy, columns=columns)
     except Exception as exc:
         current_app.logger.error(f"Outlier handling error: {exc}")
         return (
@@ -1075,6 +1081,43 @@ def clean_outliers():
         "rows_after":    len(result_df),
         "rows_affected": affected,
     }), 200
+
+
+@bp.route("/clean/outlier_counts", methods=["GET"])
+def outlier_counts():
+    """Return per-column IQR outlier row counts for the current clean dataset."""
+    state = current_app.config["STATE"]
+    _, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+    counts = compute_column_outlier_counts(state["datasets"]["primary"]["clean"])
+    return jsonify({"success": True, "counts": counts}), 200
+
+
+@bp.route("/clean/undo", methods=["POST"])
+def undo_clean():
+    """Restore ds["clean"] from the one-level undo snapshot (clean_prev)."""
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+    if "clean_prev" not in ds:
+        return jsonify({"success": False, "message": "Nothing to undo."}), 400
+
+    prev_df = ds.pop("clean_prev")
+    ds["clean"] = prev_df
+    state["datasets"]["primary"]["clean"] = prev_df
+    ds["metadata"]["n_rows_clean"]  = len(prev_df)
+    ds["metadata"]["summary_stats"] = None
+
+    append_audit_event(state, "cleaning_undo", {
+        "dataset":       active_key,
+        "rows_restored": len(prev_df),
+    })
+    current_app.logger.info(
+        f"Undo last clean: '{active_key}' — restored {len(prev_df)} rows"
+    )
+    return jsonify({"success": True, "rows_restored": len(prev_df)}), 200
 
 
 @bp.route("/clean/duplicates", methods=["POST"])
@@ -1164,7 +1207,8 @@ def clean_reset():
     raw_df   = state["datasets"]["primary"]["raw"]
     restored = raw_df.copy()
 
-    _apply_clean(state, active_key, ds, restored)
+    ds.pop("clean_prev", None)           # discard any undo snapshot on full reset
+    _apply_clean(state, active_key, ds, restored, save_prev=False)
     append_audit_event(state, "cleaning_reset", {
         "dataset":        active_key,
         "rows_restored":  len(restored),

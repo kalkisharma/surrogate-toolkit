@@ -312,13 +312,13 @@ export async function initResults(containerEl) {
   }
 
   const r = resp.results;
-  _render(containerEl, r);
+  _render(containerEl, r, resp.history || []);
   return true;
 }
 
 // ── Internal renderer ──────────────────────────────────────────────────────────
 
-function _render(containerEl, r) {
+function _render(containerEl, r, history = []) {
   clearEl(containerEl);
   _loadResultSettings();
   _plotItems = [];
@@ -453,6 +453,43 @@ function _render(containerEl, r) {
       _plotItems.push({ figWrap, yTrue, yPred, colName, badgeCls });
       renderOutputFigure(figWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
     });
+  }
+
+  // ── Previous Runs ────────────────────────────────────────────────────────────
+  if (history.length > 0) {
+    const histDetails = document.createElement("details");
+    histDetails.className = "results-history-details";
+    const histSummary = document.createElement("summary");
+    histSummary.className = "results-history-summary";
+    histSummary.textContent = `Previous Runs (${history.length} entr${history.length !== 1 ? "ies" : "y"})`;
+    histDetails.appendChild(histSummary);
+
+    const wrap  = el("div", { cls: "results-history-wrap" });
+    const table = el("table", { cls: "results-history-table" });
+    table.innerHTML = `<thead><tr>
+      <th>Run</th><th>Output</th><th>Model</th><th>Rows</th>
+      <th>R² (test)</th><th>RMSE (test)</th><th>R² (CV)</th>
+    </tr></thead>`;
+    const tbody = el("tbody");
+    // Most recent first
+    for (const h of [...history].reverse()) {
+      const tr = el("tr");
+      const r2Cls = _r2Class(h.r2_test);
+      tr.innerHTML = `
+        <td>${h.run}</td>
+        <td class="results-history-col" title="${h.output}">${h.output}</td>
+        <td>${h.model_type.toUpperCase()}</td>
+        <td>${h.n_rows.toLocaleString()}</td>
+        <td class="r2-${r2Cls}">${h.r2_test.toFixed(4)}</td>
+        <td>${h.rmse_test.toFixed(4)}</td>
+        <td>${h.r2_cv.toFixed(4)}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    histDetails.appendChild(wrap);
+    containerEl.appendChild(histDetails);
   }
 }
 

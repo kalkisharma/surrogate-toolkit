@@ -54,6 +54,9 @@ function _rerenderBoxPlots() {
   if (!_lastHistGrid || !_lastHistData || !_lastInputCols) return;
   clearEl(_lastHistGrid);
   renderNormBoxPlots(_lastHistGrid, _lastHistData, _lastInputCols, _lastMethod, _boxSettings);
+  requestAnimationFrame(() => {
+    _lastHistGrid.querySelectorAll(".js-plotly-plot").forEach(p => Plotly.Plots.resize(p));
+  });
 }
 
 // ── Settings panel ────────────────────────────────────────────────────────────
@@ -369,6 +372,9 @@ export function initNormalization(containerEl, currentMethod, nInputs) {
       _lastMethod    = selectedMethod;
 
       renderNormBoxPlots(histGrid, resp.hist_data, resp.input_columns, selectedMethod, _boxSettings);
+      requestAnimationFrame(() => {
+        histGrid.querySelectorAll(".js-plotly-plot").forEach(p => Plotly.Plots.resize(p));
+      });
 
       // Sample value table
       if (resp.sample_rows && resp.input_columns?.length) {

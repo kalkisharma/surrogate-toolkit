@@ -699,6 +699,26 @@ function _initGlobalHeader() {
   const levelSel = document.getElementById("level-select");
   const classSel = document.getElementById("classification-select");
 
+  // ── Settings gear dropdown ────────────────────────────────────────────────────
+  const settingsBtn      = document.getElementById("settings-toggle");
+  const settingsDropdown = document.getElementById("settings-dropdown");
+  if (settingsBtn && settingsDropdown) {
+    settingsBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = !settingsDropdown.classList.contains("hidden");
+      settingsDropdown.classList.toggle("hidden", open);
+      settingsBtn.setAttribute("aria-expanded", String(!open));
+    });
+    document.addEventListener("click", (e) => {
+      if (!settingsDropdown.classList.contains("hidden") &&
+          !settingsDropdown.contains(e.target) &&
+          e.target !== settingsBtn) {
+        settingsDropdown.classList.add("hidden");
+        settingsBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
   if (classSel) {
     classSel.addEventListener("change", async () => {
       await put("/api/state/session", { classification: classSel.value });
