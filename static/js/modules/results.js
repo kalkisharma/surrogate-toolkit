@@ -2,19 +2,20 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.8.7
+// Version: 0.8.8
 // Description: Step 7 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
-//              cross-validation summary and parity/residual plots (test set).
-//              Includes a shared Plot Settings panel (marker size, opacity,
-//              height, gridlines) that persists to localStorage.
+//              cross-validation summary and combined parity/residual diagnostic
+//              figures (1×2 subplots, linked x-axes). Plot Settings panel mirrors
+//              the Data Exploration settings with 16 user-controllable properties,
+//              persisted to localStorage.
 // =============================================================================
 
 import { get } from "../api.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
-import { renderParityPlot, renderResidualPlot } from "../charts.js";
+import { renderOutputFigure } from "../charts.js";
 
 // R² thresholds — mirror config/settings.py constants
 const R2_MINIMUM = 0.70;
@@ -24,18 +25,30 @@ const R2_CAUTION = 0.85;
 
 const _RESULT_SETTINGS_KEY = "surrogate_result_chart_settings";
 const _DEFAULT_RESULT_SETTINGS = {
-  markerSize: 7,
-  opacity:    0.70,
-  edgeWidth:  0,
-  edgeColor:  "#000000",
-  height:     300,
-  fontSize:   11,
-  showGrid:   true,
-  gridColor:  "#cccccc",
+  // Typography
+  fontSize:         11,
+  tickFontSize:     9,
+  fontColor:        null,    // null = auto (theme default)
+  // Markers
+  markerSize:       7,
+  opacity:          0.70,
+  edgeWidth:        0,
+  edgeColor:        "#000000",
+  // Figure
+  height:           300,
+  plotBgColor:      null,    // null = transparent
+  paperBgColor:     null,    // null = transparent
+  // Gridlines
+  showMajorGrid:    true,
+  majorGridColor:   "#cccccc",
+  majorGridOpacity: 1.0,
+  showMinorGrid:    false,
+  minorGridColor:   "#e0e0e0",
+  minorGridOpacity: 0.6,
 };
 
 let _resultSettings = { ..._DEFAULT_RESULT_SETTINGS };
-let _plotItems = [];   // cache for re-render on settings change
+let _plotItems = [];   // { figWrap, yTrue, yPred, colName, badgeCls } — cached for re-render
 
 function _loadResultSettings() {
   try {
@@ -50,82 +63,162 @@ function _saveResultSettings() {
 
 function _rerenderPlots() {
   for (const p of _plotItems) {
-    p.parityWrap.style.height    = `${_resultSettings.height}px`;
-    p.parityWrap.style.minHeight = `${_resultSettings.height}px`;
-    p.residWrap.style.height     = `${_resultSettings.height}px`;
-    p.residWrap.style.minHeight  = `${_resultSettings.height}px`;
-    renderParityPlot(p.parityWrap, p.yTrue, p.yPred, p.colName, p.badgeCls, _resultSettings);
-    renderResidualPlot(p.residWrap, p.yTrue, p.yPred, p.colName, p.badgeCls, _resultSettings);
+    p.figWrap.style.height    = `${_resultSettings.height}px`;
+    p.figWrap.style.minHeight = `${_resultSettings.height}px`;
+    renderOutputFigure(p.figWrap, p.yTrue, p.yPred, p.colName, p.badgeCls, _resultSettings);
   }
 }
 
 function _buildSettingsPanel() {
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+
+  // Resolve display values for null (auto) color settings
+  const fontColorVal  = _resultSettings.fontColor    !== null ? _resultSettings.fontColor    : (isDark ? "#8b94b3" : "#4b5478");
+  const plotBgVal     = _resultSettings.plotBgColor  !== null ? _resultSettings.plotBgColor  : "#ffffff";
+  const paperBgVal    = _resultSettings.paperBgColor !== null ? _resultSettings.paperBgColor : "#ffffff";
+  const fontColorAuto = _resultSettings.fontColor    === null;
+  const plotBgAuto    = _resultSettings.plotBgColor  === null;
+  const paperBgAuto   = _resultSettings.paperBgColor === null;
+
   const details = document.createElement("details");
   details.className = "chart-settings-panel";
   details.innerHTML = `
     <summary class="chart-settings-panel__summary">Plot Settings</summary>
     <div class="chart-settings-controls">
+      <div class="settings-divider">Typography</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-font-size">Label font (px)</label>
+        <input id="rs-font-size" type="number" class="chart-settings-input" min="7" max="20" step="1" value="${_resultSettings.fontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-tick-font">Tick font (px)</label>
+        <input id="rs-tick-font" type="number" class="chart-settings-input" min="6" max="16" step="1" value="${_resultSettings.tickFontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-font-color">Font color</label>
+        <div class="color-with-auto">
+          <input id="rs-font-color" type="color" class="chart-settings-color" value="${fontColorVal}"${fontColorAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="rs-font-color-auto"${fontColorAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
       <div class="settings-divider">Markers</div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-marker-size">Marker size (px)</label>
-        <input id="rs-marker-size" type="number" class="chart-settings-input"
-               min="3" max="12" step="1" value="${_resultSettings.markerSize}">
+        <input id="rs-marker-size" type="number" class="chart-settings-input" min="3" max="12" step="1" value="${_resultSettings.markerSize}">
       </div>
       <div class="chart-settings-group">
         <span class="chart-settings-group__label">Opacity</span>
         <div class="range-with-value">
-          <input id="rs-opacity" type="range" class="chart-settings-range"
-                 min="0.1" max="1.0" step="0.05" value="${_resultSettings.opacity}">
+          <input id="rs-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${_resultSettings.opacity}">
           <span id="rs-opacity-val" class="chart-settings-range-val">${_resultSettings.opacity.toFixed(2)}</span>
         </div>
       </div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-edge-width">Edge width (px)</label>
-        <input id="rs-edge-width" type="number" class="chart-settings-input"
-               min="0" max="3" step="0.5" value="${_resultSettings.edgeWidth}">
+        <input id="rs-edge-width" type="number" class="chart-settings-input" min="0" max="3" step="0.5" value="${_resultSettings.edgeWidth}">
       </div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-edge-color">Edge color</label>
-        <input id="rs-edge-color" type="color" class="chart-settings-color"
-               value="${_resultSettings.edgeColor}"${_resultSettings.edgeWidth === 0 ? " disabled" : ""}>
+        <input id="rs-edge-color" type="color" class="chart-settings-color" value="${_resultSettings.edgeColor}"${_resultSettings.edgeWidth === 0 ? " disabled" : ""}>
       </div>
       <div class="settings-divider">Figure</div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-height">Height (px)</label>
-        <input id="rs-height" type="number" class="chart-settings-input"
-               min="200" max="600" step="50" value="${_resultSettings.height}">
+        <input id="rs-height" type="number" class="chart-settings-input" min="200" max="600" step="50" value="${_resultSettings.height}">
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="rs-font-size">Font size (px)</label>
-        <input id="rs-font-size" type="number" class="chart-settings-input"
-               min="7" max="20" step="1" value="${_resultSettings.fontSize}">
+        <label class="chart-settings-group__label" for="rs-plot-bg">Plot background</label>
+        <div class="color-with-auto">
+          <input id="rs-plot-bg" type="color" class="chart-settings-color" value="${plotBgVal}"${plotBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="rs-plot-bg-auto"${plotBgAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-paper-bg">Paper background</label>
+        <div class="color-with-auto">
+          <input id="rs-paper-bg" type="color" class="chart-settings-color" value="${paperBgVal}"${paperBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="rs-paper-bg-auto"${paperBgAuto ? " checked" : ""}> Auto</label>
+        </div>
       </div>
       <div class="settings-divider">Gridlines</div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label chart-settings-check" for="rs-show-grid">
-          <input type="checkbox" id="rs-show-grid"${_resultSettings.showGrid ? " checked" : ""}> Show grid
+        <label class="chart-settings-group__label chart-settings-check" for="rs-major-grid">
+          <input type="checkbox" id="rs-major-grid"${_resultSettings.showMajorGrid ? " checked" : ""}> Major grid
         </label>
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="rs-grid-color">Grid color</label>
-        <input id="rs-grid-color" type="color" class="chart-settings-color"
-               value="${_resultSettings.gridColor}"${_resultSettings.showGrid ? "" : " disabled"}>
+        <label class="chart-settings-group__label" for="rs-major-grid-color">Major grid color</label>
+        <input id="rs-major-grid-color" type="color" class="chart-settings-color" value="${_resultSettings.majorGridColor}"${!_resultSettings.showMajorGrid ? " disabled" : ""}>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Major grid opacity</span>
+        <div class="range-with-value">
+          <input id="rs-major-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${_resultSettings.majorGridOpacity}"${!_resultSettings.showMajorGrid ? " disabled" : ""}>
+          <span id="rs-major-grid-opacity-val" class="chart-settings-range-val">${_resultSettings.majorGridOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label chart-settings-check" for="rs-minor-grid">
+          <input type="checkbox" id="rs-minor-grid"${_resultSettings.showMinorGrid ? " checked" : ""}> Minor grid
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-minor-grid-color">Minor grid color</label>
+        <input id="rs-minor-grid-color" type="color" class="chart-settings-color" value="${_resultSettings.minorGridColor}"${!_resultSettings.showMinorGrid ? " disabled" : ""}>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Minor grid opacity</span>
+        <div class="range-with-value">
+          <input id="rs-minor-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${_resultSettings.minorGridOpacity}"${!_resultSettings.showMinorGrid ? " disabled" : ""}>
+          <span id="rs-minor-grid-opacity-val" class="chart-settings-range-val">${_resultSettings.minorGridOpacity.toFixed(2)}</span>
+        </div>
       </div>
     </div>
   `;
 
-  const sizeIn      = details.querySelector("#rs-marker-size");
-  const opacIn      = details.querySelector("#rs-opacity");
-  const opacVal     = details.querySelector("#rs-opacity-val");
-  const edgeWidthIn = details.querySelector("#rs-edge-width");
-  const edgeColorIn = details.querySelector("#rs-edge-color");
-  const heightIn    = details.querySelector("#rs-height");
-  const fontSizeIn  = details.querySelector("#rs-font-size");
-  const gridChk     = details.querySelector("#rs-show-grid");
-  const gridClr     = details.querySelector("#rs-grid-color");
+  // ── Wire event listeners ───────────────────────────────────────────────────
+  const fontSizeIn       = details.querySelector("#rs-font-size");
+  const tickFontIn       = details.querySelector("#rs-tick-font");
+  const fontColorIn      = details.querySelector("#rs-font-color");
+  const fontColorAuto_   = details.querySelector("#rs-font-color-auto");
+  const sizeIn           = details.querySelector("#rs-marker-size");
+  const opacIn           = details.querySelector("#rs-opacity");
+  const opacVal          = details.querySelector("#rs-opacity-val");
+  const edgeWidthIn      = details.querySelector("#rs-edge-width");
+  const edgeColorIn      = details.querySelector("#rs-edge-color");
+  const heightIn         = details.querySelector("#rs-height");
+  const plotBgIn         = details.querySelector("#rs-plot-bg");
+  const plotBgAuto_      = details.querySelector("#rs-plot-bg-auto");
+  const paperBgIn        = details.querySelector("#rs-paper-bg");
+  const paperBgAuto_     = details.querySelector("#rs-paper-bg-auto");
+  const majorGridChk     = details.querySelector("#rs-major-grid");
+  const majorGridColorIn = details.querySelector("#rs-major-grid-color");
+  const majorGridOpacIn  = details.querySelector("#rs-major-grid-opacity");
+  const majorGridOpacVal = details.querySelector("#rs-major-grid-opacity-val");
+  const minorGridChk     = details.querySelector("#rs-minor-grid");
+  const minorGridColorIn = details.querySelector("#rs-minor-grid-color");
+  const minorGridOpacIn  = details.querySelector("#rs-minor-grid-opacity");
+  const minorGridOpacVal = details.querySelector("#rs-minor-grid-opacity-val");
 
   function _commit() { _saveResultSettings(); _rerenderPlots(); }
 
+  // Typography
+  fontSizeIn.addEventListener("change", () => {
+    const v = parseInt(fontSizeIn.value, 10);
+    if (!isNaN(v) && v >= 7 && v <= 20) { _resultSettings.fontSize = v; _commit(); }
+  });
+  tickFontIn.addEventListener("change", () => {
+    const v = parseInt(tickFontIn.value, 10);
+    if (!isNaN(v) && v >= 6 && v <= 16) { _resultSettings.tickFontSize = v; _commit(); }
+  });
+  fontColorAuto_.addEventListener("change", () => {
+    _resultSettings.fontColor = fontColorAuto_.checked ? null : fontColorIn.value;
+    fontColorIn.disabled = fontColorAuto_.checked;
+    _commit();
+  });
+  fontColorIn.addEventListener("input", () => { _resultSettings.fontColor = fontColorIn.value; _commit(); });
+
+  // Markers
   sizeIn.addEventListener("change", () => {
     const v = parseInt(sizeIn.value, 10);
     if (!isNaN(v) && v >= 3 && v <= 12) { _resultSettings.markerSize = v; _commit(); }
@@ -144,25 +237,51 @@ function _buildSettingsPanel() {
       _commit();
     }
   });
-  edgeColorIn.addEventListener("input", () => {
-    _resultSettings.edgeColor = edgeColorIn.value;
-    _commit();
-  });
+  edgeColorIn.addEventListener("input", () => { _resultSettings.edgeColor = edgeColorIn.value; _commit(); });
+
+  // Figure
   heightIn.addEventListener("change", () => {
     const v = parseInt(heightIn.value, 10);
     if (!isNaN(v) && v >= 200 && v <= 600) { _resultSettings.height = v; _commit(); }
   });
-  fontSizeIn.addEventListener("change", () => {
-    const v = parseInt(fontSizeIn.value, 10);
-    if (!isNaN(v) && v >= 7 && v <= 20) { _resultSettings.fontSize = v; _commit(); }
-  });
-  gridChk.addEventListener("change", () => {
-    _resultSettings.showGrid = gridChk.checked;
-    gridClr.disabled = !gridChk.checked;
+  plotBgAuto_.addEventListener("change", () => {
+    _resultSettings.plotBgColor = plotBgAuto_.checked ? null : plotBgIn.value;
+    plotBgIn.disabled = plotBgAuto_.checked;
     _commit();
   });
-  gridClr.addEventListener("input", () => {
-    _resultSettings.gridColor = gridClr.value;
+  plotBgIn.addEventListener("input", () => { _resultSettings.plotBgColor = plotBgIn.value; _commit(); });
+  paperBgAuto_.addEventListener("change", () => {
+    _resultSettings.paperBgColor = paperBgAuto_.checked ? null : paperBgIn.value;
+    paperBgIn.disabled = paperBgAuto_.checked;
+    _commit();
+  });
+  paperBgIn.addEventListener("input", () => { _resultSettings.paperBgColor = paperBgIn.value; _commit(); });
+
+  // Gridlines
+  majorGridChk.addEventListener("change", () => {
+    _resultSettings.showMajorGrid = majorGridChk.checked;
+    majorGridColorIn.disabled = !majorGridChk.checked;
+    majorGridOpacIn.disabled  = !majorGridChk.checked;
+    _commit();
+  });
+  majorGridColorIn.addEventListener("input", () => { _resultSettings.majorGridColor = majorGridColorIn.value; _commit(); });
+  majorGridOpacIn.addEventListener("input", () => {
+    const v = parseFloat(majorGridOpacIn.value);
+    majorGridOpacVal.textContent = v.toFixed(2);
+    _resultSettings.majorGridOpacity = v;
+    _commit();
+  });
+  minorGridChk.addEventListener("change", () => {
+    _resultSettings.showMinorGrid = minorGridChk.checked;
+    minorGridColorIn.disabled = !minorGridChk.checked;
+    minorGridOpacIn.disabled  = !minorGridChk.checked;
+    _commit();
+  });
+  minorGridColorIn.addEventListener("input", () => { _resultSettings.minorGridColor = minorGridColorIn.value; _commit(); });
+  minorGridOpacIn.addEventListener("input", () => {
+    const v = parseFloat(minorGridOpacIn.value);
+    minorGridOpacVal.textContent = v.toFixed(2);
+    _resultSettings.minorGridOpacity = v;
     _commit();
   });
 
@@ -171,10 +290,6 @@ function _buildSettingsPanel() {
 
 /**
  * Render the training results card into containerEl.
- *
- * Fetches GET /api/model/results. If no model has been trained yet the
- * caller should not render this card at all; this function is only called
- * after a successful train response.
  *
  * @param {HTMLElement} containerEl - Target card element.
  */
@@ -242,8 +357,7 @@ function _render(containerEl, r) {
   if (r.warnings && r.warnings.length > 0) {
     const warnBox = el("div", { cls: "results-warning-box" });
     for (const w of r.warnings) {
-      const p = el("p", { cls: "results-warning-text", text: `⚠ ${w}` });
-      warnBox.appendChild(p);
+      warnBox.appendChild(el("p", { cls: "results-warning-text", text: `⚠ ${w}` }));
     }
     containerEl.appendChild(warnBox);
   }
@@ -261,15 +375,13 @@ function _render(containerEl, r) {
      model performs on genuinely new data.</p>`
   );
   testSection.appendChild(testTitle);
-
-  const testTable = _buildMetricsTable(r.test_metrics);
-  testSection.appendChild(testTable);
+  testSection.appendChild(_buildMetricsTable(r.test_metrics));
   containerEl.appendChild(testSection);
 
   // ── CV summary ───────────────────────────────────────────────────────────────
   const cvSection = el("div", { cls: "results-section" });
   const cvTitle   = el("h3", {
-    cls: "results-section-title",
+    cls:  "results-section-title",
     text: `${r.cv_results.n_folds}-Fold Cross-Validation (training set)`,
   });
   registerPrimer(
@@ -285,12 +397,10 @@ function _render(containerEl, r) {
      may be sensitive to which rows it trains on.</p>`
   );
   cvSection.appendChild(cvTitle);
-
-  const cvTable = _buildCVTable(r.cv_results.per_output);
-  cvSection.appendChild(cvTable);
+  cvSection.appendChild(_buildCVTable(r.cv_results.per_output));
   containerEl.appendChild(cvSection);
 
-  // ── Parity & Residual Plots ────────────────────────────────────────────────
+  // ── Diagnostic Figures ────────────────────────────────────────────────────
   if (r.test_actuals && r.test_predictions && r.output_columns) {
     const MAX_PLOT_OUTPUTS = 4;
     const outputs = r.output_columns;
@@ -302,23 +412,23 @@ function _render(containerEl, r) {
       "results-parity",
       plotTitle,
       "How do I read parity and residual plots?",
-      `<p>A <strong>parity plot</strong> shows actual values (x-axis) vs predicted values
-       (y-axis). Points on the dashed diagonal line are perfect predictions — points far
-       from the line represent large errors.</p>
-       <p>A <strong>residual plot</strong> shows actual values (x-axis) vs the error
-       (actual − predicted). Ideally, residuals scatter randomly around zero with no
-       visible pattern; a systematic pattern means the model is consistently wrong in
-       some region of the input space.</p>`
+      `<p>A <strong>parity plot</strong> (left) shows actual values (x-axis) vs predicted
+       values (y-axis). Points on the dashed diagonal line are perfect predictions — points
+       far from the line represent large errors.</p>
+       <p>A <strong>residual plot</strong> (right) shows actual values (x-axis) vs the
+       error (actual − predicted). Ideally, residuals scatter randomly around zero with no
+       visible pattern; a systematic pattern means the model is consistently wrong in some
+       region of the input space. Both plots share the same x-axis — zooming on one
+       updates the other.</p>`
     );
     plotSection.appendChild(plotTitle);
     plotSection.appendChild(_buildSettingsPanel());
 
     if (outputs.length > MAX_PLOT_OUTPUTS) {
-      const note = el("p", {
+      plotSection.appendChild(el("p", {
         cls:  "results-plot-note",
         text: `Showing ${MAX_PLOT_OUTPUTS} of ${outputs.length} outputs. Remaining outputs omitted for readability.`,
-      });
-      plotSection.appendChild(note);
+      }));
     }
 
     shown.forEach((colName, j) => {
@@ -327,26 +437,19 @@ function _render(containerEl, r) {
       const yTrue    = r.test_actuals.map(row => row[j]);
       const yPred    = r.test_predictions.map(row => row[j]);
 
-      const row        = el("div", { cls: "parity-row" });
-      const colLabel   = el("p",   { cls: "parity-col-label", text: colName });
-      const plotsWrap  = el("div", { cls: "parity-plots" });
-      const parityWrap = el("div", { cls: "parity-plot-wrap" });
-      const residWrap  = el("div", { cls: "parity-plot-wrap" });
+      const row     = el("div", { cls: "parity-row" });
+      const label   = el("p",   { cls: "parity-col-label", text: colName });
+      const figWrap = el("div", { cls: "output-figure-wrap" });
 
-      parityWrap.style.height    = `${_resultSettings.height}px`;
-      parityWrap.style.minHeight = `${_resultSettings.height}px`;
-      residWrap.style.height     = `${_resultSettings.height}px`;
-      residWrap.style.minHeight  = `${_resultSettings.height}px`;
+      figWrap.style.height    = `${_resultSettings.height}px`;
+      figWrap.style.minHeight = `${_resultSettings.height}px`;
 
-      plotsWrap.appendChild(parityWrap);
-      plotsWrap.appendChild(residWrap);
-      row.appendChild(colLabel);
-      row.appendChild(plotsWrap);
+      row.appendChild(label);
+      row.appendChild(figWrap);
       plotSection.appendChild(row);
 
-      _plotItems.push({ parityWrap, residWrap, yTrue, yPred, colName, badgeCls });
-      renderParityPlot(parityWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
-      renderResidualPlot(residWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
+      _plotItems.push({ figWrap, yTrue, yPred, colName, badgeCls });
+      renderOutputFigure(figWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
     });
 
     containerEl.appendChild(plotSection);
@@ -373,7 +476,6 @@ function _buildMetricsTable(testMetrics) {
   for (const m of testMetrics) {
     const tr  = el("tr");
     const r2c = _r2Class(m.r2);
-
     tr.innerHTML = `
       <td class="results-col-name">${m.column}</td>
       <td><span class="results-badge results-badge--${r2c}">${m.r2.toFixed(4)}</span></td>
@@ -404,7 +506,6 @@ function _buildCVTable(perOutput) {
   for (const m of perOutput) {
     const tr  = el("tr");
     const r2c = _r2Class(m.mean_r2);
-
     tr.innerHTML = `
       <td class="results-col-name">${m.column}</td>
       <td><span class="results-badge results-badge--${r2c}">${m.mean_r2.toFixed(4)}</span>

@@ -19,6 +19,30 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.8.8] — 2026-05-13
+
+### Combined diagnostic figure + full plot settings parity (v0.8.8)
+
+#### Changed
+
+- **Combined parity/residual subplot figure** — each output column now renders as a single Plotly figure containing a 1×2 subplot grid (parity left, residual right) instead of two independent figures. X-axes are linked: zooming or panning to a specific actual-value range on the parity plot mirrors on the residual plot. Single camera button per output exports `<colname>_diagnostics.png` at 2× scale.
+- **Full plot settings parity with Data Exploration** — Plot Settings panel expanded from 8 to 16 controls, matching the explore tab's Typography / Markers / Figure / Gridlines structure. New controls: tick font size, font color (+ Auto), plot background (+ Auto), paper background (+ Auto), major grid opacity, minor grid on/off + color + opacity.
+- **Font size → `automargin: true`** — all four axes in the combined figure use Plotly's `automargin` to automatically expand margins and prevent label/tick overlap at any font size. Replaces the previous fixed margins.
+
+#### Added
+
+- `renderOutputFigure()` in `charts.js` — new export; accepts full 16-field opts object; used by `results.js` in place of the separate `renderParityPlot` / `renderResidualPlot` calls.
+- `.output-figure-wrap` CSS class — full-width container for the combined figure with card background and rounded corners.
+
+#### Files changed
+
+- `static/js/charts.js` — new `renderOutputFigure()` function
+- `static/js/modules/results.js` — 16-field settings, expanded panel, single `figWrap` per output
+- `static/css/main.css` — `.output-figure-wrap`
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.7] — 2026-05-13
 
 ### Results plot settings — font size, edge controls, save as PNG (v0.8.7)

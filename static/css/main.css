@@ -1566,3 +1566,10 @@ body,
   border-radius: var(--radius-md);
   overflow: hidden;
 }
+
+.output-figure-wrap {
+  width: 100%;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}

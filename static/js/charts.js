@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.8.7
+// Version: 0.8.8
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -353,5 +353,86 @@ export function renderResidualPlot(containerEl, yTrue, yPred, colName, badgeCls 
     displaylogo: false,
     modeBarButtons: [["toImage"]],
     toImageButtonOptions: { filename: `residual_${colName}`, scale: 2 },
+  });
+}
+
+/**
+ * Render a combined parity + residual diagnostic figure (1×2 subplots, linked x-axes)
+ * for one output column. Used by the results tab in place of the two separate plot functions.
+ *
+ * @param {HTMLElement} containerEl        - Single container for the combined figure.
+ * @param {number[]}    yTrue              - Actual test values.
+ * @param {number[]}    yPred              - Predicted test values.
+ * @param {string}      colName            - Output column name (used for axis labels and filename).
+ * @param {string}      [badgeCls="green"] - R² quality class: "green" | "amber" | "red".
+ * @param {object}      [opts={}]          - Plot settings (mirrors _DEFAULT_RESULT_SETTINGS).
+ */
+export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls = "green", opts = {}) {
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+
+  const fontSize         = opts.fontSize         ?? 11;
+  const tickFontSize     = opts.tickFontSize      ?? 9;
+  const fontColor        = opts.fontColor         ?? null;
+  const opac             = opts.opacity           ?? 0.70;
+  const mSize            = opts.markerSize        ?? 7;
+  const edgeWidth        = opts.edgeWidth         ?? 0;
+  const edgeColor        = opts.edgeColor         ?? "#000000";
+  const height           = opts.height            ?? 300;
+  const plotBgColor      = opts.plotBgColor       ?? null;
+  const paperBgColor     = opts.paperBgColor      ?? null;
+  const showMajorGrid    = opts.showMajorGrid      ?? true;
+  const majorGridColor   = opts.majorGridColor    ?? "#cccccc";
+  const majorGridOpacity = opts.majorGridOpacity  ?? 1.0;
+  const showMinorGrid    = opts.showMinorGrid      ?? false;
+  const minorGridColor   = opts.minorGridColor    ?? "#e0e0e0";
+  const minorGridOpacity = opts.minorGridOpacity  ?? 0.6;
+
+  const fontClr         = fontColor     || (isDark ? "#8b94b3" : "#4b5478");
+  const resolvedPaperBg = paperBgColor  || "rgba(0,0,0,0)";
+  const resolvedPlotBg  = plotBgColor   || "rgba(0,0,0,0)";
+  const refLineClr      = isDark ? "#555e80" : "#c0c9e8";
+
+  const ptColor = badgeCls === "red"   ? `rgba(239,68,68,${opac})`
+                : badgeCls === "amber" ? `rgba(245,158,11,${opac})`
+                :                        `rgba(75,110,245,${opac})`;
+  const marker  = { color: ptColor, size: mSize, line: { width: edgeWidth, color: edgeColor } };
+
+  const [pMin, pMax] = [Math.min(...yTrue, ...yPred), Math.max(...yTrue, ...yPred)];
+  const residuals    = yTrue.map((v, i) => v - yPred[i]);
+  const [rMin, rMax] = [Math.min(...yTrue), Math.max(...yTrue)];
+
+  const parityPts = { type: "scatter", mode: "markers", x: yTrue,        y: yPred,     marker, xaxis: "x",  yaxis: "y",  showlegend: false };
+  const diagonal  = { type: "scatter", mode: "lines",   x: [pMin, pMax], y: [pMin, pMax], line: { color: refLineClr, width: 1.5, dash: "dash" }, xaxis: "x",  yaxis: "y",  showlegend: false };
+  const residPts  = { type: "scatter", mode: "markers", x: yTrue,        y: residuals, marker, xaxis: "x2", yaxis: "y2", showlegend: false };
+  const zeroLine  = { type: "scatter", mode: "lines",   x: [rMin, rMax], y: [0, 0],    line: { color: refLineClr, width: 1.5, dash: "dash" }, xaxis: "x2", yaxis: "y2", showlegend: false };
+
+  const axisBase = {
+    showgrid:   showMajorGrid,
+    gridcolor:  _hexToRgba(majorGridColor, majorGridOpacity),
+    tickfont:   { size: tickFontSize },
+    automargin: true,
+    ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: _hexToRgba(minorGridColor, minorGridOpacity) } } : {}),
+  };
+
+  const layout = {
+    paper_bgcolor: resolvedPaperBg,
+    plot_bgcolor:  resolvedPlotBg,
+    height,
+    margin:  { t: 28, b: 20, l: 20, r: 20 },
+    font:    { color: fontClr, family: "Inter, system-ui, sans-serif", size: fontSize },
+    xaxis:   { ...axisBase, title: { text: `Actual — ${colName}`, font: { size: fontSize } }, domain: [0, 0.45] },
+    yaxis:   { ...axisBase, title: { text: "Predicted",            font: { size: fontSize } } },
+    xaxis2:  { ...axisBase, title: { text: `Actual — ${colName}`, font: { size: fontSize } }, domain: [0.55, 1], anchor: "y2", matches: "x" },
+    yaxis2:  { ...axisBase, title: { text: "Residual (actual − predicted)", font: { size: fontSize } }, anchor: "x2" },
+    showlegend: false,
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.newPlot(containerEl, [diagonal, parityPts, zeroLine, residPts], layout, {
+    responsive: true,
+    displayModeBar: true,
+    displaylogo: false,
+    modeBarButtons: [["toImage"]],
+    toImageButtonOptions: { filename: `${colName}_diagnostics`, scale: 2 },
   });
 }
