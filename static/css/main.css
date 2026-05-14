@@ -1342,7 +1342,8 @@ body,
   white-space: nowrap;
   background: var(--color-bg-subtle);
 }
-.results-table th:not(:first-child) {
+.results-table th:not(:first-child),
+.results-table td:not(:first-child) {
   text-align: right;
 }
 .results-table td {

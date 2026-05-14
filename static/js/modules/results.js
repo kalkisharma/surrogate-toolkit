@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.8.8
+// Version: 0.8.10
 // Description: Step 7 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -431,6 +431,8 @@ function _render(containerEl, r) {
       }));
     }
 
+    containerEl.appendChild(plotSection);
+
     shown.forEach((colName, j) => {
       const metric   = r.test_metrics.find(m => m.column === colName);
       const badgeCls = metric ? _r2Class(metric.r2) : "green";
@@ -451,8 +453,6 @@ function _render(containerEl, r) {
       _plotItems.push({ figWrap, yTrue, yPred, colName, badgeCls });
       renderOutputFigure(figWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
     });
-
-    containerEl.appendChild(plotSection);
   }
 }
 

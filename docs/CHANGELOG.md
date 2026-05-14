@@ -19,6 +19,25 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.8.10] — 2026-05-13
+
+### Bug fixes — R² alignment, plot render timing, primer consolidation (v0.8.10)
+
+#### Fixed
+
+- **R² column alignment** — R² data cells were left-aligned (badge, no `results-metric` class) while the header was right-aligned. Added `.results-table td:not(:first-child) { text-align: right; }` so all non-name data cells match their headers.
+- **Plots squished on initial render** — `renderOutputFigure()` was called before `containerEl.appendChild(plotSection)`, so Plotly measured a 0-height off-DOM container and compressed the figure. Moved the `appendChild` call to before the `forEach` loop; rerenders were already correct.
+- **Log-transform primer consolidation** — removed the card-level `registerPrimer("cleaning_logtransform", ...)` added in v0.8.9 and merged the log-transform explanation into the existing section-level "Why clean data before training?" primer, where null, duplicates, and outliers are already covered.
+
+#### Files changed
+
+- `static/js/modules/results.js` — moved `containerEl.appendChild(plotSection)` before render loop
+- `static/js/modules/data_cleaning.js` — merged log-transform paragraph into existing primer; removed card-level primer
+- `static/css/main.css` — extended alignment rule to `td:not(:first-child)`
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.9] — 2026-05-13
 
 ### Bug fixes — log-transform primer, table alignment, dark mode header (v0.8.9)
