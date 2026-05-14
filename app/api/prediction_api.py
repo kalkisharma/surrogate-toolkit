@@ -9,7 +9,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
-VERSION: 0.9.0
+VERSION: 0.9.2
 ================================================================================
 """
 
@@ -42,6 +42,64 @@ _ERROR_HTTP_STATUS = {
 
 def _http_status(error_code: str) -> int:
     return _ERROR_HTTP_STATUS.get(error_code, 400)
+
+
+# ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+
+def _normalize_row(row: list, input_cols: list, method: str, params: dict) -> list:
+    """Apply the training normalization transform to a single input row.
+
+    Args:
+        row:        List of float values in original (user) scale, ordered by input_cols.
+        input_cols: Column names in the same order as row.
+        method:     "minmax" | "zscore" | "none" | None
+        params:     Per-column scaler parameters from meta["normalization_params"].
+
+    Returns:
+        New list with scaled values. Original row is not mutated.
+    """
+    if not method or method == "none":
+        return row
+
+    result = list(row)
+    for i, col in enumerate(input_cols):
+        p = params.get(col, {})
+        if method == "minmax":
+            lo  = p.get("min", 0.0)
+            hi  = p.get("max", 1.0)
+            rng = hi - lo
+            result[i] = (result[i] - lo) / rng if rng != 0 else 0.0
+        elif method == "zscore":
+            mu    = p.get("mean", 0.0)
+            sigma = p.get("std",  1.0)
+            result[i] = (result[i] - mu) / sigma if sigma != 0 else 0.0
+    return result
+
+
+def _normalize_df_cols(df, input_cols: list, method: str, params: dict):
+    """Apply the training normalization transform to input columns of a DataFrame.
+
+    Operates on a copy — the original DataFrame is not mutated.
+    """
+    if not method or method == "none":
+        return df
+
+    df = df.copy()
+    for col in input_cols:
+        if col not in df.columns:
+            continue
+        p = params.get(col, {})
+        if method == "minmax":
+            lo  = p.get("min", 0.0)
+            hi  = p.get("max", 1.0)
+            rng = hi - lo
+            df[col] = (df[col] - lo) / rng if rng != 0 else 0.0
+        elif method == "zscore":
+            mu    = p.get("mean", 0.0)
+            sigma = p.get("std",  1.0)
+            df[col] = (df[col] - mu) / sigma if sigma != 0 else 0.0
+    return df
 
 
 # ─── ROUTES ───────────────────────────────────────────────────────────────────
@@ -90,6 +148,9 @@ def predict_single():
 
     input_cols  = results["input_columns"]
     output_cols = results["output_columns"]
+    meta        = state["datasets"]["primary"]["metadata"]
+    norm_method = meta.get("normalization_method", "none")
+    norm_params = meta.get("normalization_params", {})
 
     data   = request.get_json(silent=True) or {}
     inputs = data.get("inputs", {})
@@ -118,6 +179,9 @@ def predict_single():
             }),
             422,
         )
+
+    # ── Apply normalization (must match transform used during training) ────────
+    row = _normalize_row(row, input_cols, norm_method, norm_params)
 
     # ── Predict ───────────────────────────────────────────────────────────────
     X     = np.array([row])                 # shape (1, n_inputs)
@@ -184,6 +248,9 @@ def predict_batch():
     input_cols     = results["input_columns"]
     output_cols    = results["output_columns"]
     classification = state["session"].get("classification", "Unclassified")
+    meta           = state["datasets"]["primary"]["metadata"]
+    norm_method    = meta.get("normalization_method", "none")
+    norm_params    = meta.get("normalization_params", {})
 
     # ── Validate file present ─────────────────────────────────────────────────
     if "file" not in request.files:
@@ -224,7 +291,8 @@ def predict_batch():
 
     # ── Build feature matrix ──────────────────────────────────────────────────
     try:
-        X = df[input_cols].values.astype(float)
+        df_scaled = _normalize_df_cols(df, input_cols, norm_method, norm_params)
+        X = df_scaled[input_cols].values.astype(float)
     except (ValueError, TypeError) as exc:
         return (
             jsonify({

@@ -19,6 +19,25 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.2] — 2026-05-14
+
+### Bug fixes — normalization-prediction mismatch, dead code (v0.9.2)
+
+#### Fixed
+
+- **Prediction inputs not normalized before inference (critical)** — `prediction_api.py` was passing raw user inputs directly to `model.predict()`. If the user had applied minmax or zscore normalization before training, the model expected scaled values and predictions were systematically wrong. Added `_normalize_row()` (single-point) and `_normalize_df_cols()` (batch) helpers that read `normalization_method` and `normalization_params` from `state["datasets"]["primary"]["metadata"]` and apply the same per-column transform used during training before calling `model.predict()`. Sessions with no normalization are unaffected.
+- **`input_means` shown in original data scale** — `input_means` was computed from `X_train` (already normalized). The prediction form now pre-fills with means from the clean (pre-normalization) DataFrame so users see their original data's scale. Normalization is applied transparently at inference time.
+- **Dead code in `data_api.py`** — removed `clean_df = ds["raw"]` (line 796), which was immediately overwritten and never used.
+
+#### Files changed
+
+- `app/api/prediction_api.py` — `_normalize_row()`, `_normalize_df_cols()` helpers; both routes read normalization metadata and apply transform before prediction
+- `app/api/model_api.py` — `input_means` now from clean DataFrame, not `X_train`
+- `app/api/data_api.py` — dead assignment removed
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.9.1] — 2026-05-14
 
 ### Prediction UX fixes — update feedback, mean defaults, reset button (v0.9.1)

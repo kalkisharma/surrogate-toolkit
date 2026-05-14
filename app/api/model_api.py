@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.9.1
+VERSION: 0.9.2
 ================================================================================
 """
 
@@ -328,7 +328,7 @@ def train():
         "source_filename":  meta.get("filename"),
         "input_columns":    input_cols,
         "output_columns":   output_cols,
-        "input_means":      dict(zip(input_cols, X_train.mean(axis=0).tolist())),
+        "input_means":      {col: float((_clean if _clean is not None else df)[col].mean()) for col in input_cols},
         "test_metrics":     test_metrics,
         "cv_results":       cv_results,
         "warnings":         warnings,

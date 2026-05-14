@@ -793,8 +793,6 @@ def normalize():
             422,
         )
 
-    clean_df = ds["raw"]   # normalize from clean; ds["clean"] is the validated DF
-    # Use primary clean DF for normalization
     clean_df = state["datasets"]["primary"]["clean"]
 
     try:
