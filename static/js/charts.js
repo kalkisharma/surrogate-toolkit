@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.9.4
+// Version: 0.9.6
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -445,14 +445,22 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
  * @param {object}      histData  - { before: {col: number[]}, after: {col: number[]} }
  * @param {string[]}    inputCols - Column names to render.
  * @param {string}      method    - "minmax" | "zscore" | "none"
+ * @param {object}      [settings={}] - Optional display settings from box plot settings panel.
  */
-export function renderNormBoxPlots(gridEl, histData, inputCols, method) {
-  const isDark    = document.documentElement.getAttribute("data-theme") === "dark";
-  const fontClr   = isDark ? "#8b94b3" : "#4b5478";
-  const gridClr   = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
-  const beforeClr = isDark ? "rgba(100,120,200,0.55)" : "rgba(59,93,217,0.45)";
-  const afterClr  = isDark ? "rgba(59,198,130,0.70)"  : "rgba(22,163,74,0.60)";
-  const afterLabel = method === "minmax" ? "After [0,1]" : method === "zscore" ? "After (σ)" : "After";
+export function renderNormBoxPlots(gridEl, histData, inputCols, method, settings = {}) {
+  const isDark      = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr     = isDark ? "#8b94b3" : "#4b5478";
+  const gridClr     = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const beforeBase  = isDark ? "100,120,200" : "59,93,217";
+  const afterBase   = isDark ? "59,198,130"  : "22,163,74";
+  const afterLabel  = method === "minmax" ? "After [0,1]" : method === "zscore" ? "After (σ)" : "After";
+
+  const cellHeight = settings.cellHeight ?? 180;
+  const opacity    = settings.opacity    ?? 0.7;
+  const boxpoints  = settings.showPoints ? "outliers" : false;
+  const boxmean    = settings.showMean   ?? true;
+  const beforeClr  = `rgba(${beforeBase},${opacity})`;
+  const afterClr   = `rgba(${afterBase},${opacity})`;
 
   for (const col of inputCols) {
     const before = histData.before[col] ?? [];
@@ -473,17 +481,17 @@ export function renderNormBoxPlots(gridEl, histData, inputCols, method) {
     const traceBefore = {
       y: before, type: "box", name: "Before",
       marker: { color: beforeClr }, line: { color: beforeClr },
-      boxmean: true, boxpoints: false,
+      boxmean, boxpoints,
     };
     const traceAfter = {
       y: after, type: "box", name: afterLabel,
       marker: { color: afterClr }, line: { color: afterClr },
-      boxmean: true, boxpoints: false,
+      boxmean, boxpoints,
     };
 
     // eslint-disable-next-line no-undef
     Plotly.newPlot(plotDiv, [traceBefore, traceAfter], {
-      height: 180,
+      height: cellHeight,
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor:  "rgba(0,0,0,0)",
       margin: { t: 4, b: 28, l: 32, r: 4 },

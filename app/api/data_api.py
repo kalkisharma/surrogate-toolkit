@@ -829,12 +829,16 @@ def normalize():
     )
 
     # Build before/after histogram data (capped at 500 rows for payload size)
-    hist_rows   = min(len(clean_df), 500)
+    hist_rows    = min(len(clean_df), 500)
     sample_clean = clean_df[input_columns].iloc[:hist_rows]
     sample_norm  = normalized_df[input_columns].iloc[:hist_rows]
     hist_data = {
         "before": {col: sample_clean[col].dropna().tolist() for col in input_columns},
         "after":  {col: sample_norm[col].dropna().tolist()  for col in input_columns},
+    }
+    sample_rows = {
+        "before": sample_clean[input_columns].head(5).to_dict(orient="records"),
+        "after":  sample_norm[input_columns].head(5).to_dict(orient="records"),
     }
 
     return jsonify({
@@ -843,6 +847,7 @@ def normalize():
         "n_columns":     len(input_columns),
         "input_columns": input_columns,
         "hist_data":     hist_data,
+        "sample_rows":   sample_rows,
     }), 200
 
 

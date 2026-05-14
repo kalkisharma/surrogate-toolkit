@@ -105,6 +105,9 @@ def create_app() -> Flask:
     from app.api.prediction_api import bp as predict_bp
     app.register_blueprint(predict_bp, url_prefix="/api/predict")
 
+    from app.api.export_api import bp as export_bp
+    app.register_blueprint(export_bp, url_prefix="/api/export")
+
     # ─── ERROR HANDLERS ───────────────────────────────────────────────────────
 
     @app.errorhandler(413)

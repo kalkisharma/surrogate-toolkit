@@ -534,6 +534,85 @@ input, select, textarea { font-family: inherit; }
   white-space: nowrap;
 }
 
+/* ── Normalization sample table ──────────────────────────────────────────────── */
+.norm-sample-section { margin-top: var(--space-6); }
+.norm-sample-section__title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semi);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+}
+.norm-sample-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+.norm-sample-table-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semi);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+.norm-sample-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.norm-sample-table th {
+  background: var(--color-bg-subtle);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  text-align: right;
+  font-weight: var(--font-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+.norm-sample-table td {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+/* ── Cleaning summary card ───────────────────────────────────────────────────── */
+.cleaning-summary-card {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.cleaning-summary-card__title {
+  font-weight: var(--font-semi);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+  color: var(--color-text-primary);
+}
+.cleaning-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.cleaning-summary-table th,
+.cleaning-summary-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+  text-align: right;
+}
+.cleaning-summary-table th:first-child,
+.cleaning-summary-table td:first-child { text-align: left; }
+.cleaning-summary-table tfoot td {
+  font-weight: var(--font-semi);
+  border-top: 2px solid var(--color-border);
+  border-bottom: none;
+}
+
 /* ── Data preview table ──────────────────────────────────────────────────────── */
 .preview-section { margin-top: var(--space-8); }
 .preview-header {

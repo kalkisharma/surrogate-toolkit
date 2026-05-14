@@ -19,6 +19,31 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.6] — 2026-05-14
+
+### Data verification — cleaning summary, box plot settings, sample table, CSV download (v0.9.6)
+
+#### Added
+
+- **Cumulative cleaning summary card** — after each cleaning operation (drop nulls, impute, remove duplicates, drop outliers, log-transform), a persistent card appears below the cleaning controls showing all operations with before/removed/after row counts and a bold totals row. Survives panel re-renders; clears on "Undo all". Download cleaned CSV button calls `GET /api/export/clean`.
+- **Box plot settings panel** — a `<details>` settings panel appears above the normalization box plots with four controls: cell height (100–400px), opacity (range slider), show outlier points (checkbox), show mean diamond (checkbox). Settings persist to localStorage (`norm_box_settings`) and trigger an immediate re-render on change. Follows the same pattern as the SPLOM settings panel.
+- **5-row sample value table in Normalize step** — after normalization, a side-by-side "Before / After" table shows the first 5 rows for all input columns (values rounded to 4 decimal places). Allows direct visual confirmation that values were transformed correctly. Input columns only — output columns are unaffected by normalization.
+- **CSV download endpoints** — `GET /api/export/clean` and `GET /api/export/normalized` return the active dataset's cleaned or normalized DataFrame as an attachment. When classification is set to CUI/ITAR/EAR, a `# Classification: <level>` comment line is prepended as the first line of the file.
+
+#### Files changed
+
+- `static/js/modules/data_cleaning.js` — `_cleaningOps` accumulator; `_recordOp()` + `_renderCleaningSummary()` helpers; each handler updated to call `_recordOp`; reset handler clears ops; summary card appended to container
+- `static/js/modules/normalization.js` — `_BOX_DEFAULT_SETTINGS` + localStorage loading; `_renderBoxSettingsPanel()`; `_renderSampleTable()`; download button; all module-level state for re-render on settings change
+- `static/js/charts.js` — `renderNormBoxPlots` accepts `settings = {}` param; applies `cellHeight`, `opacity`, `boxpoints`, `boxmean`; opacity now baked into rgba color strings
+- `app/api/data_api.py` — normalize response now includes `sample_rows: { before: [...], after: [...] }` (first 5 rows per input column)
+- `app/api/export_api.py` — implemented `GET /api/export/clean` and `GET /api/export/normalized`; classification header prepended for non-Unclassified sessions
+- `app/__init__.py` — `export_bp` registered at `/api/export`
+- `static/css/main.css` — `.norm-sample-*` and `.cleaning-summary-*` styles added
+- `config/settings.py` — VERSION bump
+- `app/templates/index.html` — version references updated
+
+---
+
 ## [0.9.5] — 2026-05-14
 
 ### Code review fixes — primer, NaN, escaping, active-dataset consistency (v0.9.5)

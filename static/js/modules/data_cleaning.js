@@ -2,11 +2,12 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_cleaning.js
-// Version: 0.8.10
+// Version: 0.9.6
 // Description: Data cleaning step — lets users handle missing values, remove
 //              duplicates, and flag/drop outliers before column designation.
 //              Sends POST /api/data/clean/* endpoints. Calls onClean() after
 //              each successful operation so the exploration view can refresh.
+//              Maintains a cumulative cleaning summary card with download button.
 // =============================================================================
 
 import { get, post } from "../api.js";
@@ -14,6 +15,12 @@ import { showError, showSuccess, showWarning } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
+
+// ── Cleaning history (module-level, persists across onClean re-renders) ────────
+let _cleaningOps    = [];
+let _currentRows    = 0;
+let _initialRows    = 0;
+let _summaryCardEl  = null;
 
 /**
  * Render the data cleaning section into containerEl.
@@ -36,6 +43,11 @@ export async function initCleaning(containerEl, onClean) {
 
   const cs = summaryResp.cleaning_stats || { null_rows: 0, duplicate_rows: 0, outlier_rows: 0 };
   const nRows = summaryResp.n_rows || 0;
+
+  // Reset cleaning history for this dataset
+  _cleaningOps   = [];
+  _currentRows   = nRows;
+  _initialRows   = nRows;
 
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
@@ -86,11 +98,71 @@ export async function initCleaning(containerEl, onClean) {
     resetBtn.disabled = false;
     if (resp.success) {
       showSuccess(`Restored ${resp.rows_restored.toLocaleString()} rows from original upload.`);
+      _cleaningOps  = [];
+      _currentRows  = resp.rows_restored;
+      _renderCleaningSummary();
       onClean();
     } else {
       showError(resp.message || "Reset failed.");
     }
   });
+
+  // ── Cleaning summary card (hidden until first op) ──────────────────────────
+  _summaryCardEl = el("div", { cls: "cleaning-summary-card hidden", id: "cleaning-summary-card" });
+  containerEl.appendChild(_summaryCardEl);
+}
+
+// ── Summary card helpers ───────────────────────────────────────────────────────
+
+function _recordOp(label, rowsRemoved, rowsAfter) {
+  const rowsBefore = _currentRows;
+  _cleaningOps.push({ label, rowsBefore, rowsRemoved, rowsAfter });
+  _currentRows = rowsAfter;
+  _renderCleaningSummary();
+}
+
+function _renderCleaningSummary() {
+  if (!_summaryCardEl) return;
+  if (_cleaningOps.length === 0) {
+    _summaryCardEl.classList.add("hidden");
+    return;
+  }
+  _summaryCardEl.classList.remove("hidden");
+  clearEl(_summaryCardEl);
+
+  const title = el("div", { cls: "cleaning-summary-card__title", text: "Cleaning Summary" });
+  _summaryCardEl.appendChild(title);
+
+  const table = document.createElement("table");
+  table.className = "cleaning-summary-table";
+  table.innerHTML = `<thead><tr>
+    <th>Operation</th><th>Before</th><th>Removed</th><th>After</th>
+  </tr></thead>`;
+  const tbody = document.createElement("tbody");
+  for (const op of _cleaningOps) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${op.label}</td>
+      <td>${op.rowsBefore.toLocaleString()}</td>
+      <td>${op.rowsRemoved.toLocaleString()}</td>
+      <td>${op.rowsAfter.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  const totalRemoved = _initialRows - _currentRows;
+  const tfoot = document.createElement("tfoot");
+  tfoot.innerHTML = `<tr>
+    <td>Total</td>
+    <td>${_initialRows.toLocaleString()}</td>
+    <td>${totalRemoved.toLocaleString()}</td>
+    <td>${_currentRows.toLocaleString()}</td>
+  </tr>`;
+  table.appendChild(tfoot);
+  _summaryCardEl.appendChild(table);
+
+  const dlBtn = el("button", { cls: "btn btn-secondary btn-sm", text: "⬇ Download cleaned CSV", id: "download-clean-btn" });
+  dlBtn.style.marginTop = "var(--space-3)";
+  dlBtn.addEventListener("click", () => { window.location.href = "/api/export/clean"; });
+  _summaryCardEl.appendChild(dlBtn);
 }
 
 // ── Null card ─────────────────────────────────────────────────────────────────
@@ -139,10 +211,14 @@ function _buildNullCard(nullRows, nRows, onClean) {
     const resp = await post("/api/data/clean/nulls", { strategy });
     applyBtn.disabled = false;
     if (resp.success) {
-      const msg = strategy === "drop_rows"
-        ? `Dropped ${resp.rows_affected.toLocaleString()} row(s). ${resp.rows_after.toLocaleString()} remain.`
-        : `Imputed ${resp.rows_affected.toLocaleString()} row(s) using ${strategy === "mean_impute" ? "mean" : "median"}.`;
-      showSuccess(msg);
+      if (strategy === "drop_rows") {
+        showSuccess(`Dropped ${resp.rows_affected.toLocaleString()} row(s). ${resp.rows_after.toLocaleString()} remain.`);
+        _recordOp("Drop null rows", resp.rows_affected, resp.rows_after);
+      } else {
+        const methodLabel = strategy === "mean_impute" ? "mean" : "median";
+        showSuccess(`Imputed ${resp.rows_affected.toLocaleString()} row(s) using ${methodLabel}.`);
+        _recordOp(`Impute nulls (${methodLabel})`, 0, _currentRows);
+      }
       onClean();
     } else {
       showError(resp.message || "Null handling failed.");
@@ -191,6 +267,7 @@ function _buildDuplicatesCard(dupRows, onClean) {
         showWarning("No duplicate rows found — data unchanged.");
       } else {
         showSuccess(`Removed ${resp.rows_removed.toLocaleString()} duplicate row(s). ${resp.rows_after.toLocaleString()} remain.`);
+        _recordOp("Remove duplicates", resp.rows_removed, resp.rows_after);
         onClean();
       }
     } else {
@@ -245,6 +322,7 @@ function _buildOutlierCard(outlierRows, nRows, onClean) {
         showSuccess("Outliers flagged. No rows were removed.");
       } else {
         showSuccess(`Dropped ${resp.rows_affected.toLocaleString()} outlier row(s). ${resp.rows_after.toLocaleString()} remain.`);
+        _recordOp("Drop outlier rows", resp.rows_affected, resp.rows_after);
         onClean();
       }
     } else {
@@ -319,6 +397,7 @@ function _buildTransformCard(stats, onClean) {
     applyBtn.disabled = false;
     if (resp.success) {
       showSuccess(`Applied log-transform to ${resp.n_columns} column(s): ${resp.columns_transformed.join(", ")}.`);
+      _recordOp(`Log-transform (${resp.n_columns} col${resp.n_columns !== 1 ? "s" : ""})`, 0, _currentRows);
       onClean();
     } else {
       showError(resp.message || "Log-transform failed.");
