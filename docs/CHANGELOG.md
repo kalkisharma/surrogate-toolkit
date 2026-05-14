@@ -19,6 +19,21 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.8.11] — 2026-05-13
+
+### Bug fix — Configure tab learning primers (v0.8.11)
+
+#### Fixed
+
+- **Test split and k-fold primers invisible** — `registerPrimer` was called on `splitLabelEl` and `cvLabelEl` before either element had been appended to a parent node. `registerPrimer` checks `anchorEl.parentNode` at entry and returns silently if null, so no dropdown was created. Same root cause as the v0.8.10 plot-render timing bug. Fixed by moving all three field-level `registerPrimer` calls to after their respective `appendChild` calls (`typeSection`, `splitSection`, `cvSection`).
+
+#### Files changed
+
+- `static/js/modules/model_config.js` — reordered `registerPrimer` calls after `appendChild` for model-type, test-split, and cv-folds labels
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.10] — 2026-05-13
 
 ### Bug fixes — R² alignment, plot render timing, primer consolidation (v0.8.10)

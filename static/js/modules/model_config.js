@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 0.7.0
+// Version: 0.8.11
 // Description: Step 6 — Configure Training. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Saves configuration
 //              to POST /api/model/configure, then initiates training via
@@ -88,6 +88,8 @@ export async function initModelConfig(containerEl, onTrain) {
   const typeLabelEl = el("div", { cls: "model-config-section-label" });
   typeLabelEl.textContent = "Model type";
 
+  typeSection.appendChild(typeLabelEl);
+
   registerPrimer(
     "model-type-select",
     typeLabelEl,
@@ -99,8 +101,6 @@ export async function initModelConfig(containerEl, onTrain) {
        <li><strong>Linear</strong> — fast baseline, interpretable.</li>
      </ul>`
   );
-
-  typeSection.appendChild(typeLabelEl);
 
   const typeOptions = el("div", { cls: "model-type-options" });
   let selectedModel = saved.model_type || "gpr";
@@ -136,6 +136,17 @@ export async function initModelConfig(containerEl, onTrain) {
   const splitLabelEl = el("div", { cls: "model-config-section-label" });
   splitLabelEl.textContent = "Test split";
 
+  const splitRow = el("div", { cls: "model-config-row" });
+  const splitInput = el("input", {
+    type: "number", cls: "model-config-input", id: "test-split-input",
+    min: "0.05", max: "0.50", step: "0.05",
+  });
+  splitInput.value = saved.test_split ?? 0.20;
+  const splitHint = el("span", { cls: "model-config-hint", text: "fraction held out for testing (0.05 – 0.50)" });
+
+  splitRow.appendChild(splitInput);
+  splitRow.appendChild(splitHint);
+  splitSection.appendChild(splitLabelEl);
   registerPrimer(
     "test-split",
     splitLabelEl,
@@ -150,18 +161,6 @@ export async function initModelConfig(containerEl, onTrain) {
      For small datasets (< 100 rows), consider 10–15%. For large datasets
      (> 1 000 rows), 20–25% is typical.</p>`
   );
-
-  const splitRow = el("div", { cls: "model-config-row" });
-  const splitInput = el("input", {
-    type: "number", cls: "model-config-input", id: "test-split-input",
-    min: "0.05", max: "0.50", step: "0.05",
-  });
-  splitInput.value = saved.test_split ?? 0.20;
-  const splitHint = el("span", { cls: "model-config-hint", text: "fraction held out for testing (0.05 – 0.50)" });
-
-  splitRow.appendChild(splitInput);
-  splitRow.appendChild(splitHint);
-  splitSection.appendChild(splitLabelEl);
   splitSection.appendChild(splitRow);
   form.appendChild(splitSection);
 
@@ -169,20 +168,6 @@ export async function initModelConfig(containerEl, onTrain) {
   const cvSection = el("div", { cls: "model-config-section" });
   const cvLabelEl = el("div", { cls: "model-config-section-label" });
   cvLabelEl.textContent = "Cross-validation folds";
-
-  registerPrimer(
-    "cv-folds",
-    cvLabelEl,
-    "What is k-fold cross-validation?",
-    `<p>Cross-validation gives a more reliable estimate of model performance than a
-     single train/test split. The training set is divided into <em>k</em> equal
-     parts (folds). The model is trained <em>k</em> times, each time holding one
-     fold out as a local validation set and training on the remaining <em>k−1</em>.</p>
-     <p>The final CV score is the average across all <em>k</em> runs. 5-fold is the
-     standard default — it balances computational cost against estimate reliability.
-     Use 3-fold for very small datasets or slow models. Use 10-fold for the most
-     reliable estimate when you can afford the extra compute.</p>`
-  );
 
   const cvRow = el("div", { cls: "model-config-row" });
   const cvSelect = el("select", { cls: "model-config-select", id: "cv-folds-select" });
@@ -196,6 +181,19 @@ export async function initModelConfig(containerEl, onTrain) {
 
   cvRow.appendChild(cvSelect);
   cvSection.appendChild(cvLabelEl);
+  registerPrimer(
+    "cv-folds",
+    cvLabelEl,
+    "What is k-fold cross-validation?",
+    `<p>Cross-validation gives a more reliable estimate of model performance than a
+     single train/test split. The training set is divided into <em>k</em> equal
+     parts (folds). The model is trained <em>k</em> times, each time holding one
+     fold out as a local validation set and training on the remaining <em>k−1</em>.</p>
+     <p>The final CV score is the average across all <em>k</em> runs. 5-fold is the
+     standard default — it balances computational cost against estimate reliability.
+     Use 3-fold for very small datasets or slow models. Use 10-fold for the most
+     reliable estimate when you can afford the extra compute.</p>`
+  );
   cvSection.appendChild(cvRow);
   form.appendChild(cvSection);
 
