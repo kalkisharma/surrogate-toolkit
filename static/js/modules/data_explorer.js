@@ -78,6 +78,8 @@ function _rerender() {
   const displayedCount = _currentColumns.length;
   const autoMarkerSize = Math.max(4, Math.min(8, 400 / _currentRows.length));
   const autoHeight     = Math.max(400, displayedCount * 90);
+  const h = _chartSettings.height !== null ? _chartSettings.height : autoHeight;
+  _chartEl.style.height = h + "px";
   _applyWidth();
   renderScatterMatrix(_chartEl, _currentColumns, _currentRows, {
     outlierIndices: _showOutliers ? _outlierIndices : new Set(),
@@ -231,6 +233,9 @@ export async function initExploration(containerEl, uploadResponse) {
   containerEl.appendChild(statsEl);
 
   // ── Initial render ────────────────────────────────────────────────────────
+  // Anchor container height before Plotly renders so the stats section below
+  // is positioned correctly in the initial layout (avoids overflow overlap).
+  chartWrap.style.height = autoHeight + "px";
   _applyWidth();
   renderScatterMatrix(chartWrap, _currentColumns, plotRows, {
     outlierIndices: _showOutliers ? _outlierIndices : new Set(),

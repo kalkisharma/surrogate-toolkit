@@ -19,6 +19,27 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.4] — 2026-05-14
+
+### SPLOM overlap fix, normalization box plots (v0.9.4)
+
+#### Fixed
+
+- **SPLOM overlaps summary statistics on initial render** — `.explore-chart-wrap` CSS has `min-height: 500px`, which the browser used to position the stats section below the chart. Plotly then rendered an SVG taller than 500px inside the wrap, overflowing into the stats section until Plotly's responsive resize corrected it. Fix: `chartWrap.style.height = autoHeight + "px"` is now set explicitly before `renderScatterMatrix`, giving the browser the correct layout height from frame one. Same fix applied in `_rerender()` so height stays accurate when column selection changes.
+
+#### Changed
+
+- **Normalization visualization: histograms → box plots** — before/after histograms replaced with side-by-side vertical box plots (Before in blue, After in green) per input column. Box plots show median, quartile range, and whiskers — more compact and directly communicates scale change without requiring many bins to be readable.
+
+#### Files changed
+
+- `static/js/modules/data_explorer.js` — explicit height set on `chartWrap` before Plotly render; same in `_rerender()`
+- `static/js/charts.js` — `renderNormHistograms` replaced by `renderNormBoxPlots`
+- `static/js/modules/normalization.js` — updated import and call site
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.9.3] — 2026-05-14
 
 ### Upload page polish, SPLOM resize fix, normalization histograms, R² contrast (v0.9.3)

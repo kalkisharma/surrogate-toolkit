@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.9.3
+// Version: 0.9.4
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -438,20 +438,21 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
 }
 
 /**
- * Render before/after histogram overlays for each normalized input column.
- * One small Plotly chart per column, tiled in a wrapping grid.
+ * Render before/after box plots for each normalized input column.
+ * One small Plotly chart per column (two box plots side by side), tiled in a grid.
  *
- * @param {HTMLElement} gridEl     - Container with class norm-hist-grid.
- * @param {object}      histData   - { before: {col: number[]}, after: {col: number[]} }
- * @param {string[]}    inputCols  - Column names to render.
- * @param {string}      method     - "minmax" | "zscore" — used for x-axis label.
+ * @param {HTMLElement} gridEl    - Container with class norm-hist-grid.
+ * @param {object}      histData  - { before: {col: number[]}, after: {col: number[]} }
+ * @param {string[]}    inputCols - Column names to render.
+ * @param {string}      method    - "minmax" | "zscore" | "none"
  */
-export function renderNormHistograms(gridEl, histData, inputCols, method) {
-  const isDark   = document.documentElement.getAttribute("data-theme") === "dark";
-  const fontClr  = isDark ? "#8b94b3" : "#4b5478";
-  const beforeClr = isDark ? "rgba(100,120,200,0.45)" : "rgba(59,93,217,0.30)";
-  const afterClr  = isDark ? "rgba(59,198,130,0.65)"  : "rgba(22,163,74,0.55)";
-  const axisLabel = method === "minmax" ? "Scaled [0, 1]" : method === "zscore" ? "Standardised (σ)" : "Value";
+export function renderNormBoxPlots(gridEl, histData, inputCols, method) {
+  const isDark    = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr   = isDark ? "#8b94b3" : "#4b5478";
+  const gridClr   = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";
+  const beforeClr = isDark ? "rgba(100,120,200,0.55)" : "rgba(59,93,217,0.45)";
+  const afterClr  = isDark ? "rgba(59,198,130,0.70)"  : "rgba(22,163,74,0.60)";
+  const afterLabel = method === "minmax" ? "After [0,1]" : method === "zscore" ? "After (σ)" : "After";
 
   for (const col of inputCols) {
     const before = histData.before[col] ?? [];
@@ -459,37 +460,36 @@ export function renderNormHistograms(gridEl, histData, inputCols, method) {
 
     const cell = document.createElement("div");
     cell.className = "norm-hist-cell";
-    const title = document.createElement("div");
-    title.className = "norm-hist-cell-title";
-    title.title = col;
-    title.textContent = col;
-    cell.appendChild(title);
+    const titleEl = document.createElement("div");
+    titleEl.className = "norm-hist-cell-title";
+    titleEl.title = col;
+    titleEl.textContent = col;
+    cell.appendChild(titleEl);
 
     const plotDiv = document.createElement("div");
     cell.appendChild(plotDiv);
     gridEl.appendChild(cell);
 
     const traceBefore = {
-      x: before, type: "histogram", name: "Before",
-      marker: { color: beforeClr },
-      opacity: 0.85, nbinsx: 20,
+      y: before, type: "box", name: "Before",
+      marker: { color: beforeClr }, line: { color: beforeClr },
+      boxmean: true, boxpoints: false,
     };
     const traceAfter = {
-      x: after, type: "histogram", name: "After",
-      marker: { color: afterClr },
-      opacity: 0.85, nbinsx: 20,
+      y: after, type: "box", name: afterLabel,
+      marker: { color: afterClr }, line: { color: afterClr },
+      boxmean: true, boxpoints: false,
     };
 
     // eslint-disable-next-line no-undef
     Plotly.newPlot(plotDiv, [traceBefore, traceAfter], {
-      barmode:      "overlay",
-      height:       160,
+      height: 180,
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor:  "rgba(0,0,0,0)",
-      margin: { t: 4, b: 32, l: 28, r: 4 },
-      font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 9 },
-      xaxis:  { title: { text: axisLabel, font: { size: 9 } }, showgrid: false },
-      yaxis:  { showgrid: true, gridcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" },
+      margin: { t: 4, b: 28, l: 32, r: 4 },
+      font:  { color: fontClr, family: "Inter, system-ui, sans-serif", size: 9 },
+      xaxis: { showgrid: false, tickfont: { size: 9 } },
+      yaxis: { showgrid: true, gridcolor: gridClr, tickfont: { size: 9 } },
       showlegend: false,
     }, { responsive: true, displayModeBar: false });
   }

@@ -13,7 +13,7 @@ import { showError, showSuccess } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el } from "../utils.js";
-import { renderNormHistograms } from "../charts.js";
+import { renderNormBoxPlots } from "../charts.js";
 
 const METHODS = [
   { value: "none",   label: "None (passthrough)",        desc: "No scaling — use raw values." },
@@ -130,12 +130,12 @@ export function initNormalization(containerEl, currentMethod, nInputs) {
     if (resp.hist_data && resp.input_columns?.length) {
       const histSection = el("div", { cls: "norm-hist-section" });
       const histTitle   = el("div", { cls: "norm-hist-section-title",
-        text: "Distribution before (blue) and after (green) scaling — input columns only" });
+        text: "Before (blue) vs. after (green) scaling — input columns only" });
       const histGrid    = el("div", { cls: "norm-hist-grid" });
       histSection.appendChild(histTitle);
       histSection.appendChild(histGrid);
       containerEl.appendChild(histSection);
-      renderNormHistograms(histGrid, resp.hist_data, resp.input_columns, selectedMethod);
+      renderNormBoxPlots(histGrid, resp.hist_data, resp.input_columns, selectedMethod);
     }
   });
 
