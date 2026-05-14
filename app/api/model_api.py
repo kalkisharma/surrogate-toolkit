@@ -174,10 +174,15 @@ def configure():
         )
 
     # ── Persist ───────────────────────────────────────────────────────────────
+    hyperparams = data.get("hyperparams") or {}
+    if not isinstance(hyperparams, dict):
+        hyperparams = {}
+
     config = state["surrogate_sessions"]["primary"]["config"]
-    config["model_type"] = model_type
-    config["test_split"] = test_split
-    config["cv_folds"]   = cv_folds
+    config["model_type"]  = model_type
+    config["test_split"]  = test_split
+    config["cv_folds"]    = cv_folds
+    config["hyperparams"] = hyperparams
 
     append_audit_event(state, "model_configure", {
         "model_type": model_type,
@@ -285,9 +290,10 @@ def train():
             422,
         )
 
-    model_type = config["model_type"]
-    test_split = config["test_split"]
-    cv_folds   = config["cv_folds"]
+    model_type  = config["model_type"]
+    test_split  = config["test_split"]
+    cv_folds    = config["cv_folds"]
+    hyperparams = config.get("hyperparams") or {}
 
     # ── Build feature / target arrays ─────────────────────────────────────────
     X = df[input_cols].values
@@ -299,7 +305,7 @@ def train():
     )
 
     # ── Build model ───────────────────────────────────────────────────────────
-    model = _make_model(model_type)
+    model = _make_model(model_type, hyperparams)
 
     # ── GPR large-dataset warning ─────────────────────────────────────────────
     warnings = []
@@ -326,6 +332,7 @@ def train():
     # ── Persist to STATE ──────────────────────────────────────────────────────
     results = {
         "model_type":       model_type,
+        "hyperparams":      hyperparams,
         "n_train":          int(len(X_train)),
         "n_test":           int(len(X_test)),
         "source_filename":  meta.get("filename"),
@@ -445,27 +452,32 @@ def get_results():
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 
-def _make_model(model_type: str):
+def _make_model(model_type: str, hyperparams: dict = None):
     """Instantiate the correct model class for model_type.
 
     Args:
-        model_type: One of "gpr", "rf", "linear".
+        model_type:  One of "gpr", "rf", "linear".
+        hyperparams: Optional dict of model-specific hyperparameter overrides.
+                     Unknown keys are silently ignored; each constructor uses
+                     its own defaults for missing keys.
 
     Returns:
         BaseSurrogateModel subclass instance (unfitted).
 
     Raises:
         Nothing — caller validates model_type before calling this.
-
-    Notes:
-        Imports happen here (not at module top) to keep the module importable
-        even when sklearn is not installed — error surfaces at training time.
-
-    Future:
-        Accept hyperparameter overrides dict.
     """
+    hp = hyperparams or {}
     if model_type == "gpr":
-        return GPRModel()
+        return GPRModel(
+            kernel=hp.get("kernel", "rbf"),
+            alpha=hp.get("alpha"),
+        )
     if model_type == "rf":
-        return RFModel()
-    return LinearModel()
+        return RFModel(
+            n_estimators=hp.get("n_estimators"),
+            max_depth=hp.get("max_depth"),
+            min_samples_leaf=hp.get("min_samples_leaf", 1),
+            max_features=hp.get("max_features", "sqrt"),
+        )
+    return LinearModel(alpha=hp.get("alpha", 1.0))

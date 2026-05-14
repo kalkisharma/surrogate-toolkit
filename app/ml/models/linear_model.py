@@ -31,9 +31,9 @@ class LinearModel(BaseSurrogateModel):
     against GPR and Random Forest.
     """
 
-    def __init__(self):
+    def __init__(self, alpha: float = 1.0):
         super().__init__("linear")
-        self._model = Ridge(alpha=1.0)
+        self._model = Ridge(alpha=float(alpha) if alpha is not None else 1.0)
 
     def fit(
         self,

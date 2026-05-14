@@ -178,7 +178,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     font:     { color: fontColor || theme.font, family: "Inter, system-ui, sans-serif", size: fontSize },
     margin: {
       l: Math.max(50, tickFontSize * 6),
-      b: Math.max(50, tickFontSize * 6),
+      b: Math.max(72, tickFontSize * 8),
       t: Math.max(30, fontSize * 3),
       r: 20,
     },
@@ -455,10 +455,14 @@ export function renderNormBoxPlots(gridEl, histData, inputCols, method, settings
   const afterBase   = isDark ? "59,198,130"  : "22,163,74";
   const afterLabel  = method === "minmax" ? "After [0,1]" : method === "zscore" ? "After (σ)" : "After";
 
-  const cellHeight = settings.cellHeight ?? 180;
-  const opacity    = settings.opacity    ?? 0.7;
+  const cellHeight = settings.cellHeight  ?? 180;
+  const opacity    = settings.opacity     ?? 0.7;
   const boxpoints  = settings.showPoints ? "outliers" : false;
-  const boxmean    = settings.showMean   ?? true;
+  const boxmean    = settings.showMean    ?? true;
+  const fontSize   = settings.fontSize    ?? 9;
+  const fontColor  = settings.fontColor   ?? fontClr;
+  const plotBg     = settings.plotBgColor  != null ? settings.plotBgColor  : "rgba(0,0,0,0)";
+  const paperBg    = settings.paperBgColor != null ? settings.paperBgColor : "rgba(0,0,0,0)";
   const beforeClr  = `rgba(${beforeBase},${opacity})`;
   const afterClr   = `rgba(${afterBase},${opacity})`;
 
@@ -492,12 +496,12 @@ export function renderNormBoxPlots(gridEl, histData, inputCols, method, settings
     // eslint-disable-next-line no-undef
     Plotly.newPlot(plotDiv, [traceBefore, traceAfter], {
       height: cellHeight,
-      paper_bgcolor: "rgba(0,0,0,0)",
-      plot_bgcolor:  "rgba(0,0,0,0)",
+      paper_bgcolor: paperBg,
+      plot_bgcolor:  plotBg,
       margin: { t: 4, b: 28, l: 32, r: 12 },
-      font:  { color: fontClr, family: "Inter, system-ui, sans-serif", size: 9 },
-      xaxis: { showgrid: false, tickfont: { size: 9 } },
-      yaxis: { showgrid: true, gridcolor: gridClr, tickfont: { size: 9 } },
+      font:  { color: fontColor, family: "Inter, system-ui, sans-serif", size: fontSize },
+      xaxis: { showgrid: false, tickfont: { size: fontSize } },
+      yaxis: { showgrid: true, gridcolor: gridClr, tickfont: { size: fontSize } },
       showlegend: false,
     }, { responsive: true, displayModeBar: false });
   }

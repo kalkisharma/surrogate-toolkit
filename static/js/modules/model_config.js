@@ -2,11 +2,12 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 0.8.11
-// Description: Step 6 — Configure Training. Lets users choose a model type,
-//              train/test split, and cross-validation folds. Saves configuration
-//              to POST /api/model/configure, then initiates training via
-//              POST /api/model/train. Calls onTrain(results) on success.
+// Version: 0.9.10
+// Description: Step 7 — Configure Training. Lets users choose a model type,
+//              train/test split, and cross-validation folds. Shows a per-model
+//              hyperparameter section (kernel/alpha for GPR, trees/depth/features
+//              for RF, regularization for Linear). Saves to POST /api/model/configure,
+//              then initiates training via POST /api/model/train.
 // =============================================================================
 
 import { get, post } from "../api.js";
@@ -14,6 +15,12 @@ import { showError, showSuccess, showWarning } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
+
+const HYPERPARAM_DEFAULTS = {
+  gpr:    { kernel: "rbf", alpha: 0.1 },
+  rf:     { n_estimators: 100, max_depth: null, min_samples_leaf: 1, max_features: "sqrt" },
+  linear: { alpha: 1.0 },
+};
 
 const MODEL_TYPES = [
   {
@@ -131,6 +138,126 @@ export async function initModelConfig(containerEl, onTrain) {
   typeSection.appendChild(typeOptions);
   form.appendChild(typeSection);
 
+  // ── Hyperparameters ───────────────────────────────────────────────────────────
+  const hyperparamOuter = el("div", { id: "hyperparam-outer" });
+  form.appendChild(hyperparamOuter);
+
+  function _renderHyperparams(modelType, hp) {
+    clearEl(hyperparamOuter);
+    const defs = HYPERPARAM_DEFAULTS[modelType] || {};
+    const merged = Object.assign({}, defs, hp || {});
+
+    if (modelType === "gpr") {
+      hyperparamOuter.innerHTML = `
+        <div class="hyperparam-section">
+          <div class="hyperparam-section-header">
+            <span class="hyperparam-section-label">Hyperparameters</span>
+            <button class="hyperparam-reset" id="hp-reset">Reset to defaults</button>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Kernel</span>
+            <select id="hp-kernel" class="hyperparam-select">
+              <option value="rbf"      ${merged.kernel === "rbf"      ? "selected" : ""}>RBF (default)</option>
+              <option value="matern15" ${merged.kernel === "matern15" ? "selected" : ""}>Matérn ν=1.5</option>
+              <option value="matern25" ${merged.kernel === "matern25" ? "selected" : ""}>Matérn ν=2.5</option>
+            </select>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Noise level (alpha)</span>
+            <input id="hp-alpha" type="number" class="hyperparam-input" step="any" min="0.0001" max="10" value="${merged.alpha ?? 0.1}">
+            <span class="hyperparam-hint">0.0001 – 10 — higher = more noise tolerance</span>
+          </div>
+        </div>`;
+    } else if (modelType === "rf") {
+      const depthUnlimited = merged.max_depth == null;
+      hyperparamOuter.innerHTML = `
+        <div class="hyperparam-section">
+          <div class="hyperparam-section-header">
+            <span class="hyperparam-section-label">Hyperparameters</span>
+            <button class="hyperparam-reset" id="hp-reset">Reset to defaults</button>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Estimators (trees)</span>
+            <input id="hp-n-est" type="number" class="hyperparam-input" min="10" max="500" step="10" value="${merged.n_estimators ?? 100}">
+            <span class="hyperparam-hint">10 – 500</span>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Max depth</span>
+            <input id="hp-max-depth" type="number" class="hyperparam-input" min="1" max="30" step="1"
+                   value="${merged.max_depth ?? 10}" ${depthUnlimited ? "disabled" : ""}>
+            <label class="chart-settings-check">
+              <input type="checkbox" id="hp-depth-unlimited" ${depthUnlimited ? "checked" : ""}> Unlimited
+            </label>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Min samples / leaf</span>
+            <input id="hp-min-leaf" type="number" class="hyperparam-input" min="1" max="20" step="1" value="${merged.min_samples_leaf ?? 1}">
+            <span class="hyperparam-hint">1 – 20</span>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Max features</span>
+            <select id="hp-max-feat" class="hyperparam-select">
+              <option value="sqrt" ${(merged.max_features || "sqrt") === "sqrt" ? "selected" : ""}>√n (sqrt, default)</option>
+              <option value="log2" ${merged.max_features === "log2" ? "selected" : ""}>log₂n</option>
+              <option value="0.5"  ${String(merged.max_features) === "0.5" ? "selected" : ""}>50%</option>
+            </select>
+          </div>
+        </div>`;
+      hyperparamOuter.querySelector("#hp-depth-unlimited").addEventListener("change", (e) => {
+        hyperparamOuter.querySelector("#hp-max-depth").disabled = e.target.checked;
+      });
+    } else if (modelType === "linear") {
+      hyperparamOuter.innerHTML = `
+        <div class="hyperparam-section">
+          <div class="hyperparam-section-header">
+            <span class="hyperparam-section-label">Hyperparameters</span>
+            <button class="hyperparam-reset" id="hp-reset">Reset to defaults</button>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Regularization (alpha)</span>
+            <input id="hp-linear-alpha" type="number" class="hyperparam-input" step="any" min="0" max="100" value="${merged.alpha ?? 1.0}">
+            <span class="hyperparam-hint">0 = no regularization; 1.0 = default Ridge</span>
+          </div>
+        </div>`;
+    }
+
+    const resetBtn = hyperparamOuter.querySelector("#hp-reset");
+    if (resetBtn) resetBtn.addEventListener("click", () => _renderHyperparams(modelType, {}));
+  }
+
+  function _collectHyperparams() {
+    const hp = {};
+    if (selectedModel === "gpr") {
+      const k = hyperparamOuter.querySelector("#hp-kernel");
+      const a = hyperparamOuter.querySelector("#hp-alpha");
+      if (k) hp.kernel = k.value;
+      if (a) hp.alpha  = parseFloat(a.value) || 0.1;
+    } else if (selectedModel === "rf") {
+      const n  = hyperparamOuter.querySelector("#hp-n-est");
+      const d  = hyperparamOuter.querySelector("#hp-max-depth");
+      const du = hyperparamOuter.querySelector("#hp-depth-unlimited");
+      const ml = hyperparamOuter.querySelector("#hp-min-leaf");
+      const mf = hyperparamOuter.querySelector("#hp-max-feat");
+      if (n)  hp.n_estimators    = parseInt(n.value, 10) || 100;
+      if (du) hp.max_depth       = du.checked ? null : (parseInt(d.value, 10) || null);
+      if (ml) hp.min_samples_leaf = parseInt(ml.value, 10) || 1;
+      if (mf) hp.max_features    = mf.value;
+    } else if (selectedModel === "linear") {
+      const a = hyperparamOuter.querySelector("#hp-linear-alpha");
+      if (a) hp.alpha = parseFloat(a.value) || 1.0;
+    }
+    return hp;
+  }
+
+  _renderHyperparams(selectedModel, saved.hyperparams || {});
+
+  // Re-render hyperparams when model type changes
+  typeOptions.querySelectorAll(".model-type-option").forEach((opt) => {
+    opt.addEventListener("click", () => {
+      _renderHyperparams(opt.dataset.value, {});
+    });
+  });
+
   // ── Test split ───────────────────────────────────────────────────────────────
   const splitSection = el("div", { cls: "model-config-section" });
   const splitLabelEl = el("div", { cls: "model-config-section-label" });
@@ -222,9 +349,10 @@ export async function initModelConfig(containerEl, onTrain) {
 
     saveBtn.disabled = true;
     const resp = await post("/api/model/configure", {
-      model_type: selectedModel,
+      model_type:  selectedModel,
       test_split,
       cv_folds,
+      hyperparams: _collectHyperparams(),
     });
     saveBtn.disabled = false;
 

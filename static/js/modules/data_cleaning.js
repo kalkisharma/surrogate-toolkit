@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_cleaning.js
-// Version: 0.9.6
+// Version: 0.9.10
 // Description: Data cleaning step — lets users handle missing values, remove
 //              duplicates, and flag/drop outliers before column designation.
 //              Sends POST /api/data/clean/* endpoints. Calls onClean() after
@@ -328,18 +328,26 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
   const stratSel = _buildStrategySelect("outlier-strategy", strategies);
   card.appendChild(stratSel);
 
-  // ── Per-column checklist ─────────────────────────────────────────────────────
-  const checklistWrap = el("div", { cls: "outlier-checklist-wrap" });
-  card.appendChild(checklistWrap);
-
   // Fetch per-column counts
   const countsResp = await get("/api/data/clean/outlier_counts");
-  const counts = (countsResp.success && countsResp.counts) ? countsResp.counts : {};
-  const colNames = Object.keys(counts);
+  const counts     = (countsResp.success && countsResp.counts) ? countsResp.counts : {};
+  const colNames   = Object.keys(counts);
+  const withOutliers = colNames.filter(c => (counts[c] || 0) > 0).length;
+
+  // ── Per-column checklist in a collapsible <details> ───────────────────────────
+  const checklistDetails = document.createElement("details");
+  checklistDetails.className = "outlier-checklist-details";
+  const checklistSummary = document.createElement("summary");
+  checklistSummary.className = "outlier-checklist-summary";
+  checklistSummary.textContent = `Columns (${withOutliers} with outliers)`;
+  checklistDetails.appendChild(checklistSummary);
+
+  const checklistWrap = el("div", { cls: "outlier-checklist-wrap" });
+  checklistDetails.appendChild(checklistWrap);
+  card.appendChild(checklistDetails);
 
   if (colNames.length > 0) {
     const header = el("div", { cls: "outlier-checklist-header" });
-    header.innerHTML = `<span class="outlier-checklist-label">Columns to include:</span>`;
     const selectAllBtn = el("button", { cls: "btn-link outlier-select-all", text: "Select All" });
     const clearAllBtn  = el("button", { cls: "btn-link outlier-clear-all",  text: "Clear All" });
     header.appendChild(selectAllBtn);
@@ -387,7 +395,7 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
 
   applyBtn.addEventListener("click", async () => {
     const strategy = card.querySelector("#outlier-strategy").value;
-    const checked  = [...checklistWrap.querySelectorAll("input[type=checkbox]:checked")].map(c => c.value);
+    const checked  = [...checklistDetails.querySelectorAll("input[type=checkbox]:checked")].map(c => c.value);
     const columns  = checked.length > 0 ? checked : null;   // null = all (backend default)
     applyBtn.disabled = true;
     const resp = await post("/api/data/clean/outliers", { strategy, columns });

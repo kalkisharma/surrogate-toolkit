@@ -105,9 +105,10 @@ _CANONICAL_STATE = {
             "session_id": None,
             "dataset_ref": "primary",
             "config": {
-                "model_type": None,
-                "test_split": DEFAULT_TEST_SPLIT,
-                "cv_folds":   DEFAULT_CV_FOLDS,
+                "model_type":  None,
+                "test_split":  DEFAULT_TEST_SPLIT,
+                "cv_folds":    DEFAULT_CV_FOLDS,
+                "hyperparams": {},
             },
             "models": {},
         },

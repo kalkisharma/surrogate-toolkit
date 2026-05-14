@@ -31,10 +31,19 @@ class RFModel(BaseSurrogateModel):
     is required. n_jobs=1 to respect the processor allocation stored in STATE.
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        n_estimators: int = None,
+        max_depth: int = None,
+        min_samples_leaf: int = 1,
+        max_features: str = "sqrt",
+    ):
         super().__init__("rf")
         self._model = RandomForestRegressor(
-            n_estimators=RF_DEFAULT_ESTIMATORS,
+            n_estimators=int(n_estimators) if n_estimators is not None else RF_DEFAULT_ESTIMATORS,
+            max_depth=int(max_depth) if max_depth is not None else None,
+            min_samples_leaf=int(min_samples_leaf) if min_samples_leaf else 1,
+            max_features=max_features or "sqrt",
             random_state=DEFAULT_RANDOM_STATE,
             n_jobs=1,
         )

@@ -19,6 +19,28 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.10] — 2026-05-14
+
+### Hyperparameter tuning + UI polish (v0.9.10)
+
+#### Fixed
+
+- **Pair plot x-axis labels crowded at card bottom** — increased Plotly `margin.b` in `renderScatterMatrix` from `Math.max(50, tickFontSize × 6)` to `Math.max(72, tickFontSize × 8)`, giving x-axis dimension labels + tick marks the same breathing room as the left side. Also removed `overflow: hidden` from `.explore-chart-wrap` (added last batch to fix the background strip) which was clipping labels at the SVG edge — the real fix for that issue was the `min-height` removal, not `overflow: hidden`.
+- **Outlier card stretching cleaning grid** — wrapped the per-column outlier checklist in a `<details>` collapsible element (`outlier-checklist-details`). The card now opens at the same compact height as the Missing Values and Duplicate Rows cards; the checklist expands on demand. Summary label shows "Columns (N with outliers)" count.
+
+#### Added
+
+- **Hyperparameter tuning** — each model type now exposes key hyperparameters in Step 7 — Configure Training:
+  - **GPR:** kernel (RBF, Matérn ν=1.5, Matérn ν=2.5) and noise level (alpha, 0.0001–10).
+  - **RF:** number of estimators (10–500), max depth (integer or unlimited toggle), min samples per leaf (1–20), max features (√n, log₂n, 50%).
+  - **Linear (Ridge):** regularization strength (alpha, 0 = OLS, 1.0 = default Ridge).
+  - "Reset to defaults" resets all hyperparameters for the current model. The hyperparameter section re-renders when the model type is changed.
+  - `POST /api/model/configure` now accepts an optional `hyperparams` dict; stored in `config["hyperparams"]` in STATE. `POST /api/model/train` passes them to `_make_model`, which forwards to each model constructor. Hyperparameters are included in the stored results payload (`results["hyperparams"]`) and therefore in each run's full `runs` entry.
+  - `GPRModel`, `RFModel`, and `LinearModel` constructors now accept explicit hyperparam arguments (with sensible defaults).
+- **Box plot settings: Typography + Background** — normalization box plot settings panel now has Typography (font size, font color with Auto toggle) and Background (plot bg, paper bg with Auto toggles) sections, matching the explore SPLOM settings panel. `renderNormBoxPlots` in `charts.js` now uses `settings.fontSize`, `settings.fontColor`, `settings.plotBgColor`, and `settings.paperBgColor`.
+
+---
+
 ## [0.9.9] — 2026-05-14
 
 ### UX polish batch — box plots, sample table, per-column outliers, undo, header, model history, cleaning grid, SPLOM overflow, run selector (v0.9.9)

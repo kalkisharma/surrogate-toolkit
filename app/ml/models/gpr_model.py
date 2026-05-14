@@ -19,11 +19,16 @@ VERSION: 0.7.0
 
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.multioutput import MultiOutputRegressor
 
 from app.ml.models.base_model import BaseSurrogateModel
 from config.settings import DEFAULT_RANDOM_STATE, GPR_DEFAULT_ALPHA
+
+_KERNELS = {
+    "matern15": Matern(nu=1.5),
+    "matern25": Matern(nu=2.5),
+}
 
 
 class GPRModel(BaseSurrogateModel):
@@ -34,12 +39,12 @@ class GPRModel(BaseSurrogateModel):
     which makes multi-output prediction transparent to the rest of the system.
     """
 
-    def __init__(self):
+    def __init__(self, kernel: str = "rbf", alpha: float = None):
         super().__init__("gpr")
-        kernel = RBF()
+        k = _KERNELS.get(kernel, RBF())
         single_gpr = GaussianProcessRegressor(
-            kernel=kernel,
-            alpha=GPR_DEFAULT_ALPHA,
+            kernel=k,
+            alpha=float(alpha) if alpha is not None else GPR_DEFAULT_ALPHA,
             normalize_y=True,
             random_state=DEFAULT_RANDOM_STATE,
         )
