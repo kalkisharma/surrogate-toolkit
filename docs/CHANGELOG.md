@@ -21,19 +21,21 @@ See `docs/PHASES.md` for full phase definitions.
 
 ## [0.9.9] — 2026-05-14
 
-### UX polish batch — box plots, sample table, per-column outliers, undo, header, model history (v0.9.9)
+### UX polish batch — box plots, sample table, per-column outliers, undo, header, model history, cleaning grid, SPLOM overflow, run selector (v0.9.9)
 
 #### Fixed
 
 - **Box plots initial render squish (normalization)** — added `requestAnimationFrame` resize after `renderNormBoxPlots` in both the initial render path and `_rerenderBoxPlots`, matching the same fix applied to the SPLOM in v0.9.8.
 - **Sample table unreadable with 5+ input columns** — `.norm-sample-grid > div` now has `overflow-x: auto` so each Before/After sub-table scrolls independently. Column headers and cells get `min-width: 80px` to prevent collapse.
+- **Cleaning grid cards stretched by tall outlier card** — `.cleaning-grid` now has `align-items: start`. CSS grid was defaulting to `stretch`, causing the Missing Values and Duplicate Rows cards to expand to match the height of the taller Outlier Rows card (which grew with the new checklist). Each card now sizes to its own content.
+- **SPLOM background extending past bottom of container** — `.explore-chart-wrap` had `min-height: 500px`, which overrode the JS-computed pixel height when the chart was shorter than 500px (e.g., 4 columns → 400px), leaving ~100px of empty surface-coloured background below the chart. Removed `min-height: 500px` and added `overflow: hidden`. The container now matches the JS-set height exactly.
 
 #### Added
 
 - **Per-parameter outlier removal** — the Outlier Rows card now shows a per-column checklist of IQR outlier counts (fetched from new `GET /api/data/clean/outlier_counts`). Columns with zero outliers are shown dimmed and unchecked. "Select All" / "Clear All" links. The `POST /api/data/clean/outliers` endpoint and `handle_outliers` service function both accept an optional `columns` list; omitting it preserves the original all-columns behaviour. `_recordOp` label includes selected column count.
 - **One-level undo** — `_apply_clean` now snapshots `ds["clean"]` into `ds["clean_prev"]` before every cleaning operation (`save_prev=False` skips this on reset). New `POST /api/data/clean/undo` endpoint restores from `clean_prev` and deletes the snapshot. "↩ Undo Last" button appears in the cleaning summary card after any operation; clicking it restores the previous state, pops the last `_cleaningOps` entry, and triggers `onClean()` so the Explore SPLOM refreshes.
 - **Header settings dropdown** — Level, Class, and Cores controls moved into a `⚙ Settings` popover dropdown, leaving only action buttons (Load File, Clear, Theme, Learning) in the header bar. Dropdown closes on outside click.
-- **Model training history** — each training run appends a compact entry to `models_dict["history"]` (run number, model type, row count, output column, R² test, RMSE test, R² CV). History is trimmed to `MAX_MODEL_HISTORY = 10`. `GET /api/model/results` now returns `"history"` alongside `"results"`. A collapsible "Previous Runs" `<details>` table at the bottom of the Results step shows all entries, most recent first, with R² colour-coded by threshold.
+- **Results run selector** — each training run now stores its complete results payload in `models_dict["runs"]` (one entry per run, capped at `MAX_MODEL_HISTORY = 10`; full `results` dict plus `run` number). `GET /api/model/results` returns `"runs"` alongside `"results"`. When 2+ runs exist, a `Run:` selector dropdown appears at the top of the Results step; selecting a run re-renders the full view (metrics tables, parity plot, residual plot) for that run. The compact `<details>` history table is replaced by this full-fidelity selector.
 
 ---
 

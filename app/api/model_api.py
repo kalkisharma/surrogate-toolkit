@@ -11,8 +11,8 @@ FUTURE EXTENSIONS: GET /api/model/metrics, POST /api/model/predict,
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.9.2
+LAST MODIFIED: 2026-05-14
+VERSION: 0.9.9
 ================================================================================
 """
 
@@ -343,14 +343,22 @@ def train():
     models_dict["trained"] = model
     models_dict["results"] = results
 
-    # Append compact history entries (one per output) for the Previous Runs table.
-    history     = models_dict.setdefault("history", [])
+    # Append full run entry to "runs" (one entry per training run, full results payload).
+    runs    = models_dict.setdefault("runs", [])
+    run_num = len(runs) + 1
+    run_entry = dict(results)
+    run_entry["run"] = run_num
+    runs.append(run_entry)
+    if len(runs) > MAX_MODEL_HISTORY:
+        models_dict["runs"] = runs[-MAX_MODEL_HISTORY:]
+
+    # Append compact history entries (one per output) for backward compatibility.
+    history      = models_dict.setdefault("history", [])
     cv_r2_by_col = {
         entry["column"]: entry["mean_r2"]
         for entry in cv_results.get("metrics", [])
     }
-    run_num = len(history) + 1
-    now_ts  = int(time.time())
+    now_ts = int(time.time())
     for m in test_metrics:
         history.append({
             "run":        run_num,
@@ -362,7 +370,6 @@ def train():
             "rmse_test":  round(float(m["rmse"]), 4),
             "r2_cv":      round(float(cv_r2_by_col.get(m["column"], 0)), 4),
         })
-    # Trim to MAX_MODEL_HISTORY most-recent entries across all outputs
     if len(history) > MAX_MODEL_HISTORY:
         models_dict["history"] = history[-MAX_MODEL_HISTORY:]
 
@@ -421,6 +428,7 @@ def get_results():
     models_dict = state["surrogate_sessions"]["primary"]["models"]
     results     = models_dict.get("results")
     history     = models_dict.get("history", [])
+    runs        = models_dict.get("runs", [])
 
     if results is None:
         return (
@@ -431,7 +439,7 @@ def get_results():
             404,
         )
 
-    return jsonify({"success": True, "results": results, "history": history}), 200
+    return jsonify({"success": True, "results": results, "history": history, "runs": runs}), 200
 
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────

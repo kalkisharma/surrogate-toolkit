@@ -20,7 +20,8 @@ The `STATE` dict is the single source of truth for all session data. It lives in
 ## Critical rules
 
 - `datasets.primary.raw` is written **once** on upload and **never modified**. All processing writes to `datasets.primary.clean`.
-- Model history capped at `MAX_MODEL_HISTORY = 10` runs per output.
+- `models_dict["runs"]` stores the full results payload for each training run (one entry per run). Capped at `MAX_MODEL_HISTORY = 10` runs.
+- `models_dict["history"]` stores compact per-output entries (one row per output per run) for backward compatibility. Also capped at `MAX_MODEL_HISTORY`.
 - Prediction history capped at `MAX_PREDICTION_HISTORY = 20`.
 - Audit events capped at `MAX_AUDIT_EVENTS = 1000` per session.
 - `temp/` is auto-cleared on session start only.

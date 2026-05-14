@@ -2,13 +2,13 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.8.10
+// Version: 0.9.9
 // Description: Step 8 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
-//              figures (1×2 subplots, linked x-axes). Plot Settings panel mirrors
-//              the Data Exploration settings with 16 user-controllable properties,
-//              persisted to localStorage.
+//              figures (1×2 subplots, linked x-axes). When multiple training
+//              runs exist, a run-selector dropdown at the top lets the user
+//              switch the full results view to any prior run.
 // =============================================================================
 
 import { get } from "../api.js";
@@ -311,14 +311,57 @@ export async function initResults(containerEl) {
     return false;
   }
 
-  const r = resp.results;
-  _render(containerEl, r, resp.history || []);
+  const runs = resp.runs || [];
+
+  // Backward compat: no runs list yet (pre-v0.9.9 session), fall back to single result.
+  if (runs.length === 0) {
+    _render(containerEl, resp.results);
+    return true;
+  }
+
+  // With multiple runs, render a selector dropdown above the results view.
+  if (runs.length > 1) {
+    const selectorRow = el("div", { cls: "results-run-selector" });
+    const label = el("label", { cls: "results-run-selector__label" });
+    label.setAttribute("for", "results-run-select");
+    label.textContent = "Run:";
+
+    const select = el("select", { cls: "results-run-select" });
+    select.id = "results-run-select";
+
+    for (let i = runs.length - 1; i >= 0; i--) {
+      const run = runs[i];
+      const outputs = (run.output_columns || []).join(", ") || "?";
+      const opt = document.createElement("option");
+      opt.value = String(i);
+      opt.textContent = `Run ${run.run} — ${run.model_type.toUpperCase()} — ${outputs}${i === runs.length - 1 ? " (current)" : ""}`;
+      if (i === runs.length - 1) opt.selected = true;
+      select.appendChild(opt);
+    }
+
+    selectorRow.appendChild(label);
+    selectorRow.appendChild(select);
+    containerEl.appendChild(selectorRow);
+
+    const contentEl = el("div", { cls: "results-run-content" });
+    containerEl.appendChild(contentEl);
+
+    _render(contentEl, runs[runs.length - 1]);
+
+    select.addEventListener("change", () => {
+      const idx = parseInt(select.value, 10);
+      _render(contentEl, runs[idx]);
+    });
+  } else {
+    _render(containerEl, runs[0]);
+  }
+
   return true;
 }
 
 // ── Internal renderer ──────────────────────────────────────────────────────────
 
-function _render(containerEl, r, history = []) {
+function _render(containerEl, r) {
   clearEl(containerEl);
   _loadResultSettings();
   _plotItems = [];
@@ -455,42 +498,6 @@ function _render(containerEl, r, history = []) {
     });
   }
 
-  // ── Previous Runs ────────────────────────────────────────────────────────────
-  if (history.length > 0) {
-    const histDetails = document.createElement("details");
-    histDetails.className = "results-history-details";
-    const histSummary = document.createElement("summary");
-    histSummary.className = "results-history-summary";
-    histSummary.textContent = `Previous Runs (${history.length} entr${history.length !== 1 ? "ies" : "y"})`;
-    histDetails.appendChild(histSummary);
-
-    const wrap  = el("div", { cls: "results-history-wrap" });
-    const table = el("table", { cls: "results-history-table" });
-    table.innerHTML = `<thead><tr>
-      <th>Run</th><th>Output</th><th>Model</th><th>Rows</th>
-      <th>R² (test)</th><th>RMSE (test)</th><th>R² (CV)</th>
-    </tr></thead>`;
-    const tbody = el("tbody");
-    // Most recent first
-    for (const h of [...history].reverse()) {
-      const tr = el("tr");
-      const r2Cls = _r2Class(h.r2_test);
-      tr.innerHTML = `
-        <td>${h.run}</td>
-        <td class="results-history-col" title="${h.output}">${h.output}</td>
-        <td>${h.model_type.toUpperCase()}</td>
-        <td>${h.n_rows.toLocaleString()}</td>
-        <td class="r2-${r2Cls}">${h.r2_test.toFixed(4)}</td>
-        <td>${h.rmse_test.toFixed(4)}</td>
-        <td>${h.r2_cv.toFixed(4)}</td>
-      `;
-      tbody.appendChild(tr);
-    }
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    histDetails.appendChild(wrap);
-    containerEl.appendChild(histDetails);
-  }
 }
 
 // ── Table builders ─────────────────────────────────────────────────────────────
