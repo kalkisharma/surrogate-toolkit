@@ -10,12 +10,38 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
-| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | 🔶 Phases 1–4 done; Phase 5 not started |
+| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | 🔶 Phases 1–5 done; pending hyperparameter tuning + dCor heatmap |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔲 Not started |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [0.9.5] — 2026-05-14
+
+### Code review fixes — primer, NaN, escaping, active-dataset consistency (v0.9.5)
+
+#### Fixed
+
+- **Entry learning primer silently failing since v0.1** — `registerPrimer("entry", hero, ...)` was called before `app.appendChild(hero)`, so `hero.parentNode` was null and the primer insert was a no-op. Beginner-mode users on the upload page have never seen "New to surrogate modeling? Start here." Fixed by swapping the call order.
+- **Normalize route always used primary dataset's clean DataFrame** — `clean_df = state["datasets"]["primary"]["clean"]` was hardcoded. If a secondary dataset was active, normalization operated on the wrong data. Changed to `ds["clean"]` (the already-resolved active dataset object).
+- **NaN values passed through in box-plot payload** — `[v for v in col if v is not None]` does not filter `float('nan')` (pandas NaN). Changed to `col.dropna().tolist()`.
+- **`meta.filename` injected unsanitised into innerHTML** — filenames containing `<`, `>`, or `&` would corrupt markup. Added `escHtml()` to `utils.js` and applied it at all four insertion points in `main.js`.
+
+#### Changed
+
+- `_renderInlineGate` — removed unused `app` parameter (left over from old `_renderGates` design).
+- CHANGELOG milestone map updated: M1 now reflects Phase 5 complete; v1.0.0 pending hyperparameter tuning and dCor heatmap.
+
+#### Files changed
+
+- `static/js/utils.js` — new `escHtml()` export
+- `static/js/main.js` — `escHtml` import + applied at 4 filename sites; entry primer after `appendChild`; `_renderInlineGate` signature cleanup
+- `app/api/data_api.py` — normalize route uses `ds["clean"]`; NaN filter uses `dropna().tolist()`
+- `docs/CHANGELOG.md` — milestone map corrected
+- `config/settings.py` — VERSION bump
 
 ---
 

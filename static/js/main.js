@@ -20,7 +20,7 @@ import { initNormalization } from "./modules/normalization.js";
 import { initModelConfig } from "./modules/model_config.js";
 import { initResults } from "./modules/results.js";
 import { initPrediction } from "./modules/prediction.js";
-import { el, clearEl } from "./utils.js";
+import { el, clearEl, escHtml } from "./utils.js";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
@@ -61,6 +61,7 @@ function renderUploadView() {
     <h1 class="hero__title">Build fast surrogate models from your data</h1>
     <p class="hero__subtitle">Upload your data. Normalize. Train. Validate. All on your machine.</p>
   `;
+  app.appendChild(hero);
   registerPrimer(
     "entry",
     hero,
@@ -73,7 +74,6 @@ function renderUploadView() {
      sensitivity studies — anywhere you need many evaluations but can't afford to run
      the full model each time.</p>`
   );
-  app.appendChild(hero);
 
   const uploadSection = el("div", { cls: "card", style: "max-width: 640px; margin: 0 auto;" });
   const uploadTitle   = el("div", { cls: "section-header" });
@@ -116,7 +116,7 @@ function renderUploadView() {
   let dropEnabled = true;
   _wireDropZone(dropZone, fileInput, uploadSection, (response) => {
     dropEnabled = false;
-    _renderInlineGate(uploadSection, app, response);
+    _renderInlineGate(uploadSection, response);
   }, () => dropEnabled);
 }
 
@@ -136,7 +136,7 @@ function _renderAdditionalFileGate(app, uploadResponse) {
   const meta = uploadResponse.metadata;
   dialog.innerHTML = `
     <div class="gate-modal__header">
-      <strong class="gate-modal__filename">${meta.filename}</strong>
+      <strong class="gate-modal__filename">${escHtml(meta.filename)}</strong>
       <span class="gate-modal__subtitle">Select data type to continue</span>
     </div>
     <div class="gate-options gate-modal__options" id="ag-options"></div>
@@ -184,7 +184,7 @@ function _renderAdditionalFileGate(app, uploadResponse) {
 }
 
 /** Replace the drop zone with a success row + inline data-type gate within the upload card. */
-function _renderInlineGate(uploadSection, app, uploadResponse) {
+function _renderInlineGate(uploadSection, uploadResponse) {
   const meta = uploadResponse.metadata;
 
   const dz = uploadSection.querySelector("#drop-zone");
@@ -194,7 +194,7 @@ function _renderInlineGate(uploadSection, app, uploadResponse) {
   successRow.innerHTML = `
     <span class="upload-success__icon">✓</span>
     <span class="upload-success__text">
-      <strong>${meta.filename}</strong>
+      <strong>${escHtml(meta.filename)}</strong>
       <span class="upload-success__meta">${meta.n_rows.toLocaleString()} rows · ${meta.n_cols} columns</span>
     </span>
   `;
@@ -370,7 +370,7 @@ async function _renderExploration(uploadResponse) {
   // ── Per-panel subtitle ────────────────────────────────────────────────────
   function _subtitle(container) {
     const sub = el("p", { cls: "panel-file-meta" });
-    sub.innerHTML = `<strong>${meta.filename}</strong> — ${meta.n_rows.toLocaleString()} rows × ${meta.n_cols} columns`;
+    sub.innerHTML = `<strong>${escHtml(meta.filename)}</strong> — ${meta.n_rows.toLocaleString()} rows × ${meta.n_cols} columns`;
     container.appendChild(sub);
   }
 
@@ -396,7 +396,7 @@ async function _renderExploration(uploadResponse) {
     card.innerHTML = `
       <h2 class="section-title">Step 1 — Upload</h2>
       <p class="section-desc" style="margin-top:var(--space-3)">
-        <strong>${meta.filename}</strong> is loaded
+        <strong>${escHtml(meta.filename)}</strong> is loaded
         (${meta.n_rows.toLocaleString()} rows × ${meta.n_cols} columns).
         Use <strong>+ Load File</strong> in the header to add a second dataset,
         or <strong>✕ Clear</strong> to reset and start over.

@@ -128,3 +128,18 @@ export function el(tag, { cls, text, html, ...attrs } = {}) {
 export function clearEl(element) {
   while (element.firstChild) element.removeChild(element.firstChild);
 }
+
+/**
+ * Escape a string for safe insertion into innerHTML.
+ * Replaces &, <, >, ", ' with HTML entities.
+ * @param {string} str
+ * @returns {string}
+ */
+export function escHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}

@@ -793,7 +793,7 @@ def normalize():
             422,
         )
 
-    clean_df = state["datasets"]["primary"]["clean"]
+    clean_df = ds["clean"]
 
     try:
         normalized_df, params = normalize_dataframe(clean_df, input_columns, method)
@@ -833,8 +833,8 @@ def normalize():
     sample_clean = clean_df[input_columns].iloc[:hist_rows]
     sample_norm  = normalized_df[input_columns].iloc[:hist_rows]
     hist_data = {
-        "before": {col: [v for v in sample_clean[col] if v is not None] for col in input_columns},
-        "after":  {col: [v for v in sample_norm[col]  if v is not None] for col in input_columns},
+        "before": {col: sample_clean[col].dropna().tolist() for col in input_columns},
+        "after":  {col: sample_norm[col].dropna().tolist()  for col in input_columns},
     }
 
     return jsonify({
