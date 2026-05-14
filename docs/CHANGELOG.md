@@ -19,6 +19,27 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.8.5] — 2026-05-13
+
+### Results tab polish — overlap fix + table/plot refinements (v0.8.5)
+
+#### Fixed
+
+- **Parity and residual plots overlapping** — Plotly's `responsive: true` combined with no explicit height on `.parity-plot-wrap` caused SVG canvases to overflow their containers, overlapping adjacent output rows and the metrics table below. Fixed by adding `height: 300px; min-height: 300px` to `.parity-plot-wrap` (bounding the responsive resize) and matching `height: 300` in both `renderParityPlot()` and `renderResidualPlot()` in `charts.js`.
+
+#### Changed
+
+- **Metrics table** — added card border (`border: 1px solid var(--color-border); border-radius: var(--radius-md)`) to `.results-table-wrap`; header row now has `background: var(--color-bg-subtle)` to distinguish it from data rows; even rows get subtle alternating shading; metric values are right-aligned; badges are vertically centered.
+- **Parity/residual plot layout** — increased gap between plots from `space-4` to `space-5`; increased row separator margin from `space-5` to `space-6`; each plot container now has a card background and rounded corners for a clean visual boundary.
+
+#### Files changed
+
+- `static/js/charts.js` — `height: 280` → `height: 300` in `renderParityPlot()` and `renderResidualPlot()`
+- `static/css/main.css` — `.parity-plot-wrap` height + card treatment; `.parity-plots` gap; `.parity-row` margin; `.results-table-wrap` card border; `.results-table th` background; alternating row shading; `.results-metric` text-align; `.results-badge` vertical-align
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.4] — 2026-05-13
 
 ### Phase documentation + header corrections (v0.8.4)

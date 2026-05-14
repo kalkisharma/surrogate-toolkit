@@ -1324,6 +1324,9 @@ body,
 }
 .results-table-wrap {
   overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 .results-table {
   width: 100%;
@@ -1337,6 +1340,7 @@ body,
   color: var(--color-text-secondary);
   font-weight: var(--font-medium);
   white-space: nowrap;
+  background: var(--color-bg-subtle, #f5f7fb);
 }
 .results-table td {
   padding: var(--space-2) var(--space-3);
@@ -1345,6 +1349,9 @@ body,
 }
 .results-table tbody tr:last-child td {
   border-bottom: none;
+}
+.results-table tbody tr:nth-child(even) td {
+  background: var(--color-bg-subtle, rgba(0,0,0,0.02));
 }
 .results-col-name {
   font-family: var(--font-mono);
@@ -1356,6 +1363,7 @@ body,
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--color-text-primary);
+  text-align: right;
 }
 .results-std {
   font-size: var(--text-xs);
@@ -1369,6 +1377,7 @@ body,
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
+  vertical-align: middle;
 }
 .results-badge--green {
   background: var(--color-success-soft);
@@ -1530,7 +1539,7 @@ body,
 }
 
 .parity-row {
-  margin-top: var(--space-5);
+  margin-top: var(--space-6);
   padding-top: var(--space-4);
   border-top: 1px solid var(--color-border-subtle);
 }
@@ -1545,10 +1554,15 @@ body,
 
 .parity-plots {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 .parity-plot-wrap {
   flex: 1;
   min-width: 0;
+  height: 300px;
+  min-height: 300px;
+  background: var(--color-bg-surface);
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }

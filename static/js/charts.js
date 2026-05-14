@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.8.1
+// Version: 0.8.5
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -267,7 +267,7 @@ export function renderParityPlot(containerEl, yTrue, yPred, colName, badgeCls = 
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
-    height: 280,
+    height: 300,
     margin: { l: 52, r: 16, t: 36, b: 48 },
     font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
     xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
@@ -314,7 +314,7 @@ export function renderResidualPlot(containerEl, yTrue, yPred, colName, badgeCls 
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
-    height: 280,
+    height: 300,
     margin: { l: 52, r: 16, t: 36, b: 48 },
     font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
     xaxis:  { title: { text: `Actual — ${colName}`, font: { size: 11 } }, gridcolor: isDark ? "#2d3250" : "#e2e6f2" },
