@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.8.6
+// Version: 0.8.7
 // Description: Step 7 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and parity/residual plots (test set).
@@ -26,7 +26,10 @@ const _RESULT_SETTINGS_KEY = "surrogate_result_chart_settings";
 const _DEFAULT_RESULT_SETTINGS = {
   markerSize: 7,
   opacity:    0.70,
+  edgeWidth:  0,
+  edgeColor:  "#000000",
   height:     300,
+  fontSize:   11,
   showGrid:   true,
   gridColor:  "#cccccc",
 };
@@ -76,11 +79,26 @@ function _buildSettingsPanel() {
           <span id="rs-opacity-val" class="chart-settings-range-val">${_resultSettings.opacity.toFixed(2)}</span>
         </div>
       </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-edge-width">Edge width (px)</label>
+        <input id="rs-edge-width" type="number" class="chart-settings-input"
+               min="0" max="3" step="0.5" value="${_resultSettings.edgeWidth}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-edge-color">Edge color</label>
+        <input id="rs-edge-color" type="color" class="chart-settings-color"
+               value="${_resultSettings.edgeColor}"${_resultSettings.edgeWidth === 0 ? " disabled" : ""}>
+      </div>
       <div class="settings-divider">Figure</div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-height">Height (px)</label>
         <input id="rs-height" type="number" class="chart-settings-input"
                min="200" max="600" step="50" value="${_resultSettings.height}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="rs-font-size">Font size (px)</label>
+        <input id="rs-font-size" type="number" class="chart-settings-input"
+               min="7" max="20" step="1" value="${_resultSettings.fontSize}">
       </div>
       <div class="settings-divider">Gridlines</div>
       <div class="chart-settings-group">
@@ -96,12 +114,15 @@ function _buildSettingsPanel() {
     </div>
   `;
 
-  const sizeIn   = details.querySelector("#rs-marker-size");
-  const opacIn   = details.querySelector("#rs-opacity");
-  const opacVal  = details.querySelector("#rs-opacity-val");
-  const heightIn = details.querySelector("#rs-height");
-  const gridChk  = details.querySelector("#rs-show-grid");
-  const gridClr  = details.querySelector("#rs-grid-color");
+  const sizeIn      = details.querySelector("#rs-marker-size");
+  const opacIn      = details.querySelector("#rs-opacity");
+  const opacVal     = details.querySelector("#rs-opacity-val");
+  const edgeWidthIn = details.querySelector("#rs-edge-width");
+  const edgeColorIn = details.querySelector("#rs-edge-color");
+  const heightIn    = details.querySelector("#rs-height");
+  const fontSizeIn  = details.querySelector("#rs-font-size");
+  const gridChk     = details.querySelector("#rs-show-grid");
+  const gridClr     = details.querySelector("#rs-grid-color");
 
   function _commit() { _saveResultSettings(); _rerenderPlots(); }
 
@@ -115,9 +136,25 @@ function _buildSettingsPanel() {
     _resultSettings.opacity = v;
     _commit();
   });
+  edgeWidthIn.addEventListener("change", () => {
+    const v = parseFloat(edgeWidthIn.value);
+    if (!isNaN(v) && v >= 0 && v <= 3) {
+      _resultSettings.edgeWidth = v;
+      edgeColorIn.disabled = v === 0;
+      _commit();
+    }
+  });
+  edgeColorIn.addEventListener("input", () => {
+    _resultSettings.edgeColor = edgeColorIn.value;
+    _commit();
+  });
   heightIn.addEventListener("change", () => {
     const v = parseInt(heightIn.value, 10);
     if (!isNaN(v) && v >= 200 && v <= 600) { _resultSettings.height = v; _commit(); }
+  });
+  fontSizeIn.addEventListener("change", () => {
+    const v = parseInt(fontSizeIn.value, 10);
+    if (!isNaN(v) && v >= 7 && v <= 20) { _resultSettings.fontSize = v; _commit(); }
   });
   gridChk.addEventListener("change", () => {
     _resultSettings.showGrid = gridChk.checked;

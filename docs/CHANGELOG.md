@@ -19,6 +19,25 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.8.7] — 2026-05-13
+
+### Results plot settings — font size, edge controls, save as PNG (v0.8.7)
+
+#### Added
+
+- **Font size control** — number input (7–20 px, default 11) in the Figure section of the Plot Settings panel. Applies to axis title text and tick labels on all parity/residual plots simultaneously.
+- **Edge width control** — number input (0–3 px, step 0.5, default 0) in the Markers section. Setting to 0 disables (and grays out) the edge color picker.
+- **Edge color control** — color picker in the Markers section, disabled when edge width is 0.
+- **Save as PNG** — camera icon (always visible, top-right corner of each plot) using Plotly's built-in `toImage` modebar button at 2× scale. Filename pre-filled: `parity_<colname>.png` or `residual_<colname>.png`.
+
+#### Files changed
+
+- `static/js/modules/results.js` — 3 new settings fields, 4 new controls + event handlers in `_buildSettingsPanel()`
+- `static/js/charts.js` — `fontSize`, `edgeWidth`, `edgeColor` opts in both render functions; Plotly config updated to `displayModeBar: true` with `modeBarButtons: [['toImage']]`, `toImageButtonOptions: { scale: 2, filename }`
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.6] — 2026-05-13
 
 ### Results tab plot settings panel (v0.8.6)
