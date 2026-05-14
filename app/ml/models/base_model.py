@@ -8,8 +8,8 @@ FUTURE EXTENSIONS: SHAP values, model versioning, health score
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.7.0
+LAST MODIFIED: 2026-05-14
+VERSION: 1.0.1
 ================================================================================
 """
 
@@ -82,6 +82,13 @@ class BaseSurrogateModel(ABC):
 
         Future:
             Return uncertainty alongside point estimates.
+        """
+
+    @abstractmethod
+    def get_param_grid(self) -> dict:
+        """Return sklearn-compatible param grid dict for GridSearchCV.
+
+        Keys must use the `estimator__` prefix for MultiOutputRegressor wrappers.
         """
 
     @abstractmethod

@@ -756,6 +756,33 @@ input, select, textarea { font-family: inherit; }
 }
 .hyperparam-reset:hover { opacity: 0.75; }
 
+/* ── Auto-tune ───────────────────────────────────────────────────────────────── */
+.hyperparam-autotune-row { margin-top: var(--space-1); }
+.hp-autotune-note {
+  display: none;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: var(--space-2) 0;
+}
+.hp-autotune-active .hyperparam-row:not(.hyperparam-autotune-row) { display: none; }
+.hp-autotune-active .hp-autotune-note { display: block; }
+
+.tune-result-card {
+  border: 1px solid var(--color-success, #22c55e);
+  border-left: 3px solid var(--color-success, #22c55e);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  font-size: var(--text-sm);
+}
+.tune-result-card__header {
+  font-weight: 600;
+  color: var(--color-success, #22c55e);
+  margin-bottom: var(--space-1);
+}
+.tune-result-card__params { color: var(--color-text-secondary); font-family: var(--font-mono, monospace); font-size: var(--text-xs); }
+
 /* ── Data preview table ──────────────────────────────────────────────────────── */
 .preview-section { margin-top: var(--space-8); }
 .preview-header {

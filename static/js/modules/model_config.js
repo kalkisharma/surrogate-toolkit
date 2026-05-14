@@ -2,12 +2,13 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 0.9.10
+// Version: 1.0.1
 // Description: Step 7 — Configure Training. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Shows a per-model
 //              hyperparameter section (kernel/alpha for GPR, trees/depth/features
 //              for RF, regularization for Linear). Saves to POST /api/model/configure,
-//              then initiates training via POST /api/model/train.
+//              then initiates training via POST /api/model/train. Auto-tune
+//              checkbox runs POST /api/model/tune (GridSearchCV) before training.
 // =============================================================================
 
 import { get, post } from "../api.js";
@@ -223,6 +224,29 @@ export async function initModelConfig(containerEl, onTrain) {
 
     const resetBtn = hyperparamOuter.querySelector("#hp-reset");
     if (resetBtn) resetBtn.addEventListener("click", () => _renderHyperparams(modelType, {}));
+
+    // Auto-tune row (appended to all model types)
+    const hpSection = hyperparamOuter.querySelector(".hyperparam-section");
+    if (hpSection) {
+      const autoRow = document.createElement("div");
+      autoRow.className = "hyperparam-row hyperparam-autotune-row";
+      autoRow.innerHTML = `
+        <label class="chart-settings-check">
+          <input type="checkbox" id="hp-autotune">
+          Auto-tune with GridSearchCV
+        </label>
+        <span class="hyperparam-hint">Find best hyperparameters automatically (slower to train)</span>
+      `;
+      const autoNote = document.createElement("div");
+      autoNote.className = "hp-autotune-note";
+      autoNote.textContent = "Hyperparameters will be found automatically via grid search.";
+      hpSection.appendChild(autoRow);
+      hpSection.appendChild(autoNote);
+
+      autoRow.querySelector("#hp-autotune").addEventListener("change", (e) => {
+        hyperparamOuter.classList.toggle("hp-autotune-active", e.target.checked);
+      });
+    }
   }
 
   function _collectHyperparams() {
@@ -337,6 +361,32 @@ export async function initModelConfig(containerEl, onTrain) {
   statusDiv.style.display = "none";
   containerEl.appendChild(statusDiv);
 
+  function _formatBestParams(modelType, params) {
+    if (modelType === "gpr") {
+      const names = { rbf: "RBF", matern15: "Matérn ν=1.5", matern25: "Matérn ν=2.5" };
+      return `kernel = ${names[params.kernel] || params.kernel}  ·  noise = ${params.alpha}`;
+    }
+    if (modelType === "rf") {
+      const depth = params.max_depth ?? "unlimited";
+      const feat  = { sqrt: "√n", log2: "log₂n", "0.5": "50%" };
+      return `trees = ${params.n_estimators}  ·  depth = ${depth}  ·  features = ${feat[params.max_features] || params.max_features}`;
+    }
+    return `alpha = ${params.alpha}`;
+  }
+
+  function _renderTuneResultCard(tuneResp) {
+    const existing = statusDiv.querySelector(".tune-result-card");
+    if (existing) existing.remove();
+    const card = document.createElement("div");
+    card.className = "tune-result-card";
+    card.innerHTML = `
+      <div class="tune-result-card__header">✓ Best params found — R² = ${tuneResp.best_cv_r2.toFixed(3)} (${tuneResp.n_candidates} combinations tested)</div>
+      <div class="tune-result-card__params">${_formatBestParams(selectedModel, tuneResp.best_params)}</div>
+    `;
+    const tb = statusDiv.querySelector("#model-train-btn");
+    statusDiv.insertBefore(card, tb);
+  }
+
   // ── Event handlers ────────────────────────────────────────────────────────────
   saveBtn.addEventListener("click", async () => {
     const test_split = parseFloat(splitInput.value);
@@ -380,10 +430,25 @@ export async function initModelConfig(containerEl, onTrain) {
       }
 
       trainBtn.onclick = async () => {
-        trainBtn.disabled    = true;
+        const autoTune = hyperparamOuter.querySelector("#hp-autotune")?.checked;
+        trainBtn.disabled = true;
+
+        if (autoTune) {
+          trainBtn.textContent = "Auto-tuning…";
+          showSpinner(trainBtn);
+          const tuneResp = await post("/api/model/tune", {});
+          hideSpinner(trainBtn);
+          if (!tuneResp.success) {
+            showError(tuneResp.message || "Auto-tune failed. Check your data and configuration.");
+            trainBtn.disabled    = false;
+            trainBtn.textContent = "Train Model →";
+            return;
+          }
+          _renderTuneResultCard(tuneResp);
+        }
+
         trainBtn.textContent = "Training…";
         showSpinner(trainBtn);
-
         const trainResp = await post("/api/model/train", {});
         hideSpinner(trainBtn);
         trainBtn.disabled    = false;

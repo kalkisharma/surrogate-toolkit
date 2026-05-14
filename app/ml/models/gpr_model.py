@@ -8,8 +8,8 @@ FUTURE EXTENSIONS: Custom kernels, active learning integration
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.7.0
+LAST MODIFIED: 2026-05-14
+VERSION: 1.0.1
 ================================================================================
 """
 
@@ -113,6 +113,12 @@ class GPRModel(BaseSurrogateModel):
         if result.ndim == 1:
             result = result.reshape(-1, 1)
         return result
+
+    def get_param_grid(self) -> dict:
+        return {
+            "estimator__kernel": [RBF(1.0), Matern(nu=1.5), Matern(nu=2.5)],
+            "estimator__alpha":  [0.001, 0.01, 0.1, 1.0],
+        }
 
     def get_summary(self) -> dict:
         """Return a JSON-serializable summary of this model.

@@ -19,6 +19,28 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.0.1] — 2026-05-14
+
+### Phase 4 close — GridSearchCV auto-tune (v1.0.1)
+
+#### Added
+
+- **Auto-tune with GridSearchCV** — "Auto-tune with GridSearchCV" checkbox in Step 7 — Configure Training.
+  - When checked, manual hyperparameter fields collapse and Train runs a two-step flow: `POST /api/model/tune` first, then `POST /api/model/train`.
+  - A "Best params found" card appears between the steps showing the winning combination and its mean CV R².
+  - GPR searches 3 kernels × 4 alpha values (12 candidates). RF searches 3 estimator counts × 3 depths × 3 min-leaf values × 2 feature strategies (54 candidates). Linear searches 5 Ridge alpha values.
+  - CV is capped at 5 folds during tuning for speed; any cv_folds value > 5 is silently clamped.
+  - Best params are written to `config["hyperparams"]` so the subsequent `/train` call uses them automatically; `config["auto_tune_result"]` stores the full summary for audit purposes.
+  - `model_autotune` audit event recorded.
+  - Each model class now exposes `get_param_grid()` (abstract in `BaseSurrogateModel`).
+  - `_convert_best_params()` helper converts sklearn `best_params_` (with `estimator__` prefixes and kernel objects) back to our string-based hyperparams dict.
+
+#### Updated
+
+- **`docs/PHASES.md`** — Phase 4 status → ✅ Complete; Phase 5 status → ✅ Complete (prediction was fully implemented in v1.0.0 but docs were stale); M1 milestone map → ✅ Complete.
+
+---
+
 ## [1.0.0] — 2026-05-14 (patch 2)
 
 ### UX polish — SPLOM overflow, dCor heatmap, card order, gate badge (v1.0.0 patch 2)

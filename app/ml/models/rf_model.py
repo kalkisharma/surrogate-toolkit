@@ -8,8 +8,8 @@ FUTURE EXTENSIONS: XGBoost variant, SHAP feature importance
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.7.0
+LAST MODIFIED: 2026-05-14
+VERSION: 1.0.1
 ================================================================================
 """
 
@@ -113,6 +113,14 @@ class RFModel(BaseSurrogateModel):
         if result.ndim == 1:
             result = result.reshape(-1, 1)
         return result
+
+    def get_param_grid(self) -> dict:
+        return {
+            "n_estimators":     [50, 100, 200],
+            "max_depth":        [None, 5, 10],
+            "min_samples_leaf": [1, 2, 5],
+            "max_features":     ["sqrt", "log2"],
+        }
 
     def get_summary(self) -> dict:
         """Return a JSON-serializable summary of this model.

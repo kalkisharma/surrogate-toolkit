@@ -10,7 +10,7 @@
 
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
-| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | 🔶 Phases 1–4 done; Phase 5 not started |
+| **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔲 Not started |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
@@ -128,7 +128,7 @@
 ---
 
 ### Phase 4 — Model Training & Validation
-**Status:** 🔶 Mostly complete | **Version:** v0.6.x – v0.8.x; hyperparameter tuning → v0.9.x
+**Status:** ✅ Complete | **Version:** v0.6.x – v1.0.1
 
 **Purpose:** Train a surrogate model on the prepared data, evaluate its accuracy, and give engineers the tools to tune it.
 
@@ -143,19 +143,18 @@
 - Per-dataset surrogate session storage
 - GPR large-dataset warning (>2,000 training rows)
 
-**Scope (to add — hyperparameter tuning):**
-- GPR: grid search over RBF length_scale and alpha
-- RF: grid search over n_estimators and max_depth
-- Linear: grid search over Ridge alpha
-- Search method: sklearn GridSearchCV; best params stored in STATE and displayed in config panel
-- UI: "Auto-tune" checkbox in configure panel
+**Scope (hyperparameter tuning — added v0.9.10 / v1.0.1):**
+- GPR: manual kernel selector (RBF, Matérn ν=1.5, Matérn ν=2.5) + alpha; auto-tune grid search over all kernels × 4 alpha values
+- RF: manual n_estimators, max_depth, min_samples_leaf, max_features; auto-tune grid search over all combinations
+- Linear: manual Ridge alpha; auto-tune grid search over 5 alpha values
+- Search method: sklearn GridSearchCV; best params stored in STATE, displayed in tune-result card
+- UI: "Auto-tune with GridSearchCV" checkbox in configure panel; collapses manual fields when checked
 
-**Backend (to add):**
-- `POST /api/model/tune` — run GridSearchCV; store best params in `surrogate_session.config.best_params`
-- Each model class gains `get_param_grid()` method
+**Backend:**
+- `POST /api/model/tune` — run GridSearchCV; store best params in `config["hyperparams"]` and `config["auto_tune_result"]`; `get_param_grid()` on each model class
 
-**Frontend (to add):**
-- `model_config.js` — auto-tune checkbox, best-params display card
+**Frontend:**
+- `model_config.js` — auto-tune checkbox; two-step train flow (tune → display result card → train)
 
 **Dependencies:** Phase 3 (designation + normalization).
 
@@ -168,7 +167,7 @@
 ---
 
 ### Phase 5 — Prediction & Inference
-**Status:** 🔲 Not started | **Version:** v0.9.x
+**Status:** ✅ Complete | **Version:** v1.0.0
 
 **Purpose:** Allow engineers to use a trained surrogate to get fast predictions for new design inputs without running a simulation.
 
@@ -184,13 +183,13 @@
 - Learning mode primer explaining prediction vs. simulation and extrapolation risk
 
 **Backend:**
-- `POST /api/predict/single` — validate inputs, run model.predict(), return predicted values + GPR std + out-of-range flags
-- `POST /api/predict/batch` — validate CSV, run batch prediction, return CSV download
-- `app/api/prediction_api.py` — implement (currently 21-line stub)
+- `POST /api/predict/single` — validate inputs, apply normalization, run model.predict(), return predictions + GPR std + out-of-range flags
+- `POST /api/predict/batch` — read multipart CSV, normalize, batch predict, return JSON rows + columns
+- `app/api/prediction_api.py` — fully implemented with `_normalize_row()` and `_normalize_df_cols()` helpers
 
 **Frontend:**
-- `prediction.js` — implement (currently 9-line stub)
-- Step 9 in sidebar (add to sidebar step registry in `main.js`)
+- `prediction.js` — fully implemented with single-point form, batch CSV upload/download, and learning mode primers
+- Step 9 in sidebar (registered in `main.js` STEP_KEYS / STEP_LABELS / STEP_NUMS)
 
 **Dependencies:** Phase 4 (trained model in STATE).
 

@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
-VERSION: 0.9.9
+VERSION: 1.0.1
 ================================================================================
 """
 
@@ -23,6 +23,7 @@ VERSION: 0.9.9
 import time
 
 from flask import Blueprint, current_app, jsonify, request
+from sklearn.gaussian_process.kernels import Matern
 from sklearn.model_selection import train_test_split
 
 from app.ml.models import GPRModel, LinearModel, RFModel
@@ -31,6 +32,7 @@ from app.state.schema import append_audit_event
 from config.settings import (
     CV_FOLDS_MAX,
     CV_FOLDS_MIN,
+    DEFAULT_CV_FOLDS,
     DEFAULT_RANDOM_STATE,
     MAX_MODEL_HISTORY,
     MAX_PLOT_ROWS,
@@ -196,6 +198,119 @@ def configure():
     )
 
     return jsonify({"success": True, "config": config}), 200
+
+
+@bp.route("/tune", methods=["POST"])
+def tune():
+    """
+    Run GridSearchCV on the current model type and store best hyperparameters.
+
+    Uses the full dataset (no train/test split) so all available rows inform
+    the search. CV is capped at 5 folds to keep GPR tuning tractable.
+    Sets config["hyperparams"] to the best params so the next /train call
+    uses them automatically.
+
+    Args (JSON body):
+        None — all parameters come from STATE.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "best_params":  dict,
+              "best_cv_r2":   float,
+              "n_candidates": int
+            }
+        JSON 422: Validation error envelope (same codes as /train).
+    """
+    from sklearn.model_selection import GridSearchCV
+
+    state = current_app.config["STATE"]
+
+    # ── Resolve data (same checks as /train) ─────────────────────────────────
+    primary = state["datasets"]["primary"]
+    _norm   = primary.get("normalized")
+    _clean  = primary.get("clean")
+    df = _norm if _norm is not None else _clean
+    if df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_CLEAN_DATA",
+                "message": "No clean data is loaded. Upload and prepare a dataset first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            422,
+        )
+
+    meta        = primary["metadata"]
+    input_cols  = meta.get("input_columns") or []
+    output_cols = meta.get("output_columns") or []
+    if not input_cols or not output_cols:
+        return (
+            jsonify({
+                "success": False, "error_code": "DESIGNATION_REQUIRED",
+                "message": "Input and output columns must be designated before tuning.",
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+
+    config = state["surrogate_sessions"]["primary"]["config"]
+    if config.get("model_type") is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "CONFIG_REQUIRED",
+                "message": "Training configuration has not been saved. "
+                           "Complete Step 7 — Configure Training first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["configure"],
+            }),
+            422,
+        )
+
+    model_type = config["model_type"]
+    cv_folds   = min(config.get("cv_folds") or DEFAULT_CV_FOLDS, 5)
+
+    X = df[input_cols].values
+    y = df[output_cols].values
+
+    # ── GridSearchCV ──────────────────────────────────────────────────────────
+    model      = _make_model(model_type)
+    param_grid = model.get_param_grid()
+
+    gs = GridSearchCV(
+        model._model, param_grid,
+        cv=cv_folds, scoring="r2", n_jobs=-1, refit=False,
+    )
+    gs.fit(X, y)
+
+    best_cv_r2  = float(gs.cv_results_["mean_test_score"][gs.best_index_])
+    n_candidates = len(gs.cv_results_["mean_test_score"])
+    best_params  = _convert_best_params(model_type, gs.best_params_)
+
+    config["hyperparams"]      = best_params
+    config["auto_tune_result"] = {
+        "best_params":  best_params,
+        "best_cv_r2":   round(best_cv_r2, 4),
+        "n_candidates": n_candidates,
+    }
+
+    append_audit_event(state, "model_autotune", {
+        "model_type":   model_type,
+        "n_candidates": n_candidates,
+        "best_cv_r2":   round(best_cv_r2, 4),
+    })
+
+    current_app.logger.info(
+        f"Auto-tune complete — type={model_type}, best_cv_r2={best_cv_r2:.4f}, "
+        f"n_candidates={n_candidates}"
+    )
+
+    return jsonify({
+        "success":      True,
+        "best_params":  best_params,
+        "best_cv_r2":   round(best_cv_r2, 4),
+        "n_candidates": n_candidates,
+    }), 200
 
 
 @bp.route("/train", methods=["POST"])
@@ -481,3 +596,22 @@ def _make_model(model_type: str, hyperparams: dict = None):
             max_features=hp.get("max_features", "sqrt"),
         )
     return LinearModel(alpha=hp.get("alpha", 1.0))
+
+
+def _convert_best_params(model_type: str, best: dict) -> dict:
+    """Convert sklearn GridSearchCV best_params_ to our hyperparams dict format."""
+    if model_type == "gpr":
+        k = best.get("estimator__kernel")
+        if isinstance(k, Matern):
+            kernel_str = "matern15" if abs(k.nu - 1.5) < 0.01 else "matern25"
+        else:
+            kernel_str = "rbf"
+        return {"kernel": kernel_str, "alpha": float(best["estimator__alpha"])}
+    if model_type == "rf":
+        return {
+            "n_estimators":     int(best["n_estimators"]),
+            "max_depth":        best["max_depth"],
+            "min_samples_leaf": int(best["min_samples_leaf"]),
+            "max_features":     best["max_features"],
+        }
+    return {"alpha": float(best["alpha"])}
