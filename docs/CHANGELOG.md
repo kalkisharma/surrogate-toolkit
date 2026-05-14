@@ -19,6 +19,24 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.0.0] — 2026-05-14 (patch 2)
+
+### UX polish — SPLOM overflow, dCor heatmap, card order, gate badge (v1.0.0 patch 2)
+
+#### Fixed
+
+- **Upload gate "1" badge** — `_makeGate` now takes an optional number; passing `null` suppresses the circular step badge. The inline upload gate passes `null` since only one question is asked; the badge remains available for any future multi-step gate flow.
+- **SPLOM overflows card bottom and right edge** — `chartInner` nested div separates the Plotly container from `explore-chart-wrap`'s card padding so height math is correct. `overflow: hidden` re-added safely now that `margin.b` fix (v0.9.10) keeps x-axis labels within the SVG. Two-frame `requestAnimationFrame` defers the initial `Plotly.newPlot` call until the browser has committed the container height, eliminating the first-load squish.
+- **Clean tab card height disparity** — card order swapped: Missing Values → Duplicates → **Log-Transform** → **Outlier Rows**. The expandable outlier checklist card is now last so the three compact cards sit at the same height in the grid.
+
+#### Improved
+
+- **dCor heatmap readability** — default colorscale changed from Blues to **Viridis** (better perceptual contrast across 0→1). Annotation text color is now colorscale-aware: white text on dark cells, dark text on light cells (threshold direction inverts for Blues/Red-Purple vs Viridis/Thermal). Annotation font scales down gracefully for many columns (min 7 px), and auto-hides above 7 columns selected.
+- **dCor column control** — chip row above the heatmap (reuses SPLOM `.col-chip` CSS) lets the user include or exclude any fetched column without triggering a new API call. "All" / "Clear" buttons included; minimum 2 columns enforced.
+- **dCor plot settings** — collapsible settings panel below the chip row: font size, colorscale selector (Viridis / Blues / Thermal / Red-Purple), and annotation toggle (Show cell values checkbox).
+
+---
+
 ## [1.0.0] — 2026-05-14
 
 ### M1 milestone — Distance Correlation Heatmap (v1.0.0)
