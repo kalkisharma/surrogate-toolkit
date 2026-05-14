@@ -85,8 +85,8 @@ export async function initCleaning(containerEl, onClean) {
 
   grid.appendChild(_buildNullCard(cs.null_rows, nRows, onClean));
   grid.appendChild(_buildDuplicatesCard(cs.duplicate_rows, onClean));
-  grid.appendChild(await _buildOutlierCard(cs.outlier_rows, nRows, onClean));
   grid.appendChild(_buildTransformCard(summaryResp.stats || {}, onClean));
+  grid.appendChild(await _buildOutlierCard(cs.outlier_rows, nRows, onClean));
 
   // ── Undo all ─────────────────────────────────────────────────────────────────
   const resetRow = el("div", { cls: "cleaning-reset-row" });

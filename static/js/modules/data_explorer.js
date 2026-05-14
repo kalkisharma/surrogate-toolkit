@@ -224,8 +224,10 @@ export async function initExploration(containerEl, uploadResponse) {
   containerEl.appendChild(panelEl);
 
   // ── Chart ─────────────────────────────────────────────────────────────────
-  const chartWrap = el("div", { cls: "explore-chart-wrap", id: "splom-container" });
-  _chartEl = chartWrap;
+  const chartWrap  = el("div", { cls: "explore-chart-wrap", id: "splom-container" });
+  const chartInner = el("div");
+  _chartEl = chartInner;
+  chartWrap.appendChild(chartInner);
   containerEl.appendChild(chartWrap);
 
   // ── Stats section (below chart) ───────────────────────────────────────────
@@ -236,17 +238,20 @@ export async function initExploration(containerEl, uploadResponse) {
   containerEl.appendChild(_buildDCorSection());
 
   // ── Initial render ────────────────────────────────────────────────────────
-  // Anchor container height before Plotly renders so the stats section below
-  // is positioned correctly in the initial layout (avoids overflow overlap).
-  chartWrap.style.height = autoHeight + "px";
+  // Set height synchronously so the stats section below is positioned correctly.
+  // Then defer rendering one frame so the browser commits the height to layout
+  // before Plotly reads clientHeight (prevents the initial-squish on first load).
+  chartInner.style.height = autoHeight + "px";
   _applyWidth();
-  renderScatterMatrix(chartWrap, _currentColumns, plotRows, {
-    outlierIndices: _showOutliers ? _outlierIndices : new Set(),
-    ..._chartSettings,
-    markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
-    height:     _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
+  requestAnimationFrame(() => {
+    renderScatterMatrix(chartInner, _currentColumns, plotRows, {
+      outlierIndices: _showOutliers ? _outlierIndices : new Set(),
+      ..._chartSettings,
+      markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
+      height:     _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
+    });
+    requestAnimationFrame(() => Plotly.Plots.resize(chartInner));
   });
-  requestAnimationFrame(() => Plotly.Plots.resize(chartWrap));
 
   // ── Event wiring ──────────────────────────────────────────────────────────
   outlierCheckbox.addEventListener("change", () => {
@@ -734,42 +739,180 @@ function _buildDCorSection() {
     summary,
     "What is distance correlation?",
     `<p>Distance correlation (dCor) measures statistical dependence between any two variables
-     without assuming linearity. A value of <strong>0</strong> means the two variables are
-     completely independent; <strong>1</strong> means perfect dependence — linear or not.</p>
+     without assuming linearity. A value of <strong>0</strong> means completely independent;
+     <strong>1</strong> means perfect dependence — linear or not.</p>
      <p>Unlike Pearson's r, dCor detects curved relationships, clusters, and interactions.
      Two variables that score near 0 in Pearson but high in dCor are non-linearly related —
-     a common pattern in aerodynamic and structural data.</p>
-     <p><strong>Tips:</strong>
-     High dCor between two inputs (≥ 0.9) suggests redundancy — one may be a candidate for
-     removal before training. High dCor between an input and an output confirms predictive power.</p>`
+     common in aerodynamic and structural data.</p>
+     <p><strong>Tips:</strong> High dCor between two inputs (≥ 0.9) suggests redundancy.
+     High dCor between an input and an output confirms predictive power.</p>`
   );
 
-  const wrap = el("div", { cls: "dcor-heatmap-wrap" });
-  details.appendChild(wrap);
+  const contentWrap = el("div", { cls: "dcor-content" });
+  details.appendChild(contentWrap);
+
+  // ── Closure state ──────────────────────────────────────────────────────────
+  let _resp        = null;
+  let _selCols     = [];
+  let _dcorFs      = null;        // null = inherit _chartSettings.fontSize
+  let _dcorAnnot   = null;        // null = auto (true when ≤ 7 cols selected)
+  let _dcorScale   = "Viridis";
+  let _plotEl      = null;
+
+  function _rerender() {
+    if (!_plotEl || !_resp) return;
+    const cols = _selCols.filter(c => _resp.columns.includes(c));
+    if (cols.length < 2) return;
+
+    const subMatrix = {};
+    for (const ca of cols) {
+      subMatrix[ca] = {};
+      for (const cb of cols) subMatrix[ca][cb] = _resp.matrix[ca]?.[cb] ?? 0;
+    }
+
+    renderDCorHeatmap(_plotEl, cols, subMatrix, {
+      fontSize:        _dcorFs   !== null ? _dcorFs   : (_chartSettings.fontSize ?? 11),
+      fontColor:       _chartSettings.fontColor ?? null,
+      showAnnotations: _dcorAnnot !== null ? _dcorAnnot : (cols.length <= 7),
+      colorscale:      _dcorScale,
+    });
+    requestAnimationFrame(() => Plotly.Plots.resize(_plotEl));
+  }
 
   details.addEventListener("toggle", async () => {
     if (!details.open || details.dataset.loaded) return;
     details.dataset.loaded = "1";
-    wrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">Computing distance correlations…</p>`;
+    contentWrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">Computing distance correlations…</p>`;
 
     const resp = await get("/api/data/dcor");
+    _resp = resp;
+
     if (!resp.success) {
-      wrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">${resp.message || "Failed to compute dCor."}</p>`;
+      contentWrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">${resp.message || "Failed to compute dCor."}</p>`;
       return;
     }
 
+    clearEl(contentWrap);
+    _selCols = [...resp.columns];
+
     if (resp.truncated) {
-      const notice = el("div", {
+      contentWrap.appendChild(el("div", {
         cls:  "limitation-notice",
         text: `Distance correlation computed on ${resp.n_rows.toLocaleString()} rows (2,000-row limit).`,
-      });
-      wrap.appendChild(notice);
+      }));
     }
 
-    const plotEl = el("div");
-    wrap.appendChild(plotEl);
-    renderDCorHeatmap(plotEl, resp.columns, resp.matrix, _chartSettings);
-    requestAnimationFrame(() => Plotly.Plots.resize(plotEl));
+    // ── Column chip row ──────────────────────────────────────────────────────
+    {
+      const chipWrap = el("div", { cls: "col-selector-wrap" });
+      const hdr      = el("div", { cls: "col-selector-header" });
+      const countEl  = el("span", { cls: "col-selector-count" });
+      const allBtn   = el("button", { cls: "col-selector-btn", type: "button", text: "All" });
+      const clearBtn = el("button", { cls: "col-selector-btn", type: "button", text: "Clear" });
+      hdr.appendChild(countEl);
+      hdr.appendChild(allBtn);
+      hdr.appendChild(clearBtn);
+
+      const chipRow = el("div", { cls: "col-selector-row" });
+
+      const refreshChips = () => {
+        countEl.textContent = `Heatmap columns: ${_selCols.length} / ${resp.columns.length}`;
+        chipRow.querySelectorAll(".col-chip").forEach(chip => {
+          const sel = _selCols.includes(chip.dataset.col);
+          chip.classList.toggle("col-chip--selected", sel);
+          chip.disabled = !sel && _selCols.length >= 12;
+        });
+        clearBtn.disabled = _selCols.length <= 2;
+      };
+
+      for (const col of resp.columns) {
+        const chip       = el("button", { cls: "col-chip col-chip--selected", type: "button" });
+        chip.textContent = col;
+        chip.title       = col;
+        chip.dataset.col = col;
+        chip.addEventListener("click", () => {
+          const isSel = _selCols.includes(col);
+          if (isSel) {
+            if (_selCols.length <= 2) return;
+            _selCols = _selCols.filter(c => c !== col);
+          } else {
+            if (_selCols.length >= 12) return;
+            _selCols = [..._selCols, col];
+          }
+          refreshChips();
+          _rerender();
+        });
+        chipRow.appendChild(chip);
+      }
+
+      allBtn.addEventListener("click", () => {
+        _selCols = resp.columns.slice(0, 12);
+        refreshChips(); _rerender();
+      });
+      clearBtn.addEventListener("click", () => {
+        _selCols = _selCols.slice(0, 2);
+        if (_selCols.length < 2) _selCols = resp.columns.slice(0, 2);
+        refreshChips(); _rerender();
+      });
+
+      chipWrap.appendChild(hdr);
+      chipWrap.appendChild(chipRow);
+      contentWrap.appendChild(chipWrap);
+      refreshChips();
+    }
+
+    // ── Plot settings ────────────────────────────────────────────────────────
+    {
+      const autoAnnot  = resp.columns.length <= 7;
+      _dcorAnnot = null;   // reset to auto on each data load
+
+      const settingsPanel = document.createElement("details");
+      settingsPanel.className = "chart-settings-panel";
+      settingsPanel.innerHTML = `
+        <summary class="chart-settings-panel__summary">Plot Settings</summary>
+        <div class="chart-settings-controls">
+          <div class="chart-settings-group">
+            <label class="chart-settings-group__label" for="dcor-cs-font">Font size (px)</label>
+            <input id="dcor-cs-font" type="number" class="chart-settings-input"
+                   min="7" max="18" step="1" value="${_chartSettings.fontSize ?? 11}">
+          </div>
+          <div class="chart-settings-group">
+            <label class="chart-settings-group__label" for="dcor-cs-scale">Color scale</label>
+            <select id="dcor-cs-scale" class="chart-settings-select">
+              <option value="Viridis" selected>Viridis</option>
+              <option value="Blues">Blues</option>
+              <option value="Thermal">Thermal</option>
+              <option value="RdPu">Red-Purple</option>
+            </select>
+          </div>
+          <div class="chart-settings-group">
+            <span class="chart-settings-group__label">Cell values</span>
+            <label class="chart-settings-check">
+              <input type="checkbox" id="dcor-cs-annot" ${autoAnnot ? "checked" : ""}> Show
+            </label>
+          </div>
+        </div>
+      `;
+      contentWrap.appendChild(settingsPanel);
+
+      const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+      settingsPanel.querySelector("#dcor-cs-font").addEventListener("input", debounce((e) => {
+        const v = parseInt(e.target.value, 10);
+        if (v >= 7 && v <= 18) { _dcorFs = v; _rerender(); }
+      }, 200));
+      settingsPanel.querySelector("#dcor-cs-scale").addEventListener("change", (e) => {
+        _dcorScale = e.target.value; _rerender();
+      });
+      settingsPanel.querySelector("#dcor-cs-annot").addEventListener("change", (e) => {
+        _dcorAnnot = e.target.checked; _rerender();
+      });
+    }
+
+    // ── Plot element ─────────────────────────────────────────────────────────
+    _plotEl = el("div", { cls: "dcor-heatmap-wrap" });
+    contentWrap.appendChild(_plotEl);
+
+    _rerender();
   });
 
   return details;

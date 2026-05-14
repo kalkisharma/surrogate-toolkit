@@ -219,7 +219,7 @@ function _renderInlineGate(uploadSection, uploadResponse) {
   confirmBtn.disabled = true;
 
   const gate1 = _makeGate(
-    1,
+    null,
     "What type of data are you working with?",
     [
       { value: "simulation",   label: "Simulation / CFD output",   desc: "Deterministic runs — values repeat identically each time." },
@@ -534,17 +534,21 @@ async function _renderExploration(uploadResponse) {
 
 // ── Reusable helpers ──────────────────────────────────────────────────────────
 
-/** Build a gate card with radio-button options. */
+/** Build a gate card with radio-button options. number may be null to suppress the badge. */
 function _makeGate(number, title, options, onSelect) {
-  const gate       = el("div", { cls: "gate-step" });
-  const num        = el("div", { cls: "gate-step__number", text: String(number) });
-  const titleEl    = el("div", { cls: "gate-step__title",  text: title });
-  const optWrap    = el("div", { cls: "gate-options" });
+  const gate    = el("div", { cls: "gate-step" });
+  const titleEl = el("div", { cls: "gate-step__title",  text: title });
+  const optWrap = el("div", { cls: "gate-options" });
+  const radioName = number != null ? `gate-${number}` : `gate-${title.slice(0, 8).replace(/\s/g, "")}`;
+
+  if (number != null) {
+    gate.appendChild(el("div", { cls: "gate-step__number", text: String(number) }));
+  }
 
   for (const opt of options) {
     const wrapper = el("div",   { cls: "gate-option" });
-    const radio   = el("input", { type: "radio", name: `gate-${number}`, id: `gate-${number}-${opt.value}`, value: opt.value });
-    const label   = el("label", { cls: "gate-option__label", for: `gate-${number}-${opt.value}` });
+    const radio   = el("input", { type: "radio", name: radioName, id: `${radioName}-${opt.value}`, value: opt.value });
+    const label   = el("label", { cls: "gate-option__label", for: `${radioName}-${opt.value}` });
     label.innerHTML = opt.desc
       ? `${opt.label}<span class="gate-option__desc">${opt.desc}</span>`
       : opt.label;
@@ -554,7 +558,6 @@ function _makeGate(number, title, options, onSelect) {
     optWrap.appendChild(wrapper);
   }
 
-  gate.appendChild(num);
   gate.appendChild(titleEl);
   gate.appendChild(optWrap);
   return gate;

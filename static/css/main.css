@@ -826,6 +826,7 @@ input, select, textarea { font-family: inherit; }
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
+  overflow: hidden;
 }
 .explore-controls {
   display: flex;
@@ -1381,8 +1382,15 @@ body,
   transform: rotate(90deg);
 }
 
-.dcor-heatmap-wrap {
+.dcor-content {
   margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.dcor-heatmap-wrap {
+  /* height set dynamically by renderDCorHeatmap */
 }
 
 /* Compact inline gate for additional file uploads */

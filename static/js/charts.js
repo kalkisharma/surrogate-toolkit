@@ -438,23 +438,37 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
 }
 
 /**
- * Render a distance correlation heatmap (annotated Plotly heatmap, sequential blue scale).
+ * Render a distance correlation heatmap.
  *
  * @param {HTMLElement} containerEl - Element to render into.
  * @param {string[]}    columns     - Column names (x and y axes).
  * @param {object}      matrix      - { col: { col: float } } — symmetric dCor matrix.
  * @param {object}      [options]
- * @param {number}      [options.fontSize=11]      - Font size for axis labels and annotations.
- * @param {string|null} [options.fontColor=null]   - null = theme default.
+ * @param {number}      [options.fontSize=11]           - Axis label font size.
+ * @param {string|null} [options.fontColor=null]        - null = theme default.
+ * @param {string}      [options.colorscale="Viridis"]  - Plotly named colorscale.
+ * @param {boolean}     [options.showAnnotations]       - Show cell values; auto-off above 7 cols.
  */
 export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
-  const isDark    = document.documentElement.getAttribute("data-theme") === "dark";
-  const fontClr   = isDark ? "#8b94b3" : "#4b5478";
-  const fontSize  = options.fontSize  ?? 11;
-  const fontColor = options.fontColor ?? fontClr;
-  const height    = Math.max(300, columns.length * 44 + 100);
+  const isDark      = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr     = isDark ? "#8b94b3" : "#4b5478";
+  const fontSize    = options.fontSize       ?? 11;
+  const fontColor   = options.fontColor      ?? fontClr;
+  const colorscale  = options.colorscale     ?? "Viridis";
+  const showAnnot   = options.showAnnotations ?? (columns.length <= 7);
+  const height      = Math.max(320, columns.length * 48 + 100);
 
-  // Row-major z matrix (row = y-axis col, col = x-axis col)
+  // Scale annotation font down gracefully for many columns (min 7px)
+  const annotFontSize = Math.max(7, fontSize - Math.max(0, columns.length - 5));
+
+  // Per-colorscale annotation text: white on dark cells, dark on light cells.
+  // Blues/RdPu are light at low end → need dark text for low values.
+  // Viridis/Thermal are dark at low end → need white text for low values.
+  const lightAtLow = colorscale === "Blues" || colorscale === "RdPu";
+  const _annotColor = (val) =>
+    lightAtLow ? (val > 0.5 ? "#ffffff" : fontColor)
+               : (val < 0.5 ? "#ffffff" : fontColor);
+
   const z     = columns.map(r => columns.map(c => matrix[r]?.[c] ?? 0));
   const zText = z.map(row => row.map(v => v.toFixed(2)));
 
@@ -463,9 +477,7 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
     x:             columns,
     y:             columns,
     z,
-    text:          zText,
-    texttemplate:  "%{text}",
-    colorscale:    "Blues",
+    colorscale,
     zmin:          0,
     zmax:          1,
     hovertemplate: "%{y} — %{x}: %{z:.3f}<extra></extra>",
@@ -473,36 +485,40 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
     colorbar: {
       thickness: 14,
       len:       0.8,
-      tickfont:  { size: fontSize - 1, color: fontColor },
+      tickfont:  { size: Math.max(8, fontSize - 1), color: fontColor },
     },
   };
+
+  const annotations = showAnnot
+    ? zText.flatMap((row, ri) =>
+        row.map((val, ci) => ({
+          x:         columns[ci],
+          y:         columns[ri],
+          text:      val,
+          showarrow: false,
+          font:      { size: annotFontSize, color: _annotColor(parseFloat(val)) },
+        }))
+      )
+    : [];
 
   const layout = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor:  "rgba(0,0,0,0)",
     height,
-    margin: { t: 20, b: 90, l: 90, r: 60 },
-    font:  { color: fontColor, family: "Inter, system-ui, sans-serif", size: fontSize },
-    xaxis: { tickangle: -45, tickfont: { size: fontSize - 1 }, automargin: true },
-    yaxis: { tickfont: { size: fontSize - 1 }, automargin: true },
-    annotations: zText.flatMap((row, ri) =>
-      row.map((val, ci) => ({
-        x:         columns[ci],
-        y:         columns[ri],
-        text:      val,
-        showarrow: false,
-        font:      { size: fontSize - 2, color: parseFloat(val) > 0.6 ? "#ffffff" : fontColor },
-      }))
-    ),
+    margin:      { t: 20, b: 100, l: 100, r: 70 },
+    font:        { color: fontColor, family: "Inter, system-ui, sans-serif", size: fontSize },
+    xaxis:       { tickangle: -40, tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
+    yaxis:       { tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
+    annotations,
   };
 
   // eslint-disable-next-line no-undef
   Plotly.newPlot(containerEl, [trace], layout, {
-    responsive:             true,
-    displayModeBar:         true,
-    displaylogo:            false,
-    modeBarButtons:         [["toImage"]],
-    toImageButtonOptions:   { filename: "dcor_heatmap", scale: 2 },
+    responsive:           true,
+    displayModeBar:       true,
+    displaylogo:          false,
+    modeBarButtons:       [["toImage"]],
+    toImageButtonOptions: { filename: "dcor_heatmap", scale: 2 },
   });
 }
 
