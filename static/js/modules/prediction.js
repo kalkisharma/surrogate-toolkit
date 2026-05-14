@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/prediction.js
-// Version: 0.9.0
+// Version: 0.9.1
 // Description: Step 9 — Prediction & Inference. Single-point prediction
 //              (form → POST /api/predict/single) and batch prediction
 //              (CSV upload → POST /api/predict/batch → CSV download).
@@ -48,6 +48,7 @@ function _render(containerEl, r) {
 
   const inputCols  = r.input_columns;
   const outputCols = r.output_columns;
+  const inputMeans = r.input_means || {};
   const modelLabel = r.model_type.toUpperCase();
 
   // ── Header ──────────────────────────────────────────────────────────────────
@@ -94,6 +95,13 @@ function _render(containerEl, r) {
   const form   = el("div", { cls: "prediction-form" });
   const inputs = {};
 
+  function _resetToMeans() {
+    for (const col of inputCols) {
+      const m = inputMeans[col];
+      inputs[col].value = m !== undefined ? parseFloat(m.toPrecision(4)) : "";
+    }
+  }
+
   for (const col of inputCols) {
     const row   = el("div", { cls: "prediction-input-row" });
     const label = el("label", {
@@ -105,22 +113,25 @@ function _render(containerEl, r) {
       type: "number",
       cls:  "prediction-input-field",
       id:   `pred-in-${col}`,
-      placeholder: "0",
       step: "any",
     });
+    const mean = inputMeans[col];
+    if (mean !== undefined) inp.value = parseFloat(mean.toPrecision(4));
     inputs[col] = inp;
     row.appendChild(label);
     row.appendChild(inp);
     form.appendChild(row);
   }
 
-  const runBtn = el("button", {
-    cls:  "btn btn-primary prediction-run-btn",
-    text: "Run Prediction →",
-    id:   "sp-run-btn",
-  });
-  form.appendChild(runBtn);
+  const btnRow   = el("div", { cls: "prediction-btn-row" });
+  const runBtn   = el("button", { cls: "btn btn-primary",   text: "Run Prediction →", id: "sp-run-btn" });
+  const resetBtn = el("button", { cls: "btn btn-secondary", text: "Reset to means",   id: "sp-reset-btn" });
+  btnRow.appendChild(runBtn);
+  btnRow.appendChild(resetBtn);
+  form.appendChild(btnRow);
   spSection.appendChild(form);
+
+  resetBtn.addEventListener("click", _resetToMeans);
 
   const spResults = el("div", { cls: "prediction-results" });
   spResults.style.display = "none";
@@ -140,35 +151,34 @@ function _render(containerEl, r) {
 
     runBtn.disabled    = true;
     runBtn.textContent = "Predicting…";
+
+    // Show computing placeholder so the user sees the update cycle start
+    spResults.style.display = "";
+    spResults.innerHTML = `<p class="prediction-computing">Computing…</p>`;
+
     const resp = await post("/api/predict/single", { inputs: inputValues });
     runBtn.disabled    = false;
     runBtn.textContent = "Run Prediction →";
 
     if (!resp.success) {
+      spResults.style.display = "none";
       showError(resp.message || "Prediction failed.");
       return;
     }
 
-    spResults.style.display = "";
-    clearEl(spResults);
-
-    const wrap  = el("div", { cls: "results-table-wrap" });
-    const table = el("table", { cls: "results-table" });
-    const thead = el("thead");
-    thead.innerHTML = `<tr><th>Output column</th><th>Predicted value</th></tr>`;
-    table.appendChild(thead);
-
-    const tbody = el("tbody");
-    for (const [col, val] of Object.entries(resp.predictions)) {
-      const tr = el("tr");
-      tr.innerHTML = `
-        <td class="results-col-name">${col}</td>
-        <td class="results-metric">${val.toPrecision(6)}</td>`;
-      tbody.appendChild(tr);
-    }
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    spResults.appendChild(wrap);
+    spResults.innerHTML = `
+      <div class="results-table-wrap">
+        <table class="results-table">
+          <thead><tr><th>Output column</th><th>Predicted value</th></tr></thead>
+          <tbody>
+            ${Object.entries(resp.predictions).map(([col, val]) => `
+              <tr>
+                <td class="results-col-name">${col}</td>
+                <td class="results-metric">${val.toPrecision(6)}</td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      </div>`;
   });
 
   // ── Batch section ────────────────────────────────────────────────────────────

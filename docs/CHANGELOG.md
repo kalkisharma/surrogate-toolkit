@@ -19,6 +19,28 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.1] — 2026-05-14
+
+### Prediction UX fixes — update feedback, mean defaults, reset button (v0.9.1)
+
+#### Fixed
+
+- **Prediction results don't update visually after first run** — replaced `clearEl + multi-step appendChild` with a single `spResults.innerHTML` assignment for atomic DOM update. Added a "Computing…" placeholder that appears immediately on click so the user sees the update cycle start, then resolves to the new result table when the response arrives.
+
+#### Added
+
+- **Input means as default values** — `input_means` dict (keyed by column name) is now computed from `X_train` during training (`X_train.mean(axis=0)`) and stored in the results dict. Prediction input fields are pre-filled with those means (4 significant figures) on first render.
+- **Reset to means button** — "Reset to means" button beside "Run Prediction →" restores all input fields to their training-set mean values.
+
+#### Files changed
+
+- `app/api/model_api.py` — add `input_means` to results dict
+- `static/js/modules/prediction.js` — mean defaults, reset button, Computing placeholder, innerHTML update
+- `static/css/main.css` — `.prediction-btn-row`, `.prediction-computing`
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.9.0] — 2026-05-14
 
 ### Phase 5 — Prediction & Inference (v0.9.0)
