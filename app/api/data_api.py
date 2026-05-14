@@ -11,8 +11,8 @@ FUTURE EXTENSIONS: POST /api/data/reduce, GET /api/data/visualization,
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.8.3
+LAST MODIFIED: 2026-05-14
+VERSION: 0.9.3
 ================================================================================
 """
 
@@ -828,10 +828,21 @@ def normalize():
         f"Normalization applied: '{active_key}' — method={method}, {len(input_columns)} column(s)"
     )
 
+    # Build before/after histogram data (capped at 500 rows for payload size)
+    hist_rows   = min(len(clean_df), 500)
+    sample_clean = clean_df[input_columns].iloc[:hist_rows]
+    sample_norm  = normalized_df[input_columns].iloc[:hist_rows]
+    hist_data = {
+        "before": {col: [v for v in sample_clean[col] if v is not None] for col in input_columns},
+        "after":  {col: [v for v in sample_norm[col]  if v is not None] for col in input_columns},
+    }
+
     return jsonify({
-        "success":   True,
-        "method":    method,
-        "n_columns": len(input_columns),
+        "success":       True,
+        "method":        method,
+        "n_columns":     len(input_columns),
+        "input_columns": input_columns,
+        "hist_data":     hist_data,
     }), 200
 
 

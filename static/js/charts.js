@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 0.8.8
+// Version: 0.9.3
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -435,4 +435,62 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
     modeBarButtons: [["toImage"]],
     toImageButtonOptions: { filename: `${colName}_diagnostics`, scale: 2 },
   });
+}
+
+/**
+ * Render before/after histogram overlays for each normalized input column.
+ * One small Plotly chart per column, tiled in a wrapping grid.
+ *
+ * @param {HTMLElement} gridEl     - Container with class norm-hist-grid.
+ * @param {object}      histData   - { before: {col: number[]}, after: {col: number[]} }
+ * @param {string[]}    inputCols  - Column names to render.
+ * @param {string}      method     - "minmax" | "zscore" — used for x-axis label.
+ */
+export function renderNormHistograms(gridEl, histData, inputCols, method) {
+  const isDark   = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr  = isDark ? "#8b94b3" : "#4b5478";
+  const beforeClr = isDark ? "rgba(100,120,200,0.45)" : "rgba(59,93,217,0.30)";
+  const afterClr  = isDark ? "rgba(59,198,130,0.65)"  : "rgba(22,163,74,0.55)";
+  const axisLabel = method === "minmax" ? "Scaled [0, 1]" : method === "zscore" ? "Standardised (σ)" : "Value";
+
+  for (const col of inputCols) {
+    const before = histData.before[col] ?? [];
+    const after  = histData.after[col]  ?? [];
+
+    const cell = document.createElement("div");
+    cell.className = "norm-hist-cell";
+    const title = document.createElement("div");
+    title.className = "norm-hist-cell-title";
+    title.title = col;
+    title.textContent = col;
+    cell.appendChild(title);
+
+    const plotDiv = document.createElement("div");
+    cell.appendChild(plotDiv);
+    gridEl.appendChild(cell);
+
+    const traceBefore = {
+      x: before, type: "histogram", name: "Before",
+      marker: { color: beforeClr },
+      opacity: 0.85, nbinsx: 20,
+    };
+    const traceAfter = {
+      x: after, type: "histogram", name: "After",
+      marker: { color: afterClr },
+      opacity: 0.85, nbinsx: 20,
+    };
+
+    // eslint-disable-next-line no-undef
+    Plotly.newPlot(plotDiv, [traceBefore, traceAfter], {
+      barmode:      "overlay",
+      height:       160,
+      paper_bgcolor: "rgba(0,0,0,0)",
+      plot_bgcolor:  "rgba(0,0,0,0)",
+      margin: { t: 4, b: 32, l: 28, r: 4 },
+      font:   { color: fontClr, family: "Inter, system-ui, sans-serif", size: 9 },
+      xaxis:  { title: { text: axisLabel, font: { size: 9 } }, showgrid: false },
+      yaxis:  { showgrid: true, gridcolor: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)" },
+      showlegend: false,
+    }, { responsive: true, displayModeBar: false });
+  }
 }

@@ -19,6 +19,39 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.3] — 2026-05-14
+
+### Upload page polish, SPLOM resize fix, normalization histograms, R² contrast (v0.9.3)
+
+#### Added
+
+- **Before/after normalization histograms** — after applying normalization, the Normalize step renders a compact grid of Plotly histogram overlays (blue = before, green = after) for every input column. Shows distribution shape change at a glance; output columns omitted since they are unchanged. Backend returns column arrays (capped at 500 rows) in the normalize response.
+- **Inline data-type gate** — after a successful upload the drop zone is replaced in-place with a compact success row (`✓ filename · N rows · M columns`) and the Step 2 data-type question, all within the same card. The gate no longer appends a separate section below the upload card, eliminating the scroll requirement on most screen sizes.
+- **Gate option descriptors** — each data-type radio option now shows a brief plain-English descriptor below the label ("Deterministic runs — values repeat identically each time.", etc.).
+- **Hero gradient background** — subtle `linear-gradient(180deg, accent-soft 0%, transparent 60%)` behind the hero section gives the entry page visual depth.
+- **SVG upload icon** — replaces the 📁 emoji in the drop zone with a clean SVG cloud-upload arrow that scales correctly at any resolution and respects the accent color.
+
+#### Fixed
+
+- **Pair plot squished after navigating away from Explore** — Plotly's `responsive: true` mode could recalculate dimensions against a stale layout when the Explore panel transitioned from `display: none` back to visible. `activatePanel()` now calls `Plotly.Plots.resize()` on `#splom-container` whenever the Explore tab becomes active.
+- **R² badge green too bright in light mode** — `.results-badge--green` text was `#22c55e` (~2.2:1 contrast on white). Light mode now uses `#15803d` (~4.6:1, passes WCAG AA). Dark mode retains the original bright green.
+
+#### Changed
+
+- Hero top/bottom padding reduced from 64 px (`--space-16`) to 40 px (`--space-10`).
+- Upload zone vertical padding reduced from 64 px to 40 px.
+
+#### Files changed
+
+- `static/js/main.js` — `_renderInlineGate()` replaces `_renderGates()`; `activatePanel()` SPLOM resize; `_makeGate()` descriptor support; SVG upload icon
+- `static/js/modules/normalization.js` — imports `renderNormHistograms`; renders histogram section after apply
+- `static/js/charts.js` — new `renderNormHistograms()` export
+- `static/css/main.css` — hero padding + gradient; upload zone padding + icon; `.upload-success` styles; `.gate-option__desc`; `.norm-hist-*` styles; `.results-badge--green` light-mode contrast fix
+- `app/api/data_api.py` — normalize route returns `hist_data` + `input_columns`
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.9.2] — 2026-05-14
 
 ### Bug fixes — normalization-prediction mismatch, dead code (v0.9.2)

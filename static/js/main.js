@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.9.0
+// Version: 0.9.3
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, and drives the workflow
 //              panel router (sidebar + 8 lazy-init panels).
@@ -97,7 +97,13 @@ function renderUploadView() {
   const dropZone = el("div", { cls: "upload-zone", id: "drop-zone", role: "button",
     tabindex: "0", "aria-label": "Drop CSV file here or click to browse" });
   dropZone.innerHTML = `
-    <div class="upload-zone__icon" aria-hidden="true">📁</div>
+    <div class="upload-zone__icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <polyline points="16 16 12 12 8 16"/>
+        <line x1="12" y1="12" x2="12" y2="21"/>
+        <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+      </svg>
+    </div>
     <div class="upload-zone__title">Drag &amp; drop your CSV file here</div>
     <div class="upload-zone__subtitle">or</div>
     <label class="upload-zone__browse" for="file-input">Browse files</label>
@@ -110,12 +116,7 @@ function renderUploadView() {
   let dropEnabled = true;
   _wireDropZone(dropZone, fileInput, uploadSection, (response) => {
     dropEnabled = false;
-    dropZone.classList.add("upload-zone--queued");
-    dropZone.querySelector(".upload-zone__title").textContent = "1 file queued — make a selection below";
-    dropZone.querySelector(".upload-zone__subtitle").textContent = "";
-    const browseLabel = dropZone.querySelector(".upload-zone__browse");
-    if (browseLabel) browseLabel.style.display = "none";
-    _renderGates(app, response);
+    _renderInlineGate(uploadSection, app, response);
   }, () => dropEnabled);
 }
 
@@ -182,24 +183,38 @@ function _renderAdditionalFileGate(app, uploadResponse) {
   dialog.showModal();
 }
 
-/** Render the single data-type gate after a successful upload. */
-function _renderGates(app, uploadResponse) {
-  const gatesSection = el("div", { cls: "gates-container", id: "gates-container",
-    style: "max-width: 640px; margin: var(--space-8) auto 0;" });
+/** Replace the drop zone with a success row + inline data-type gate within the upload card. */
+function _renderInlineGate(uploadSection, app, uploadResponse) {
+  const meta = uploadResponse.metadata;
 
-  const gatesHeader = el("div", { cls: "section-header" });
-  gatesHeader.innerHTML = `
+  const dz = uploadSection.querySelector("#drop-zone");
+  if (dz) dz.remove();
+
+  const successRow = el("div", { cls: "upload-success" });
+  successRow.innerHTML = `
+    <span class="upload-success__icon">✓</span>
+    <span class="upload-success__text">
+      <strong>${meta.filename}</strong>
+      <span class="upload-success__meta">${meta.n_rows.toLocaleString()} rows · ${meta.n_cols} columns</span>
+    </span>
+  `;
+  uploadSection.appendChild(successRow);
+
+  const divider = el("hr", { cls: "divider", style: "margin: var(--space-5) 0 var(--space-4);" });
+  uploadSection.appendChild(divider);
+
+  const gateHeader = el("div", { cls: "section-header" });
+  gateHeader.innerHTML = `
     <h2 class="section-title">Step 2 — Data Type</h2>
     <p class="section-desc">One question before we explore your data.</p>
   `;
-  gatesSection.appendChild(gatesHeader);
+  uploadSection.appendChild(gateHeader);
 
   let selectedDataType = null;
-
   const confirmBtn = el("button", {
     cls: "btn btn-primary",
     text: "Continue to Explore Data →",
-    style: "margin-top: var(--space-6); width: 100%;",
+    style: "margin-top: var(--space-5); width: 100%;",
   });
   confirmBtn.disabled = true;
 
@@ -207,14 +222,15 @@ function _renderGates(app, uploadResponse) {
     1,
     "What type of data are you working with?",
     [
-      { value: "simulation",   label: "Simulation / CFD output" },
-      { value: "experimental", label: "Experimental measurements" },
-      { value: "mixed",        label: "Mixed / Unknown" },
+      { value: "simulation",   label: "Simulation / CFD output",   desc: "Deterministic runs — values repeat identically each time." },
+      { value: "experimental", label: "Experimental measurements", desc: "Measured data — expect natural variability and noise." },
+      { value: "mixed",        label: "Mixed / Unknown",           desc: "Unsure? Pick this — you can always note it later." },
     ],
     (val) => { selectedDataType = val; confirmBtn.disabled = false; }
   );
   gate1.classList.add("active");
-  gatesSection.appendChild(gate1);
+  uploadSection.appendChild(gate1);
+  uploadSection.appendChild(confirmBtn);
 
   confirmBtn.addEventListener("click", async () => {
     confirmBtn.disabled    = true;
@@ -223,9 +239,6 @@ function _renderGates(app, uploadResponse) {
     await refreshState();
     _renderExploration(uploadResponse);
   });
-
-  gatesSection.appendChild(confirmBtn);
-  app.appendChild(gatesSection);
 }
 
 // ── Workflow exploration view ─────────────────────────────────────────────────
@@ -347,6 +360,10 @@ async function _renderExploration(uploadResponse) {
     if (!panelDone[key]) {
       panelDone[key] = true;
       await _initPanel(key, panelEls[key]);
+    }
+    if (key === "explore") {
+      const splom = document.getElementById("splom-container");
+      if (splom) Plotly.Plots.resize(splom);
     }
   }
 
@@ -516,7 +533,10 @@ function _makeGate(number, title, options, onSelect) {
   for (const opt of options) {
     const wrapper = el("div",   { cls: "gate-option" });
     const radio   = el("input", { type: "radio", name: `gate-${number}`, id: `gate-${number}-${opt.value}`, value: opt.value });
-    const label   = el("label", { cls: "gate-option__label", for: `gate-${number}-${opt.value}`, text: opt.label });
+    const label   = el("label", { cls: "gate-option__label", for: `gate-${number}-${opt.value}` });
+    label.innerHTML = opt.desc
+      ? `${opt.label}<span class="gate-option__desc">${opt.desc}</span>`
+      : opt.label;
     radio.addEventListener("change", () => { if (radio.checked) { gate.classList.add("completed"); onSelect(opt.value); } });
     wrapper.appendChild(radio);
     wrapper.appendChild(label);
