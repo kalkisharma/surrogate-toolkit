@@ -511,14 +511,11 @@ input, select, textarea { font-family: inherit; }
   margin-bottom: var(--space-4);
 }
 .norm-hist-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: var(--space-4);
 }
 .norm-hist-cell {
-  flex: 1 1 240px;
-  min-width: 0;
-  max-width: 320px;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -1246,6 +1243,27 @@ body,
   font-size: 9px;
   margin-left: 2px;
   color: var(--color-warning);
+}
+.stats-legend {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+}
+.stats-legend__dot--skew {
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  background: var(--color-warning);
+  border-radius: 1px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.outlier-count-badge {
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-1);
+  margin-top: var(--space-2);
 }
 
 /* ── SPLOM column selector (chip row) ────────────────────────────────────────── */

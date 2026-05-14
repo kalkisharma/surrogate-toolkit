@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 0.7.1
+// Version: 0.9.8
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -243,6 +243,7 @@ export async function initExploration(containerEl, uploadResponse) {
     markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
     height:     _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
   });
+  requestAnimationFrame(() => Plotly.Plots.resize(chartWrap));
 
   // ── Event wiring ──────────────────────────────────────────────────────────
   outlierCheckbox.addEventListener("change", () => {
@@ -592,6 +593,18 @@ function _wirePanelEvents(panelEl) {
 
 // ── Stats section (below chart) ───────────────────────────────────────────────
 
+function _countColOutliers(vals) {
+  if (vals.length < 4) return 0;
+  const sorted = [...vals].sort((a, b) => a - b);
+  const q1  = sorted[Math.floor(sorted.length * 0.25)];
+  const q3  = sorted[Math.floor(sorted.length * 0.75)];
+  const iqr = q3 - q1;
+  if (iqr === 0) return 0;
+  const lo  = q1 - 1.5 * iqr;
+  const hi  = q3 + 1.5 * iqr;
+  return vals.filter(v => v < lo || v > hi).length;
+}
+
 function _buildStatsSection(columns, rows, fullStats, totalRows) {
   const section = el("div", { cls: "stats-section" });
   const statsHeader = el("div", { cls: "stats-section__header", text: "Summary Statistics" });
@@ -605,12 +618,17 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
      For a normal distribution, ~68% of values fall within ±1σ of the mean.</p>
      <p><strong>Skewness</strong> measures distribution asymmetry. |skew| &lt; 1 is roughly symmetric;
      |skew| &gt; 1 suggests a heavy tail — consider a log-transform before training.</p>
-     <p><strong>Null border color</strong>:
-       <span style="color:var(--color-success);font-weight:600">green</span> = no nulls,
-       <span style="color:var(--color-warning);font-weight:600">amber</span> = ≤10% nulls (caution),
-       <span style="color:var(--color-danger);font-weight:600">red</span> = &gt;10% nulls — investigate before training.
+     <p><strong>Card borders</strong>:
+       Left border = null density (<span style="color:var(--color-success);font-weight:600">green</span> = none,
+       <span style="color:var(--color-warning);font-weight:600">amber</span> = ≤10%,
+       <span style="color:var(--color-danger);font-weight:600">red</span> = &gt;10%).
+       Orange top border = |skew| &gt; 1 (skewed distribution — not an outlier indicator).
      </p>`
   );
+
+  const legend = el("div", { cls: "stats-legend" });
+  legend.innerHTML = `<span class="stats-legend__dot--skew"></span> Orange top border = |skew| &gt; 1 — skewed distribution (not outliers)`;
+  section.appendChild(legend);
 
   const grid = el("div", { cls: "stats-grid" });
   const N = totalRows || rows.length;
@@ -632,7 +650,8 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
             null_count: nullCount,
           };
 
-    const skew     = skewness(vals);
+    const skew         = skewness(vals);
+    const outlierCount = _countColOutliers(vals);
     const nc       = stats.null_count ?? nullCount;
     const nullPct  = N > 0 ? ((nc / N) * 100).toFixed(1) : "0.0";
     const qualCls  = nc === 0 ? "stats-col-card--ok"
@@ -684,6 +703,11 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
     card.appendChild(nameEl);
     card.appendChild(primary);
     card.appendChild(secondary);
+    if (outlierCount > 0) {
+      const outlierEl = el("div", { cls: "outlier-count-badge" });
+      outlierEl.textContent = `${outlierCount} IQR outlier${outlierCount !== 1 ? "s" : ""}`;
+      card.appendChild(outlierEl);
+    }
     grid.appendChild(card);
   }
 

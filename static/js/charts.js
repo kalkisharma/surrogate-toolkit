@@ -494,7 +494,7 @@ export function renderNormBoxPlots(gridEl, histData, inputCols, method, settings
       height: cellHeight,
       paper_bgcolor: "rgba(0,0,0,0)",
       plot_bgcolor:  "rgba(0,0,0,0)",
-      margin: { t: 4, b: 28, l: 32, r: 4 },
+      margin: { t: 4, b: 28, l: 32, r: 12 },
       font:  { color: fontClr, family: "Inter, system-ui, sans-serif", size: 9 },
       xaxis: { showgrid: false, tickfont: { size: 9 } },
       yaxis: { showgrid: true, gridcolor: gridClr, tickfont: { size: 9 } },

@@ -19,6 +19,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.8] — 2026-05-14
+
+### Explore visualization fixes — SPLOM resize, stats legend, outlier counts, box plot layout (v0.9.8)
+
+#### Fixed
+
+- **SPLOM initial vertical squish** — `responsive: true` caused Plotly to re-measure the container before the browser had reflowed the panel. Added `requestAnimationFrame(() => Plotly.Plots.resize(chartWrap))` immediately after the initial `renderScatterMatrix` call so the resize runs after the first paint, giving the correct dimensions.
+- **Box plots horizontally squished / data overlapping / whisker line overflowing** — `.norm-hist-grid` was a flex-wrap container; cells could collapse below 240px with many columns, causing Plotly to squish both box traces together. Switched to `display: grid` with `minmax(260px, 1fr)` columns so every cell is always at least 260px wide. Increased the Plotly right margin from `r: 4` to `r: 12` to prevent whisker lines from clipping at the cell edge.
+
+#### Added
+
+- **Stats legend line** — a small "orange top border = |skew| > 1 (skewed distribution — not outliers)" note now appears below the Summary Statistics header, resolving user confusion between the skewness warning and outlier detection.
+- **Per-column IQR outlier count badge** — each stats card now shows an "N IQR outlier(s)" count below the secondary stats row when the column has outlier values (IQR ×1.5 rule). `_countColOutliers(vals)` computes this per-column, independent of the cross-column `detectOutliers` used for the scatter matrix overlay.
+- **Stats primer updated** — the tooltip for "Reading the summary statistics" now explicitly describes the card border scheme including the orange top border for skewness.
+
+---
+
 ## [0.9.7] — 2026-05-14
 
 ### UI polish — filename consistency, post-upload routing, step numbering, results table alignment (v0.9.7)
