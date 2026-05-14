@@ -1407,6 +1407,81 @@ body,
   color: var(--color-warning);
 }
 
+/* ── Prediction (Step 9) ─────────────────────────────────────────────────────── */
+.prediction-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 480px;
+  margin-bottom: var(--space-5);
+}
+.prediction-input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+.prediction-input-label {
+  flex: 0 0 160px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prediction-input-field {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  font-family: var(--font-mono);
+}
+.prediction-input-field:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-accent);
+}
+.prediction-run-btn {
+  margin-top: var(--space-2);
+  align-self: flex-start;
+}
+.prediction-results {
+  margin-top: var(--space-4);
+  max-width: 480px;
+}
+.prediction-batch-file {
+  display: none;
+}
+.prediction-batch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.prediction-batch-filename {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.prediction-dl-btn {
+  margin-top: var(--space-3);
+}
+.prediction-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  background: var(--color-bg-subtle);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
+
 /* ── Workflow layout (sidebar + panel router) ────────────────────────────────── */
 .workflow-layout {
   display: flex;

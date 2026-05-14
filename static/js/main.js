@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.8.2
+// Version: 0.9.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, and drives the workflow
 //              panel router (sidebar + 8 lazy-init panels).
@@ -19,6 +19,7 @@ import { initDesignation } from "./modules/column_designation.js";
 import { initNormalization } from "./modules/normalization.js";
 import { initModelConfig } from "./modules/model_config.js";
 import { initResults } from "./modules/results.js";
+import { initPrediction } from "./modules/prediction.js";
 import { el, clearEl } from "./utils.js";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -267,11 +268,12 @@ async function _renderExploration(uploadResponse) {
   app.appendChild(layout);
 
   // ── Panel containers ──────────────────────────────────────────────────────
-  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results"];
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
-                        designate: "Designate", normalize: "Normalize", configure: "Configure", results: "Results" };
+                        designate: "Designate", normalize: "Normalize", configure: "Configure",
+                        results: "Results", predict: "Predict" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
-                        designate: 5, normalize: 6, configure: 7, results: 8 };
+                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9 };
 
   const panelEls  = {};
   const panelDone = {};
@@ -286,11 +288,11 @@ async function _renderExploration(uploadResponse) {
   const hasDesignation = _currentInputCols.length > 0;
   const stepUnlocked = {
     upload: true, preview: true, explore: true, clean: true, designate: true,
-    normalize: hasDesignation, configure: hasDesignation, results: false,
+    normalize: hasDesignation, configure: hasDesignation, results: false, predict: false,
   };
   const stepCompleted = {
     upload: true, preview: false, explore: false, clean: false,
-    designate: hasDesignation, normalize: false, configure: false, results: false,
+    designate: hasDesignation, normalize: false, configure: false, results: false, predict: false,
   };
 
   let _activeKey = "explore";
@@ -364,8 +366,9 @@ async function _renderExploration(uploadResponse) {
       case "clean":     await _initCleanPanel(container);    break;
       case "designate": _initDesignatePanel(container);      break;
       case "normalize": _initNormalizePanel(container);      break;
-      case "configure": _initConfigurePanel(container);      break;
+      case "configure": _initConfigurePanel(container);       break;
       case "results":   await _initResultsPanel(container);  break;
+      case "predict":   await _initPredictPanel(container);  break;
     }
   }
 
@@ -477,14 +480,23 @@ async function _renderExploration(uploadResponse) {
     const hasResults = await initResults(container);
     if (hasResults) {
       stepCompleted["results"] = true;
+      stepUnlocked["predict"]  = true;
       buildSidebar();
     }
+  }
+
+  // ── Step 9 — Predict ──────────────────────────────────────────────────────
+  async function _initPredictPanel(container) {
+    clearEl(container);
+    _subtitle(container);
+    await initPrediction(container);
   }
 
   // ── Check for existing trained model ─────────────────────────────────────
   const resultsCheck = await get("/api/model/results");
   if (resultsCheck.success && resultsCheck.results) {
     stepUnlocked["results"] = true;
+    stepUnlocked["predict"] = true;
   }
 
   // ── Initial render ────────────────────────────────────────────────────────

@@ -19,6 +19,31 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [0.9.0] — 2026-05-14
+
+### Phase 5 — Prediction & Inference (v0.9.0)
+
+#### Added
+
+- **Step 9 — Predict** — new sidebar step, unlocked after a model is trained. Two sections in one card:
+  - **Single-point prediction** — input form with one numeric field per input column; "Run Prediction →" fires `POST /api/predict/single` and displays a results table with predicted output values.
+  - **Batch prediction (CSV)** — file picker for an input-only CSV; "Run Batch Prediction →" fires `POST /api/predict/batch` and presents a "⬇ Download CSV" button. The downloaded file contains the original input columns plus predicted output columns. When the session classification is not Unclassified, a `# Classification: <label>` comment is prepended to the file.
+- **`POST /api/predict/single`** — validates inputs against trained model's `input_columns`; returns `{ predictions: { col: float }, model_type }`.
+- **`POST /api/predict/batch`** — accepts multipart CSV; validates required columns; returns JSON rows (frontend handles download). Handles: `NO_FILE`, `INVALID_CSV`, `MISSING_CSV_COLUMNS`, `NON_NUMERIC_CSV`.
+- **Learning primers** — three primers: section-level ("What is prediction?"), single-point ("How do I use single-point prediction?"), batch ("How do I run batch prediction?").
+- **Prediction CSS** — `.prediction-form`, `.prediction-input-row`, `.prediction-input-label`, `.prediction-input-field`, `.prediction-batch-row`, `.prediction-batch-filename`, `.prediction-code` in `main.css`.
+
+#### Files changed
+
+- `app/api/prediction_api.py` — full implementation (was stub)
+- `static/js/modules/prediction.js` — full implementation (was stub)
+- `app/__init__.py` — register prediction blueprint at `/api/predict`
+- `static/js/main.js` — Step 9 in router; import `initPrediction`; unlock on training completion
+- `static/css/main.css` — prediction UI styles
+- `config/settings.py` — VERSION bump
+
+---
+
 ## [0.8.11] — 2026-05-13
 
 ### Bug fix — Configure tab learning primers (v0.8.11)
