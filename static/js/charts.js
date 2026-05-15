@@ -728,6 +728,72 @@ export function renderOATGrid(gridEl, oatData, sortedCols, options = {}) {
  * @param {string|null} [options.plotBgColor=null]
  * @param {string|null} [options.paperBgColor=null]
  */
+/**
+ * Render a Pareto front scatter plot for multi-objective optimization results.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {object[]}    paretoOutputs - Array of {output_col: value, ...} per solution
+ * @param {string}      xObj          - Output column name for x-axis
+ * @param {string}      yObj          - Output column name for y-axis
+ * @param {object}      [options]
+ */
+export function renderParetoFront(containerEl, paretoOutputs, xObj, yObj, options = {}) {
+  const { fontSize = 12, fontColor = null, plotBgColor = null, paperBgColor = null } = options;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const _fc    = fontColor    ?? (isDark ? "#8b94b3" : "#4b5478");
+  const _pb    = plotBgColor  ?? "rgba(0,0,0,0)";
+  const _ppb   = paperBgColor ?? "rgba(0,0,0,0)";
+
+  const n = paretoOutputs.length;
+  const x = paretoOutputs.map(r => r[xObj]);
+  const y = paretoOutputs.map(r => r[yObj]);
+
+  const trace = {
+    type: "scatter", mode: "markers",
+    name: "Pareto solution",
+    x, y,
+    marker: {
+      color: paretoOutputs.map((_, i) => i / Math.max(n - 1, 1)),
+      colorscale: "Viridis",
+      size: 9,
+      showscale: true,
+      colorbar: {
+        title: { text: "Solution #", font: { size: fontSize - 1 } },
+        thickness: 12,
+        len: 0.75,
+        tickfont: { size: fontSize - 2, color: _fc },
+        titlefont: { size: fontSize - 1, color: _fc },
+      },
+      line: { width: 0.5, color: "rgba(0,0,0,0.3)" },
+    },
+    hovertemplate: `${xObj}: %{x:.4g}<br>${yObj}: %{y:.4g}<extra></extra>`,
+  };
+
+  const layout = {
+    height: 370,
+    margin: { t: 16, b: 55, l: 65, r: 90 },
+    xaxis: {
+      title: { text: xObj, font: { size: fontSize } },
+      color: _fc, gridcolor: "rgba(128,128,128,0.18)", zeroline: false,
+    },
+    yaxis: {
+      title: { text: yObj, font: { size: fontSize } },
+      color: _fc, gridcolor: "rgba(128,128,128,0.18)", zeroline: false,
+    },
+    font:          { size: fontSize, color: _fc },
+    plot_bgcolor:  _pb,
+    paper_bgcolor: _ppb,
+    showlegend:    false,
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, [trace], layout, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage"]],
+    toImageButtonOptions: { filename: "pareto_front", scale: 2 },
+  });
+}
+
 export function renderDesignSpaceScatter(containerEl, X_train, recommendations, inputCols, options = {}) {
   const { axisX = 0, axisY = 1, fontSize = 12,
           fontColor = null, plotBgColor = null, paperBgColor = null } = options;

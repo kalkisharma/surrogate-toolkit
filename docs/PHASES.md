@@ -11,7 +11,7 @@
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 7, 8, 9, 11 complete |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 6, 7, 8, 9, 11 complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
@@ -207,7 +207,7 @@
 ---
 
 ### Phase 6 — Design Space Optimization
-**Status:** 🔲 Not started | **Version:** v1.1.x
+**Status:** ✅ Complete | **Version:** v1.5.0
 
 **Purpose:** Use the trained surrogate as a fast proxy to find the best design inputs — replacing expensive simulation sweeps with near-instant surrogate queries.
 

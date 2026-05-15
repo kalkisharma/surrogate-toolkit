@@ -22,6 +22,7 @@ import { initResults } from "./modules/results.js";
 import { initPrediction } from "./modules/prediction.js";
 import { initInterpretation } from "./modules/interpretation.js";
 import { initActiveLearning } from "./modules/active_learning.js";
+import { initOptimization } from "./modules/optimization.js";
 import { initExport } from "./modules/export.js";
 import { el, clearEl, escHtml } from "./utils.js";
 
@@ -297,14 +298,14 @@ async function _renderExploration(uploadResponse) {
   app.appendChild(layout);
 
   // ── Panel containers ──────────────────────────────────────────────────────
-  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "interpret", "active", "export"];
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "optimize", "interpret", "active", "export"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
                         designate: "Designate", normalize: "Normalize", configure: "Configure",
-                        results: "Results", predict: "Predict", interpret: "Interpret", active: "Active",
-                        export: "Export" };
+                        results: "Results", predict: "Predict", optimize: "Optimize",
+                        interpret: "Interpret", active: "Active", export: "Export" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
-                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, interpret: 11, active: 12,
-                        export: 13 };
+                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, optimize: 10,
+                        interpret: 11, active: 12, export: 13 };
 
   const panelEls      = {};   // outer panel div — used only for .hidden toggling
   const _panelContent = {};   // inner content div — passed to modules; clearable
@@ -327,13 +328,13 @@ async function _renderExploration(uploadResponse) {
   const hasDesignation = _currentInputCols.length > 0;
   const stepUnlocked = {
     upload: true, preview: true, explore: true, clean: true, designate: true,
-    normalize: hasDesignation, configure: hasDesignation, results: false, predict: false, interpret: false, active: false,
-    export: hasDesignation,
+    normalize: hasDesignation, configure: hasDesignation, results: false, predict: false, optimize: false,
+    interpret: false, active: false, export: hasDesignation,
   };
   const stepCompleted = {
     upload: true, preview: false, explore: false, clean: false,
-    designate: hasDesignation, normalize: false, configure: false, results: false, predict: false, interpret: false, active: false,
-    export: false,
+    designate: hasDesignation, normalize: false, configure: false, results: false, predict: false, optimize: false,
+    interpret: false, active: false, export: false,
   };
 
   let _activeKey = "explore";
@@ -417,6 +418,7 @@ async function _renderExploration(uploadResponse) {
       case "configure": _initConfigurePanel(container, key);      break;
       case "results":    await _initResultsPanel(container, key);    break;
       case "predict":    await _initPredictPanel(container, key);    break;
+      case "optimize":   await _initOptimizePanel(container, key);         break;
       case "interpret":  await _initInterpretPanel(container, key);       break;
       case "active":     await _initActiveLearningPanel(container, key);  break;
       case "export":     await _initExportPanel(container, key);          break;
@@ -534,6 +536,7 @@ async function _renderExploration(uploadResponse) {
     if (hasResults) {
       stepCompleted["results"]   = true;
       stepUnlocked["predict"]    = true;
+      stepUnlocked["optimize"]   = true;
       stepUnlocked["interpret"]  = true;
       stepUnlocked["active"]     = true;
       buildSidebar();
@@ -545,6 +548,13 @@ async function _renderExploration(uploadResponse) {
     clearEl(container);
     _subtitle(key);
     await initPrediction(container);
+  }
+
+  // ── Step 10 — Optimize ───────────────────────────────────────────────────
+  async function _initOptimizePanel(container, key) {
+    clearEl(container);
+    _subtitle(key);
+    await initOptimization(container);
   }
 
   // ── Step 11 — Interpret ───────────────────────────────────────────────────
@@ -573,6 +583,7 @@ async function _renderExploration(uploadResponse) {
   if (resultsCheck.success && resultsCheck.results) {
     stepUnlocked["results"]    = true;
     stepUnlocked["predict"]    = true;
+    stepUnlocked["optimize"]   = true;
     stepUnlocked["interpret"]  = true;
     stepUnlocked["active"]     = true;
   }

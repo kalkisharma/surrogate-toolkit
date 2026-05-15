@@ -19,6 +19,33 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.5.0] — 2026-05-15
+
+### Phase 6 — Design Space Optimization (v1.5.0)
+
+#### Added
+
+- **Step 10 — Optimize** sidebar panel, unlocked after training results. Fills the gap between Predict (9) and Interpret (11).
+- **Single-objective** (`POST /api/optimize/single`) — `scipy.optimize.differential_evolution` finds the input combination that minimizes or maximizes a chosen output. Supports per-input bounds (defaults to training range) and optional inequality constraints on other outputs. Flags high GPR uncertainty (> 10% of predicted value) at the optimum.
+- **Multi-objective** (`POST /api/optimize/multi`) — NSGA-II via `pymoo` finds the Pareto front across two or more output objectives. Each objective can be independently set to minimize or maximize. Returns all non-dominated solutions.
+- **`GET /api/optimize/history`** — last 5 optimization runs from STATE.
+- **Pareto front chart** (`renderParetoFront` in `charts.js`) — Viridis-colored scatter of Pareto solutions; axis selectors when > 2 objectives.
+- **Constraint rows** in single-objective UI — add/remove output inequality constraints (output col + ≤/≥ + threshold); violated constraints shown as warning chips on results.
+- **`app/ml/optimization/single_objective.py`** — `SingleObjectiveOptimizer`.
+- **`app/ml/optimization/multi_objective.py`** — `MultiObjectiveOptimizer` (NSGA-II); raises `ImportError` with install instructions if pymoo is missing.
+- **`app/api/optimization_api.py`** — full single, multi, and history routes.
+- Learning mode primer explaining objective functions, Pareto fronts, and the exploration/exploitation trade-off in engineering terms.
+
+#### Changed
+
+- `requirements.txt` — added `pymoo>=0.6.1`.
+- `app/__init__.py` — registered `optimization_api` blueprint at `/api/optimize`.
+- `static/js/main.js` — "optimize" registered as step 10 in STEP_KEYS/LABELS/NUMS; stepUnlocked/stepCompleted extended; unlock in two places; `_initOptimizePanel`.
+- `static/js/charts.js` — added `renderParetoFront`.
+- `config/settings.py` — VERSION → 1.5.0.
+
+---
+
 ## [1.4.0] — 2026-05-15
 
 ### Phase 11 — Export & Compliance (v1.4.0)

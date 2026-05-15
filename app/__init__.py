@@ -111,6 +111,9 @@ def create_app() -> Flask:
     from app.api.export_api import bp as export_bp
     app.register_blueprint(export_bp, url_prefix="/api/export")
 
+    from app.api.optimization_api import bp as optimize_bp
+    app.register_blueprint(optimize_bp, url_prefix="/api/optimize")
+
     # ─── ERROR HANDLERS ───────────────────────────────────────────────────────
 
     @app.errorhandler(413)
