@@ -48,11 +48,13 @@ def _get_df_for_key(state, key):
     active_key = state["datasets"]["active_dataset_key"]
     if key == active_key:
         primary = state["datasets"]["primary"]
-        return primary.get("normalized") or primary.get("clean")
+        df = primary.get("normalized")
+        return df if df is not None else primary.get("clean")
     ds = state["datasets"]["_datasets"].get(key)
     if ds is None:
         return None
-    return ds.get("normalized") or ds.get("clean")
+    df = ds.get("normalized")
+    return df if df is not None else ds.get("clean")
 
 
 def _metrics_by_column(test_metrics):
