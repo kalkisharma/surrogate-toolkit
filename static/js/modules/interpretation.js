@@ -195,7 +195,7 @@ function _renderOATSection(container, resp, sortedCols) {
     </div>`;
   const grid = el("div", { cls: "norm-hist-grid" });
   section.appendChild(grid);
-  renderOATGrid(grid, resp.oat, sortedCols);
+  renderOATGrid(grid, resp.oat, sortedCols, { outputCol: resp.output_col });
   requestAnimationFrame(() => {
     grid.querySelectorAll(".js-plotly-plot").forEach(p => Plotly.Plots.resize(p));
   });

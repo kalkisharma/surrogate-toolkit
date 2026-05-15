@@ -667,7 +667,8 @@ export function renderTornadoChart(containerEl, inputCols, stValues, s1Values, o
  * @param {object}      [options]
  */
 export function renderOATGrid(gridEl, oatData, sortedCols, options = {}) {
-  const { fontSize = 12, fontColor = null, plotBgColor = null, paperBgColor = null, cellHeight = 220 } = options;
+  const { fontSize = 12, fontColor = null, plotBgColor = null, paperBgColor = null,
+          cellHeight = 220, outputCol = null } = options;
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
   const _fc  = fontColor    ?? (isDark ? "#8b94b3" : "#4b5478");
   const _pb  = plotBgColor  ?? "rgba(0,0,0,0)";
@@ -697,9 +698,11 @@ export function renderOATGrid(gridEl, oatData, sortedCols, options = {}) {
     const layout = {
       height:        cellHeight,
       title:         { text: col, font: { size: fontSize, color: _fc }, x: 0.05 },
-      margin:        { t: 32, b: 40, l: 50, r: 8 },
-      xaxis:         { color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
-      yaxis:         { color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
+      margin:        { t: 32, b: 52, l: 56, r: 8 },
+      xaxis:         { title: { text: col, font: { size: fontSize - 1 } },
+                       color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
+      yaxis:         { title: outputCol ? { text: outputCol, font: { size: fontSize - 1 } } : undefined,
+                       color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
       font:          { size: fontSize, color: _fc },
       plot_bgcolor:  _pb,
       paper_bgcolor: _ppb,

@@ -342,7 +342,9 @@ def interpret():
     model_type = results["model_type"]
 
     primary = state["datasets"]["primary"]
-    df      = primary.get("normalized") or primary.get("clean")
+    _norm   = primary.get("normalized")
+    _clean  = primary.get("clean")
+    df      = _norm if _norm is not None else _clean
     X_train = df[input_cols].values
     X_test  = np.array(results.get("test_inputs") or [])
 
