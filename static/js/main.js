@@ -2,10 +2,10 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 1.4.0
+// Version: 1.6.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
-//              workflow panel router (sidebar + 10 lazy-init panels).
+//              workflow panel router (sidebar + 14 lazy-init panels).
 // =============================================================================
 
 import { initLearningMode, registerPrimer } from "./learning_mode.js";
@@ -23,6 +23,7 @@ import { initPrediction } from "./modules/prediction.js";
 import { initInterpretation } from "./modules/interpretation.js";
 import { initActiveLearning } from "./modules/active_learning.js";
 import { initOptimization } from "./modules/optimization.js";
+import { initComparison } from "./modules/comparison.js";
 import { initExport } from "./modules/export.js";
 import { el, clearEl, escHtml } from "./utils.js";
 
@@ -298,14 +299,14 @@ async function _renderExploration(uploadResponse) {
   app.appendChild(layout);
 
   // ── Panel containers ──────────────────────────────────────────────────────
-  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "optimize", "interpret", "active", "export"];
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "optimize", "interpret", "active", "compare", "export"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
                         designate: "Designate", normalize: "Normalize", configure: "Configure",
                         results: "Results", predict: "Predict", optimize: "Optimize",
-                        interpret: "Interpret", active: "Active", export: "Export" };
+                        interpret: "Interpret", active: "Active", compare: "Compare", export: "Export" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
                         designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, optimize: 10,
-                        interpret: 11, active: 12, export: 13 };
+                        interpret: 11, active: 12, compare: 13, export: 14 };
 
   const panelEls      = {};   // outer panel div — used only for .hidden toggling
   const _panelContent = {};   // inner content div — passed to modules; clearable
@@ -329,12 +330,12 @@ async function _renderExploration(uploadResponse) {
   const stepUnlocked = {
     upload: true, preview: true, explore: true, clean: true, designate: true,
     normalize: hasDesignation, configure: hasDesignation, results: false, predict: false, optimize: false,
-    interpret: false, active: false, export: hasDesignation,
+    interpret: false, active: false, compare: hasDesignation, export: hasDesignation,
   };
   const stepCompleted = {
     upload: true, preview: false, explore: false, clean: false,
     designate: hasDesignation, normalize: false, configure: false, results: false, predict: false, optimize: false,
-    interpret: false, active: false, export: false,
+    interpret: false, active: false, compare: false, export: false,
   };
 
   let _activeKey = "explore";
@@ -421,6 +422,7 @@ async function _renderExploration(uploadResponse) {
       case "optimize":   await _initOptimizePanel(container, key);         break;
       case "interpret":  await _initInterpretPanel(container, key);       break;
       case "active":     await _initActiveLearningPanel(container, key);  break;
+      case "compare":    await _initComparePanel(container, key);         break;
       case "export":     await _initExportPanel(container, key);          break;
     }
   }
@@ -491,6 +493,7 @@ async function _renderExploration(uploadResponse) {
 
         stepUnlocked["normalize"]  = true;
         stepUnlocked["configure"]  = true;
+        stepUnlocked["compare"]    = true;
         stepUnlocked["export"]     = true;
         stepCompleted["designate"] = true;
         buildSidebar();
@@ -571,7 +574,14 @@ async function _renderExploration(uploadResponse) {
     await initActiveLearning(container);
   }
 
-  // ── Step 13 — Export & Compliance ─────────────────────────────────────────
+  // ── Step 13 — Compare ─────────────────────────────────────────────────────
+  async function _initComparePanel(container, key) {
+    clearEl(container);
+    _subtitle(key);
+    await initComparison(container);
+  }
+
+  // ── Step 14 — Export & Compliance ─────────────────────────────────────────
   async function _initExportPanel(container, key) {
     clearEl(container);
     _subtitle(key);

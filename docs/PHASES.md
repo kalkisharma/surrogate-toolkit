@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-15
 **Total phases:** 16 across 3 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -11,7 +11,7 @@
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 6, 7, 8, 9, 11 complete |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 6, 7, 8, 9, 10, 11 complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
@@ -376,7 +376,7 @@
 ---
 
 ### Phase 10 — Multi-Dataset Comparison
-**Status:** 🔲 Not started | **Version:** v1.5.x
+**Status:** ✅ Complete | **Version:** v1.6.0
 
 **Purpose:** Compare surrogates trained on different datasets side by side — most commonly a cheap low-fidelity model against an expensive high-fidelity model.
 

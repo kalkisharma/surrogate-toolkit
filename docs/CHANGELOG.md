@@ -19,6 +19,35 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.6.0] — 2026-05-15
+
+### Phase 10 — Multi-Dataset Comparison (v1.6.0)
+
+#### Added
+
+- **Step 13 — Compare** sidebar panel, unlocked after column designation; Export moves to Step 14.
+- **`GET /api/comparison/status`** — lists all loaded datasets with their model type and whether a trained model exists.
+- **`POST /api/comparison/run`** — LHS-samples the intersection of both models' input spaces, runs both surrogates on the same points, and returns: side-by-side test metrics (R², RMSE, MAE), per-output prediction arrays `y_a`/`y_b`, bias vectors `Δ = B − A`, and summary statistics (mean Δ, std Δ, % of mean A).
+- **`POST /api/comparison/error_model`** — fits a `LinearRegression` to `Δ(output)` as a function of common inputs; reports R² and per-input coefficients. A high R² means bias is spatially structured.
+- **`GET /api/comparison/results`** — returns the cached most-recent comparison without re-running.
+- **Comparison scatter** (`renderComparisonScatter` in `charts.js`) — Model A vs Model B predictions on shared LHS inputs; 1:1 diagonal reference line.
+- **Bias histogram** (`renderBiasHistogram` in `charts.js`) — distribution of Δ = B − A per output; mean shown as dotted line.
+- **Test metrics table** — side-by-side R²/RMSE/MAE with green highlighting of the better-performing model.
+- **Non-common input handling** — when models have different input sets, non-common inputs are held at their training median; only common inputs are varied in the LHS design.
+- **`app/api/comparison_api.py`** — full implementation replacing the stub.
+- **`static/js/modules/comparison.js`** — Step 13 panel module.
+- Learning mode primer explaining metrics comparison, bias, and the error model.
+
+#### Changed
+
+- `app/__init__.py` — registered `comparison_api` blueprint at `/api/comparison`.
+- `static/js/main.js` — "compare" registered as step 13; "export" renumbered to step 14; stepUnlocked/stepCompleted extended; unlock on designation; `_initComparePanel`.
+- `static/js/charts.js` — added `renderComparisonScatter`, `renderBiasHistogram`.
+- `static/css/main.css` — comparison panel styles.
+- `config/settings.py` — VERSION → 1.6.0.
+
+---
+
 ## [1.5.0] — 2026-05-15
 
 ### Phase 6 — Design Space Optimization (v1.5.0)

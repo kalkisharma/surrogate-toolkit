@@ -2321,6 +2321,73 @@ details[open] .al-history-summary::before { content: "▼ "; }
   line-height: 1.5;
 }
 .export-itar-label input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; }
+
+/* ── Comparison panel ─────────────────────────────────────────────────────── */
+.comparison-selector-card {
+  margin-bottom: var(--space-5);
+}
+.comparison-sel-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+.comparison-sel-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.cmp-section {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.cmp-section:first-of-type { border-top: none; margin-top: var(--space-2); }
+.cmp-summary-badge-row {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+.cmp-chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+@media (max-width: 900px) {
+  .cmp-chart-row { grid-template-columns: 1fr; }
+}
+.cmp-chart-cell { min-height: 280px; }
+.cmp-metrics-table th, .cmp-metrics-table td { text-align: center; }
+.cmp-metrics-table th:first-child, .cmp-metrics-table td:first-child { text-align: left; }
+.cmp-winner { font-weight: var(--font-semibold); color: var(--color-success); }
+.cmp-table-note {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-2);
+}
+.cmp-bias-inline {
+  font-weight: var(--font-semibold);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+.cmp-bias-good   { background: color-mix(in srgb, var(--color-success) 12%, transparent); color: var(--color-success); }
+.cmp-bias-caution { background: color-mix(in srgb, var(--color-warning) 14%, transparent); color: var(--color-warning); }
+.cmp-bias-warn   { background: color-mix(in srgb, var(--color-error) 12%, transparent); color: var(--color-error); }
+.cmp-err-results { margin-top: var(--space-4); }
+.cmp-err-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.cmp-err-msg { font-size: var(--text-sm); color: var(--color-text-secondary); }
+.cmp-coef-table { margin-top: var(--space-2); }
+.cmp-intercept-row td { color: var(--color-text-muted); font-style: italic; }
+.section-subheader-inline { font-size: var(--text-base); font-weight: var(--font-semibold); margin-bottom: 0; }
 .export-history-section { margin-top: var(--space-6); }
 .export-history-table td, .export-history-table th { font-size: var(--text-sm); }
 .export-cls-chip {

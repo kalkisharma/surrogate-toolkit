@@ -855,3 +855,124 @@ export function renderDesignSpaceScatter(containerEl, X_train, recommendations, 
     toImageButtonOptions: { filename: "design_space_scatter", scale: 2 },
   });
 }
+
+/**
+ * Render a scatter plot of Model A predictions vs Model B predictions.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {number[]}    yA          - Model A predictions
+ * @param {number[]}    yB          - Model B predictions
+ * @param {string}      outputCol
+ * @param {string}      labelA
+ * @param {string}      labelB
+ * @param {object}      [options]
+ */
+export function renderComparisonScatter(containerEl, yA, yB, outputCol, labelA, labelB, options = {}) {
+  const { fontSize = 12, fontColor = null, plotBgColor = null, paperBgColor = null } = options;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const _fc  = fontColor    ?? (isDark ? "#8b94b3" : "#4b5478");
+  const _pb  = plotBgColor  ?? "rgba(0,0,0,0)";
+  const _ppb = paperBgColor ?? "rgba(0,0,0,0)";
+
+  const allVals = [...yA, ...yB];
+  const vMin    = Math.min(...allVals);
+  const vMax    = Math.max(...allVals);
+  const pad     = (vMax - vMin) * 0.05 || 0.1;
+
+  const scatterTrace = {
+    type: "scatter", mode: "markers", name: "Samples",
+    x: yA, y: yB,
+    marker: { color: "rgba(99,102,241,0.65)", size: 6,
+              line: { width: 0.5, color: "rgba(99,102,241,0.9)" } },
+    hovertemplate: `${labelA}: %{x:.4g}<br>${labelB}: %{y:.4g}<extra></extra>`,
+  };
+
+  const diagTrace = {
+    type: "scatter", mode: "lines", name: "1:1 line",
+    x: [vMin - pad, vMax + pad], y: [vMin - pad, vMax + pad],
+    line: { dash: "dash", color: "rgba(128,128,128,0.55)", width: 1.5 },
+    showlegend: true,
+    hoverinfo: "skip",
+  };
+
+  const layout = {
+    height: 320,
+    margin: { t: 30, b: 55, l: 65, r: 16 },
+    title:  { text: outputCol, font: { size: fontSize + 1, color: _fc }, x: 0.05 },
+    xaxis:  { title: { text: labelA, font: { size: fontSize } }, color: _fc,
+              gridcolor: "rgba(128,128,128,0.18)", zeroline: false,
+              range: [vMin - pad, vMax + pad] },
+    yaxis:  { title: { text: labelB, font: { size: fontSize } }, color: _fc,
+              gridcolor: "rgba(128,128,128,0.18)", zeroline: false,
+              range: [vMin - pad, vMax + pad] },
+    font:          { size: fontSize, color: _fc },
+    plot_bgcolor:  _pb,
+    paper_bgcolor: _ppb,
+    showlegend:    true,
+    legend:        { x: 1, xanchor: "right", y: 0, font: { size: fontSize - 1 } },
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, [scatterTrace, diagTrace], layout, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage"]],
+    toImageButtonOptions: { filename: `comparison_scatter_${outputCol}`, scale: 2 },
+  });
+}
+
+/**
+ * Render a histogram of Δ = B − A (bias distribution) for one output.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {number[]}    delta       - Array of (B - A) values
+ * @param {string}      outputCol
+ * @param {object}      [options]
+ */
+export function renderBiasHistogram(containerEl, delta, outputCol, options = {}) {
+  const { fontSize = 12, fontColor = null, plotBgColor = null, paperBgColor = null } = options;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const _fc  = fontColor    ?? (isDark ? "#8b94b3" : "#4b5478");
+  const _pb  = plotBgColor  ?? "rgba(0,0,0,0)";
+  const _ppb = paperBgColor ?? "rgba(0,0,0,0)";
+
+  const meanDelta = delta.reduce((a, b) => a + b, 0) / delta.length;
+
+  const histTrace = {
+    type: "histogram", x: delta, name: "Δ = B − A",
+    nbinsx: 30,
+    marker: { color: "rgba(99,102,241,0.75)", line: { width: 0.5, color: "rgba(99,102,241,1)" } },
+    hovertemplate: "Δ: %{x:.4g}<br>Count: %{y}<extra></extra>",
+  };
+
+  const meanLine = {
+    type: "scatter", mode: "lines", name: `Mean Δ = ${meanDelta.toFixed(4)}`,
+    x: [meanDelta, meanDelta], y: [0, delta.length / 3],
+    line: { dash: "dot", color: "rgba(239,68,68,0.85)", width: 2 },
+    showlegend: true,
+    hoverinfo: "skip",
+  };
+
+  const layout = {
+    height: 260,
+    margin: { t: 30, b: 50, l: 55, r: 16 },
+    title:  { text: `Bias: ${outputCol}`, font: { size: fontSize + 1, color: _fc }, x: 0.05 },
+    xaxis:  { title: { text: "Δ (B − A)", font: { size: fontSize } }, color: _fc,
+              gridcolor: "rgba(128,128,128,0.18)", zeroline: true,
+              zerolinecolor: "rgba(128,128,128,0.4)", zerolinewidth: 1 },
+    yaxis:  { title: { text: "Count", font: { size: fontSize } }, color: _fc,
+              gridcolor: "rgba(128,128,128,0.18)" },
+    font:          { size: fontSize, color: _fc },
+    plot_bgcolor:  _pb,
+    paper_bgcolor: _ppb,
+    showlegend:    true,
+    legend:        { x: 1, xanchor: "right", y: 1, font: { size: fontSize - 1 } },
+    barmode:       "overlay",
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, [histTrace, meanLine], layout, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage"]],
+    toImageButtonOptions: { filename: `bias_histogram_${outputCol}`, scale: 2 },
+  });
+}
