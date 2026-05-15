@@ -199,7 +199,7 @@ def save_project():
 
     return send_file(
         io.BytesIO(data),
-        download_name=filename,
+        attachment_filename=filename,
         as_attachment=True,
         mimetype="application/octet-stream",
     )
