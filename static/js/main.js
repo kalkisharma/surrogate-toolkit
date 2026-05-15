@@ -897,7 +897,7 @@ async function _saveProject() {
     _hasUnsavedChanges = false;
     showSuccess(`Saved as "${filename}"`);
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "&#128190; Save"; }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "💾 Save"; }
   }
 }
 
@@ -975,7 +975,7 @@ async function _openProject(file) {
   } catch {
     showError("Failed to load project.");
   } finally {
-    if (openBtn) { openBtn.disabled = false; openBtn.textContent = "&#128193; Open"; }
+    if (openBtn) { openBtn.disabled = false; openBtn.textContent = "📂 Open"; }
   }
 }
 
