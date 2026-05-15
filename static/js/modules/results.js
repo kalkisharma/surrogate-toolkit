@@ -65,7 +65,8 @@ function _rerenderPlots() {
   for (const p of _plotItems) {
     p.figWrap.style.height    = `${_resultSettings.height}px`;
     p.figWrap.style.minHeight = `${_resultSettings.height}px`;
-    renderOutputFigure(p.figWrap, p.yTrue, p.yPred, p.colName, p.badgeCls, _resultSettings);
+    renderOutputFigure(p.figWrap, p.yTrue, p.yPred, p.colName, p.badgeCls,
+      { ..._resultSettings, stds: p.stds ?? null });
   }
 }
 
@@ -481,6 +482,7 @@ function _render(containerEl, r) {
       const badgeCls = metric ? _r2Class(metric.r2) : "green";
       const yTrue    = r.test_actuals.map(row => row[j]);
       const yPred    = r.test_predictions.map(row => row[j]);
+      const stds     = r.test_stds ? r.test_stds.map(row => row[j]) : null;
 
       const row     = el("div", { cls: "parity-row" });
       const label   = el("p",   { cls: "parity-col-label", text: colName });
@@ -493,8 +495,9 @@ function _render(containerEl, r) {
       row.appendChild(figWrap);
       plotSection.appendChild(row);
 
-      _plotItems.push({ figWrap, yTrue, yPred, colName, badgeCls });
-      renderOutputFigure(figWrap, yTrue, yPred, colName, badgeCls, _resultSettings);
+      _plotItems.push({ figWrap, yTrue, yPred, colName, badgeCls, stds });
+      renderOutputFigure(figWrap, yTrue, yPred, colName, badgeCls,
+        { ..._resultSettings, stds });
     });
   }
 

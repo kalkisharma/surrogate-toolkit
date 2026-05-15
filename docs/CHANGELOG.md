@@ -19,6 +19,37 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.1.0] — 2026-05-14
+
+### Phase 8 — Model Interpretation (v1.1.0)
+
+#### Added
+
+- **Step 11 — Interpret** sidebar panel, unlocked after training results are available.
+  - **Sobol global sensitivity** (SALib): Saltelli sampling + Sobol analysis yields S1 (first-order) and ST (total-order) indices per input column.  Tornado horizontal bar chart (ST + S1 overlay, sorted by ST descending) and an S1/ST/confidence table.
+  - **OAT curves**: One-at-a-time response grid — each input varied min→max while all others are held at training-data median; dashed line marks the nominal value.  Grid sorted by ST descending for consistency with the tornado chart.
+  - **Uncertainty section**: GPR → note pointing to parity-plot error bars in Step 8; RF → tree-variance 95% CI mean width on test set; Linear → explanatory note.
+  - Output selector dropdown for multi-output models; per-output result caching in STATE (`models_dict["interpretation"][output_col]`); cache cleared on retrain.
+- **GPR parity-plot error bars** — ±1.96σ error bars on parity scatter trace using native GPR posterior std.  `test_stds` (shape: n_test × n_outputs) stored in train results; `test_stds=null` for RF and Linear.
+- **`GPRModel.predict_std(X)`** — returns posterior std from each `MultiOutputRegressor` estimator via `GaussianProcessRegressor.predict(X, return_std=True)`.
+- **`SobolAnalyzer.analyze()`** in `app/ml/sensitivity/global_sensitivity.py`.
+- **`OATAnalyzer.analyze()`** in `app/ml/sensitivity/one_at_a_time.py`.
+- **`compute_uncertainty()`** in `app/ml/uncertainty/bootstrap.py`.
+- **`POST /api/model/interpret`** — runs Sobol + OAT + uncertainty for a given output column; caches result per output.
+- **`GET /api/model/interpret?output_col=X`** — returns cached interpretation result.
+- **`test_inputs`**, **`test_stds`**, **`input_mins`**, **`input_maxs`** fields added to train results dict.
+- **`renderTornadoChart`** and **`renderOATGrid`** exported from `static/js/charts.js`.
+- **`static/js/modules/interpretation.js`** — new Step 11 module.
+- **SALib>=1.5.1** added to `requirements.txt`.
+
+#### Changed
+
+- `static/js/charts.js`: `renderOutputFigure` now accepts `opts.stds` — when present, adds `error_y` Plotly error bars to the parity scatter trace.
+- `static/js/modules/results.js`: `_rerenderPlots` and the per-output forEach loop now pass `stds` through to `renderOutputFigure`.
+- `static/js/main.js`: STEP_KEYS/STEP_LABELS/STEP_NUMS extended for Step 11; stepUnlocked/stepCompleted initialised with `interpret`; `_initResultsPanel` unlocks interpret on results completion; initial page load check unlocks interpret if results exist.
+
+---
+
 ## [1.0.1] — 2026-05-14
 
 ### Phase 4 close — GridSearchCV auto-tune (v1.0.1)

@@ -20,6 +20,7 @@ import { initNormalization } from "./modules/normalization.js";
 import { initModelConfig } from "./modules/model_config.js";
 import { initResults } from "./modules/results.js";
 import { initPrediction } from "./modules/prediction.js";
+import { initInterpretation } from "./modules/interpretation.js";
 import { el, clearEl, escHtml } from "./utils.js";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -281,12 +282,12 @@ async function _renderExploration(uploadResponse) {
   app.appendChild(layout);
 
   // ── Panel containers ──────────────────────────────────────────────────────
-  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict"];
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "interpret"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
                         designate: "Designate", normalize: "Normalize", configure: "Configure",
-                        results: "Results", predict: "Predict" };
+                        results: "Results", predict: "Predict", interpret: "Interpret" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
-                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9 };
+                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, interpret: 11 };
 
   const panelEls      = {};   // outer panel div — used only for .hidden toggling
   const _panelContent = {};   // inner content div — passed to modules; clearable
@@ -309,11 +310,11 @@ async function _renderExploration(uploadResponse) {
   const hasDesignation = _currentInputCols.length > 0;
   const stepUnlocked = {
     upload: true, preview: true, explore: true, clean: true, designate: true,
-    normalize: hasDesignation, configure: hasDesignation, results: false, predict: false,
+    normalize: hasDesignation, configure: hasDesignation, results: false, predict: false, interpret: false,
   };
   const stepCompleted = {
     upload: true, preview: false, explore: false, clean: false,
-    designate: hasDesignation, normalize: false, configure: false, results: false, predict: false,
+    designate: hasDesignation, normalize: false, configure: false, results: false, predict: false, interpret: false,
   };
 
   let _activeKey = "explore";
@@ -395,8 +396,9 @@ async function _renderExploration(uploadResponse) {
       case "designate": _initDesignatePanel(container, key);      break;
       case "normalize": _initNormalizePanel(container, key);      break;
       case "configure": _initConfigurePanel(container, key);      break;
-      case "results":   await _initResultsPanel(container, key);  break;
-      case "predict":   await _initPredictPanel(container, key);  break;
+      case "results":    await _initResultsPanel(container, key);    break;
+      case "predict":    await _initPredictPanel(container, key);    break;
+      case "interpret":  await _initInterpretPanel(container, key);  break;
     }
   }
 
@@ -507,8 +509,9 @@ async function _renderExploration(uploadResponse) {
     _subtitle(key);
     const hasResults = await initResults(container);
     if (hasResults) {
-      stepCompleted["results"] = true;
-      stepUnlocked["predict"]  = true;
+      stepCompleted["results"]   = true;
+      stepUnlocked["predict"]    = true;
+      stepUnlocked["interpret"]  = true;
       buildSidebar();
     }
   }
@@ -520,11 +523,19 @@ async function _renderExploration(uploadResponse) {
     await initPrediction(container);
   }
 
+  // ── Step 11 — Interpret ───────────────────────────────────────────────────
+  async function _initInterpretPanel(container, key) {
+    clearEl(container);
+    _subtitle(key);
+    await initInterpretation(container);
+  }
+
   // ── Check for existing trained model ─────────────────────────────────────
   const resultsCheck = await get("/api/model/results");
   if (resultsCheck.success && resultsCheck.results) {
-    stepUnlocked["results"] = true;
-    stepUnlocked["predict"] = true;
+    stepUnlocked["results"]    = true;
+    stepUnlocked["predict"]    = true;
+    stepUnlocked["interpret"]  = true;
   }
 
   // ── Initial render ────────────────────────────────────────────────────────

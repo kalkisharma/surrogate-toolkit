@@ -3,16 +3,16 @@
 FILE: model_api.py
 MODULE: app/api/
 PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
-         configuration, model training, and results retrieval.
+         configuration, model training, results retrieval, and interpretation.
 DEPENDENCIES: flask, app.state.schema, app.ml.models, app.ml.validation,
-              config.settings, sklearn.model_selection
-FUTURE EXTENSIONS: GET /api/model/metrics, POST /api/model/predict,
-                   per-output model type selection, hyperparameter overrides.
+              app.ml.sensitivity, app.ml.uncertainty, config.settings,
+              sklearn.model_selection
+FUTURE EXTENSIONS: GET /api/model/metrics, per-output model type selection.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
-VERSION: 1.0.1
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -22,11 +22,15 @@ VERSION: 1.0.1
 
 import time
 
+import numpy as np
 from flask import Blueprint, current_app, jsonify, request
 from sklearn.gaussian_process.kernels import Matern
 from sklearn.model_selection import train_test_split
 
 from app.ml.models import GPRModel, LinearModel, RFModel
+from app.ml.sensitivity.global_sensitivity import SobolAnalyzer
+from app.ml.sensitivity.one_at_a_time import OATAnalyzer
+from app.ml.uncertainty.bootstrap import compute_uncertainty
 from app.ml.validation import compute_metrics, run_cross_validation
 from app.state.schema import append_audit_event
 from config.settings import (
@@ -313,6 +317,76 @@ def tune():
     }), 200
 
 
+@bp.route("/interpret", methods=["POST"])
+def interpret():
+    """Run Sobol + OAT + uncertainty for one output column. Caches result per output."""
+    state  = current_app.config["STATE"]
+    data   = request.get_json(silent=True) or {}
+    output_col = data.get("output_col")
+    n_samples  = min(int(data.get("n_samples", 512)), 2048)
+
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    model       = models_dict.get("trained")
+    results     = models_dict.get("results")
+    if model is None or results is None:
+        return jsonify({
+            "success": False, "error_code": "NO_TRAINED_MODEL",
+            "message": "No trained model. Train a model in Step 7 first.",
+        }), 404
+
+    input_cols  = results["input_columns"]
+    output_cols = results["output_columns"]
+    if output_col not in output_cols:
+        output_col = output_cols[0]
+    output_idx = output_cols.index(output_col)
+    model_type = results["model_type"]
+
+    primary = state["datasets"]["primary"]
+    df      = primary.get("normalized") or primary.get("clean")
+    X_train = df[input_cols].values
+    X_test  = np.array(results.get("test_inputs") or [])
+
+    sensitivity = SobolAnalyzer().analyze(model, X_train, input_cols, output_idx, n_samples)
+    oat         = OATAnalyzer().analyze(model, X_train, input_cols, output_idx)
+    unc_method, ci_lower, ci_upper = compute_uncertainty(model, X_test, output_idx, model_type)
+
+    uncertainty = None
+    if unc_method is not None:
+        uncertainty = {
+            "method":        unc_method,
+            "ci_lower":      ci_lower,
+            "ci_upper":      ci_upper,
+            "ci_confidence": 0.95,
+        }
+
+    payload = {
+        "input_cols":  input_cols,
+        "output_col":  output_col,
+        "model_type":  model_type,
+        "sensitivity": sensitivity,
+        "oat":         oat,
+        "uncertainty": uncertainty,
+    }
+    models_dict.setdefault("interpretation", {})[output_col] = payload
+    append_audit_event(state, "sensitivity_analysis_run", {
+        "output_col":    output_col,
+        "n_evaluations": sensitivity["n_evaluations"],
+    })
+
+    return jsonify({"success": True, **payload}), 200
+
+
+@bp.route("/interpret", methods=["GET"])
+def get_interpret():
+    """Return cached interpretation result for one output column."""
+    output_col  = request.args.get("output_col")
+    models_dict = current_app.config["STATE"]["surrogate_sessions"]["primary"]["models"]
+    cache       = models_dict.get("interpretation", {})
+    if output_col and output_col in cache:
+        return jsonify({"success": True, "cached": True, **cache[output_col]}), 200
+    return jsonify({"success": False, "error_code": "NO_INTERPRETATION"}), 404
+
+
 @bp.route("/train", methods=["POST"])
 def train():
     """
@@ -444,6 +518,11 @@ def train():
     y_pred_test = model.predict(X_test)
     test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
 
+    # GPR posterior std — free byproduct of prediction; None for other types.
+    test_stds = None
+    if model_type == "gpr":
+        test_stds = model.predict_std(X_test).tolist()
+
     # ── Persist to STATE ──────────────────────────────────────────────────────
     results = {
         "model_type":       model_type,
@@ -454,14 +533,19 @@ def train():
         "input_columns":    input_cols,
         "output_columns":   output_cols,
         "input_means":      {col: float((_clean if _clean is not None else df)[col].mean()) for col in input_cols},
+        "input_mins":       {col: float(df[col].min()) for col in input_cols},
+        "input_maxs":       {col: float(df[col].max()) for col in input_cols},
         "test_metrics":     test_metrics,
         "cv_results":       cv_results,
         "warnings":         warnings,
         # Raw arrays for parity and residual plots (shape: n_test × n_outputs).
         "test_actuals":     y_test.tolist(),
         "test_predictions": y_pred_test.tolist(),
+        "test_inputs":      X_test.tolist(),
+        "test_stds":        test_stds,
     }
     models_dict = state["surrogate_sessions"]["primary"]["models"]
+    models_dict.pop("interpretation", None)
     models_dict["trained"] = model
     models_dict["results"] = results
 

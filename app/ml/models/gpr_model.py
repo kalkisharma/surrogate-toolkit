@@ -114,6 +114,16 @@ class GPRModel(BaseSurrogateModel):
             result = result.reshape(-1, 1)
         return result
 
+    def predict_std(self, X: np.ndarray) -> np.ndarray:
+        """Return posterior std for each output (shape: n_samples × n_outputs)."""
+        self._check_fitted()
+        X = np.asarray(X, dtype=float)
+        stds = []
+        for estimator in self._model.estimators_:
+            _, std_i = estimator.predict(X, return_std=True)
+            stds.append(std_i)
+        return np.column_stack(stds) if len(stds) > 1 else stds[0].reshape(-1, 1)
+
     def get_param_grid(self) -> dict:
         return {
             "estimator__kernel": [RBF(1.0), Matern(nu=1.5), Matern(nu=2.5)],

@@ -402,6 +402,17 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
   const [rMin, rMax] = [Math.min(...yTrue), Math.max(...yTrue)];
 
   const parityPts = { type: "scatter", mode: "markers", x: yTrue,        y: yPred,     marker, xaxis: "x",  yaxis: "y",  showlegend: false };
+  if (opts.stds && opts.stds.length === yTrue.length) {
+    parityPts.error_y = {
+      type: "data",
+      array: opts.stds.map(s => s * 1.96),
+      symmetric: true,
+      visible: true,
+      color: "rgba(99,102,241,0.35)",
+      thickness: 1.2,
+      width: 3,
+    };
+  }
   const diagonal  = { type: "scatter", mode: "lines",   x: [pMin, pMax], y: [pMin, pMax], line: { color: refLineClr, width: 1.5, dash: "dash" }, xaxis: "x",  yaxis: "y",  showlegend: false };
   const residPts  = { type: "scatter", mode: "markers", x: yTrue,        y: residuals, marker, xaxis: "x2", yaxis: "y2", showlegend: false };
   const zeroLine  = { type: "scatter", mode: "lines",   x: [rMin, rMax], y: [0, 0],    line: { color: refLineClr, width: 1.5, dash: "dash" }, xaxis: "x2", yaxis: "y2", showlegend: false };
@@ -589,5 +600,112 @@ export function renderNormBoxPlots(gridEl, histData, inputCols, method, settings
       yaxis: { showgrid: true, gridcolor: gridClr, tickfont: { size: fontSize } },
       showlegend: false,
     }, { responsive: true, displayModeBar: false });
+  }
+}
+
+/**
+ * Render a Sobol sensitivity tornado chart (horizontal bar, ST + S1 overlay).
+ *
+ * @param {HTMLElement} containerEl - Element to render into.
+ * @param {string[]}    inputCols   - Input column names (already sorted by caller or internally).
+ * @param {object}      stValues    - { colName: ST float } total-order indices.
+ * @param {object}      s1Values    - { colName: S1 float } first-order indices.
+ * @param {object}      [options]
+ */
+export function renderTornadoChart(containerEl, inputCols, stValues, s1Values, options = {}) {
+  const { fontSize = 13, fontColor = null, plotBgColor = null, paperBgColor = null } = options;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const _fc   = fontColor    ?? (isDark ? "#8b94b3" : "#4b5478");
+  const _pb   = plotBgColor  ?? "rgba(0,0,0,0)";
+  const _ppb  = paperBgColor ?? "rgba(0,0,0,0)";
+
+  // Sort by ST descending
+  const order = [...inputCols].sort((a, b) => (stValues[b] ?? 0) - (stValues[a] ?? 0));
+  const stArr = order.map(c => stValues[c] ?? 0);
+  const s1Arr = order.map(c => s1Values[c] ?? 0);
+
+  const traces = [
+    { type: "bar", orientation: "h", name: "Sₜ (Total)",       x: stArr, y: order,
+      marker: { color: "rgba(99,102,241,0.85)" } },
+    { type: "bar", orientation: "h", name: "S₁ (First-order)", x: s1Arr, y: order,
+      marker: { color: "rgba(167,170,247,0.75)" } },
+  ];
+
+  const height = Math.max(280, order.length * 38 + 100);
+  const layout = {
+    barmode:       "overlay",
+    height,
+    margin:        { t: 16, b: 50, l: Math.max(...order.map(s => s.length)) * 7 + 16, r: 20 },
+    xaxis:         { title: "Sensitivity index", range: [0, Math.max(...stArr, 0.05) + 0.05],
+                     gridcolor: "rgba(128,128,128,0.2)", zeroline: false,
+                     color: _fc, tickfont: { size: fontSize - 1 } },
+    yaxis:         { color: _fc, tickfont: { size: fontSize - 1 }, automargin: true },
+    font:          { size: fontSize, color: _fc },
+    plot_bgcolor:  _pb,
+    paper_bgcolor: _ppb,
+    showlegend:    true,
+    legend:        { x: 1, xanchor: "right", y: 1, font: { size: fontSize - 1 } },
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, traces, layout, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage"]],
+    toImageButtonOptions: { filename: "tornado_chart", scale: 2 },
+  });
+
+  return { order };
+}
+
+/**
+ * Render a tiled grid of OAT response line charts — one cell per input column.
+ *
+ * @param {HTMLElement} gridEl      - Container element; cells are appended to it.
+ * @param {object}      oatData     - OAT response dict keyed by input column name.
+ * @param {string[]}    sortedCols  - Column names in desired render order (ST-descending).
+ * @param {object}      [options]
+ */
+export function renderOATGrid(gridEl, oatData, sortedCols, options = {}) {
+  const { fontSize = 12, fontColor = null, plotBgColor = null, paperBgColor = null, cellHeight = 220 } = options;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const _fc  = fontColor    ?? (isDark ? "#8b94b3" : "#4b5478");
+  const _pb  = plotBgColor  ?? "rgba(0,0,0,0)";
+  const _ppb = paperBgColor ?? "rgba(0,0,0,0)";
+
+  for (const col of sortedCols) {
+    const d = oatData[col];
+    if (!d) continue;
+
+    const cell = document.createElement("div");
+    cell.style.height = cellHeight + "px";
+    gridEl.appendChild(cell);
+
+    const medianX = d.median;
+    const yMin    = Math.min(...d.y);
+    const yMax    = Math.max(...d.y);
+
+    const traces = [
+      { type: "scatter", mode: "lines", x: d.x, y: d.y,
+        line: { color: "rgba(99,102,241,0.9)", width: 2 } },
+      { type: "scatter", mode: "lines",
+        x: [medianX, medianX], y: [yMin, yMax],
+        line: { dash: "dot", color: "rgba(128,128,128,0.6)", width: 1.5 },
+        showlegend: false },
+    ];
+
+    const layout = {
+      height:        cellHeight,
+      title:         { text: col, font: { size: fontSize, color: _fc }, x: 0.05 },
+      margin:        { t: 32, b: 40, l: 50, r: 8 },
+      xaxis:         { color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
+      yaxis:         { color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
+      font:          { size: fontSize, color: _fc },
+      plot_bgcolor:  _pb,
+      paper_bgcolor: _ppb,
+      showlegend:    false,
+    };
+
+    // eslint-disable-next-line no-undef
+    Plotly.newPlot(cell, traces, layout, { responsive: true, displayModeBar: false });
   }
 }

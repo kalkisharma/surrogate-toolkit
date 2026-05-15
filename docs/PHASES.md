@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-13
+**Last updated:** 2026-05-14
 **Total phases:** 16 across 3 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -11,7 +11,7 @@
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔲 Not started |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phase 8 complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
@@ -282,7 +282,7 @@
 ---
 
 ### Phase 8 — Model Interpretation
-**Status:** 🔲 Not started | **Version:** v1.3.x
+**Status:** ✅ Complete | **Version:** v1.1.0
 
 **Purpose:** Help engineers understand how much to trust their surrogate's predictions and which input variables are driving the outputs.
 
@@ -291,37 +291,42 @@
 **Scope:**
 
 *Uncertainty Quantification:*
-- Bootstrap confidence intervals for RF and Linear models: resample training data 100 times, compute std across predictions → 95% CI
-- GPR: add 95% prediction bands on parity plots (GPR std already available from Phase 5)
-- New dependencies: `SALib`
+- GPR: native posterior std → ±1.96σ error bars on parity plots in Step 8 — Training Results
+- RF: tree-variance 95% CI (percentile across all estimators, no refitting) — mean CI width shown in Interpret panel
+- Linear: explanatory note; no native uncertainty
 
 *Sensitivity Analysis:*
-- Sobol global sensitivity (SALib): first-order and total-order sensitivity indices per input → fraction of output variance explained
-- One-at-a-time (OAT): vary each input across its range while holding others at nominal; plot output response curve
-- Tornado chart: horizontal bar chart ranking inputs by total Sobol index
-- Multi-output: sensitivity indices per output column; user selects which output to visualize
+- Sobol global sensitivity (SALib): S1 (first-order) and ST (total-order) indices per input; N=512 Saltelli samples
+- OAT: vary each input over its range (50 points) while holding all others at training median; dashed nominal line
+- Tornado chart: horizontal bar chart sorted by ST descending, ST + S1 overlay
+- Multi-output: user selects which output to analyze; results cached per output column
 - Audit event: `sensitivity_analysis_run`
 
 **Backend:**
-- `app/ml/uncertainty/bootstrap.py` — implement BootstrapEstimator
-- `app/ml/uncertainty/intervals.py` — implement PredictionInterval
-- `app/ml/sensitivity/global_sensitivity.py` — implement SobolAnalyzer (SALib.sample.saltelli + SALib.analyze.sobol)
-- `app/ml/sensitivity/one_at_a_time.py` — implement OATAnalyzer
-- `POST /api/model/uncertainty` — run bootstrap; store in STATE
-- `POST /api/model/sensitivity` — run Sobol analysis; store in STATE
+- `app/ml/models/gpr_model.py` — `predict_std(X)` via `MultiOutputRegressor.estimators_[i].predict(X, return_std=True)`
+- `app/ml/uncertainty/bootstrap.py` — `compute_uncertainty()` (GPR native + RF tree variance)
+- `app/ml/sensitivity/global_sensitivity.py` — `SobolAnalyzer.analyze()` (SALib.sample.saltelli + SALib.analyze.sobol)
+- `app/ml/sensitivity/one_at_a_time.py` — `OATAnalyzer.analyze()`
+- `POST /api/model/interpret` — runs Sobol + OAT + uncertainty; caches per output
+- `GET /api/model/interpret?output_col=X` — returns cached result
+- `train` results dict extended: `test_inputs`, `test_stds`, `input_mins`, `input_maxs`; interpretation cache cleared on retrain
 
 **Frontend:**
-- New module: `static/js/modules/interpretation.js`
-- Step 11 in sidebar
-- `charts.js` — `renderTornadoChart()`, `renderOATCurve()`
+- `static/js/modules/interpretation.js` — new Step 11 module (Sobol tornado, OAT grid, uncertainty section)
+- `static/js/charts.js` — `renderTornadoChart()`, `renderOATGrid()`; `renderOutputFigure` error-bar support via `opts.stds`
+- `static/js/modules/results.js` — passes `stds` to `renderOutputFigure`
+- `static/js/main.js` — Step 11 registered in STEP_KEYS/STEP_LABELS/STEP_NUMS; unlock logic in two places; `_initInterpretPanel`
 
-**Dependencies:** Phase 4 (trained model). Phase 5 recommended (uncertainty bands extend prediction panel).
+**Dependencies:** Phase 4 (trained model). Phase 5 recommended (GPR uncertainty displayed in Results panel).
 
-**Definition of done:**
-- Bootstrap on RF (100 samples) → 95% CIs computed and displayed in prediction panel
-- Sobol analysis on 5-input problem → sensitivity indices sum to ≈ 1.0 per output
-- Tornado chart renders with inputs sorted by total index
-- OAT curve shows monotonic response for a known monotonic test function
+**Definition of done:** ✅
+- Sobol analysis on multi-input problem → tornado + S1/ST table rendered
+- OAT grid renders sorted by ST descending; dashed median line visible
+- GPR: error bars appear on parity plot in Results; Interpret uncertainty section points back to Results
+- RF: Interpret shows mean CI width from tree variance
+- Linear: Interpret shows "not available" note
+- Multi-output: output selector switches columns; each column cached independently
+- Retrain clears interpretation cache; re-analysis computes fresh
 
 ---
 
