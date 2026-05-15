@@ -11,7 +11,7 @@
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 7, 8 complete |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 7, 8, 9 complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
@@ -331,7 +331,7 @@
 ---
 
 ### Phase 9 — Active Learning
-**Status:** 🔲 Not started | **Version:** v1.4.x
+**Status:** ✅ Complete | **Version:** v1.3.0
 
 **Purpose:** Help engineers decide which new simulations to run to improve the surrogate most efficiently.
 
@@ -368,7 +368,7 @@
 
 **Dependencies:** Phase 4 (trained model + training data). Phase 8 required for objective mode (needs uncertainty estimates).
 
-**Definition of done:**
+**Definition of done:** ✅
 - Coverage mode → 10 recommendations spread across input space, none duplicating training points
 - Objective mode → recommendations cluster near predicted optimum for a known test function
 - History of 3 consecutive rounds stored in STATE without collision

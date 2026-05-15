@@ -713,3 +713,79 @@ export function renderOATGrid(gridEl, oatData, sortedCols, options = {}) {
     Plotly.newPlot(cell, traces, layout, { responsive: true, displayModeBar: false });
   }
 }
+
+/**
+ * Design space scatter: training samples (grey) + recommended points (purple stars).
+ *
+ * @param {HTMLElement} containerEl   - Target div; Plotly renders into it.
+ * @param {number[][]}  X_train       - Training rows as array-of-arrays (n × n_features).
+ * @param {object[]}    recommendations - Recommendation objects from active learning API.
+ * @param {string[]}    inputCols     - Input column names in order.
+ * @param {object}      [options]
+ * @param {number}      [options.axisX=0]   - Index of the column shown on X axis.
+ * @param {number}      [options.axisY=1]   - Index of the column shown on Y axis.
+ * @param {string|null} [options.fontColor=null]
+ * @param {string|null} [options.plotBgColor=null]
+ * @param {string|null} [options.paperBgColor=null]
+ */
+export function renderDesignSpaceScatter(containerEl, X_train, recommendations, inputCols, options = {}) {
+  const { axisX = 0, axisY = 1, fontSize = 12,
+          fontColor = null, plotBgColor = null, paperBgColor = null } = options;
+
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const _fc    = fontColor    ?? (isDark ? "#8b94b3" : "#4b5478");
+  const _pb    = plotBgColor  ?? "rgba(0,0,0,0)";
+  const _ppb   = paperBgColor ?? "rgba(0,0,0,0)";
+
+  const xCol   = inputCols[axisX];
+  const yCol   = inputCols[axisY];
+
+  const trainTrace = {
+    type: "scatter", mode: "markers", name: "Training data",
+    x: X_train.map(r => r[axisX]),
+    y: X_train.map(r => r[axisY]),
+    marker: { color: isDark ? "rgba(180,180,200,0.45)" : "rgba(100,100,120,0.35)", size: 7 },
+    hovertemplate: `${xCol}: %{x:.4g}<br>${yCol}: %{y:.4g}<extra>Training</extra>`,
+  };
+
+  const recHover = recommendations.map(r => {
+    const scoreLabel = r._predicted !== undefined
+      ? `Predicted: ${r._predicted.toFixed(4)}<br>Uncertainty: ±${r._uncertainty?.toFixed(4) ?? "N/A"}`
+      : `Score: ${r._score?.toFixed(4) ?? ""}`;
+    return `Rank ${r._rank}<br>${xCol}: ${r[xCol]?.toFixed(4)}<br>${yCol}: ${r[yCol]?.toFixed(4)}<br>${scoreLabel}`;
+  });
+
+  const recTrace = {
+    type: "scatter", mode: "markers+text", name: "Recommended",
+    x: recommendations.map(r => r[xCol]),
+    y: recommendations.map(r => r[yCol]),
+    text: recommendations.map(r => String(r._rank)),
+    textposition: "top center",
+    textfont: { size: fontSize - 1, color: _fc },
+    marker: { color: "rgba(99,102,241,0.9)", size: 12, symbol: "star",
+              line: { color: "rgba(99,102,241,1)", width: 1 } },
+    hovertext: recHover,
+    hoverinfo: "text",
+  };
+
+  const layout = {
+    height: 380,
+    margin: { t: 16, b: 50, l: 60, r: 16 },
+    xaxis: { title: { text: xCol, font: { size: fontSize } },
+             color: _fc, gridcolor: "rgba(128,128,128,0.18)", zeroline: false },
+    yaxis: { title: { text: yCol, font: { size: fontSize } },
+             color: _fc, gridcolor: "rgba(128,128,128,0.18)", zeroline: false },
+    font:          { size: fontSize, color: _fc },
+    plot_bgcolor:  _pb,
+    paper_bgcolor: _ppb,
+    showlegend:    true,
+    legend:        { x: 1, xanchor: "right", y: 1, font: { size: fontSize - 1 } },
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, [trainTrace, recTrace], layout, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage"]],
+    toImageButtonOptions: { filename: "design_space_scatter", scale: 2 },
+  });
+}

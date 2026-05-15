@@ -19,6 +19,33 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.3.0] — 2026-05-15
+
+### Phase 9 — Active Learning (v1.3.0)
+
+#### Added
+
+- **Step 12 — Active** sidebar panel, unlocked after training results.
+- **Coverage mode** (`POST /api/active/coverage`) — generates N space-filling recommendations using greedy max-min distance over a Latin Hypercube candidate pool (2,000 points). Selects points that maximise the minimum distance to any existing training sample.
+- **Objective mode** (`POST /api/active/objective`) — acquisition-function guided recommendations using **Expected Improvement (EI)** or **Upper Confidence Bound (UCB)**; supports minimize/maximize direction; GPR/RF provide uncertainty, Linear falls back to prediction-only ranking.
+- **`GET /api/active/history`** — returns stored active learning rounds (most recent first).
+- **Design space scatter** (`renderDesignSpaceScatter`) — training samples (grey) + recommended points (purple stars, numbered); axis selectors when inputs > 2.
+- **Recommendation table** — rank, all input values, score, predicted output + uncertainty (objective mode); Copy as CSV button.
+- **History accordion** — last 5 rounds stored in STATE, shown collapsible below results.
+- **`CoverageRecommender`** in `app/ml/active_learning/coverage_mode.py`.
+- **`ObjectiveRecommender`** in `app/ml/active_learning/objective_mode.py`.
+- **`app/api/active_learning_api.py`** — fully implemented with coverage, objective, and history routes.
+- Objective tab disabled with explanatory label when model type is Linear (no uncertainty).
+- Learning mode primer explaining space-filling, EI, UCB, and exploitation/exploration trade-off.
+
+#### Changed
+
+- `app/__init__.py` — registered `active_learning_api` blueprint at `/api/active`.
+- `static/js/main.js` — Step 12 registered in STEP_KEYS/STEP_LABELS/STEP_NUMS; stepUnlocked/stepCompleted extended; unlock in two places; `_initActiveLearningPanel`.
+- `static/js/charts.js` — added `renderDesignSpaceScatter`.
+
+---
+
 ## [1.2.0] — 2026-05-14
 
 ### Phase 7 — Session Persistence (v1.2.0)

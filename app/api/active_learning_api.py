@@ -2,14 +2,14 @@
 ================================================================================
 FILE: active_learning_api.py
 MODULE: app/api/
-PURPOSE: Blueprint and routes for /api/active/*
-DEPENDENCIES: flask
-FUTURE EXTENSIONS: Coverage mode, objective mode recommendations
+PURPOSE: Blueprint and routes for /api/active/* — coverage and objective-mode
+         active learning recommendations.
+DEPENDENCIES: flask, numpy, app.ml.active_learning
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-15
+VERSION: 1.0.0
 ================================================================================
 """
 
@@ -17,4 +17,146 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
-# TODO: implement
+import numpy as np
+from datetime import datetime, timezone
+from flask import Blueprint, current_app, jsonify, request
+
+from app.state.schema import append_audit_event
+from config.settings import MAX_ACTIVE_LEARNING_HISTORY
+
+bp = Blueprint("active", __name__)
+
+
+# ── Coverage mode ─────────────────────────────────────────────────────────────
+
+@bp.route("/coverage", methods=["POST"])
+def coverage():
+    """
+    Generate space-filling recommendations using max-min distance criterion.
+
+    Args (JSON body):
+        n_recommendations (int, optional): Default 10, max 50.
+        n_candidates (int, optional):      Default 2000, max 10000.
+
+    Returns:
+        JSON 200: {"success": True, "mode": "coverage", "recommendations": [...], ...}
+        JSON 404: No trained model.
+    """
+    state  = current_app.config["STATE"]
+    data   = request.get_json(silent=True) or {}
+    n_recs = min(int(data.get("n_recommendations", 10)), 50)
+    n_cand = min(int(data.get("n_candidates", 2000)), 10000)
+
+    X_train, input_cols, err = _get_training_data(state)
+    if err:
+        return jsonify(err), 404
+
+    from app.ml.active_learning.coverage_mode import CoverageRecommender
+    result = CoverageRecommender().recommend(X_train, input_cols, n_recs, n_cand)
+
+    _store_history(state, result)
+    append_audit_event(state, "active_learning_recommendations", {
+        "mode": "coverage", "n_recommendations": n_recs,
+    })
+
+    return jsonify({"success": True, **result}), 200
+
+
+# ── Objective mode ────────────────────────────────────────────────────────────
+
+@bp.route("/objective", methods=["POST"])
+def objective():
+    """
+    Generate objective-guided recommendations using EI or UCB.
+
+    Args (JSON body):
+        n_recommendations (int, optional): Default 10, max 50.
+        n_candidates (int, optional):      Default 2000, max 10000.
+        acquisition (str, optional):       "EI" (default) or "UCB".
+        direction (str, optional):         "minimize" (default) or "maximize".
+        output_col (str, optional):        Target output column name.
+        kappa (float, optional):           UCB exploration weight. Default 2.0.
+
+    Returns:
+        JSON 200: {"success": True, "mode": "objective", "recommendations": [...], ...}
+        JSON 404: No trained model.
+    """
+    state       = current_app.config["STATE"]
+    data        = request.get_json(silent=True) or {}
+    n_recs      = min(int(data.get("n_recommendations", 10)), 50)
+    n_cand      = min(int(data.get("n_candidates", 2000)), 10000)
+    acquisition = data.get("acquisition", "EI")
+    direction   = data.get("direction", "minimize")
+    output_col  = data.get("output_col")
+    kappa       = float(data.get("kappa", 2.0))
+
+    X_train, input_cols, err = _get_training_data(state)
+    if err:
+        return jsonify(err), 404
+
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    model       = models_dict.get("trained")
+    results     = models_dict.get("results")
+    output_cols = results["output_columns"]
+    if not output_col or output_col not in output_cols:
+        output_col = output_cols[0]
+    output_idx = output_cols.index(output_col)
+    model_type = results["model_type"]
+
+    from app.ml.active_learning.objective_mode import ObjectiveRecommender
+    result = ObjectiveRecommender().recommend(
+        model, X_train, input_cols, output_idx,
+        n_recs, n_cand, acquisition, direction, model_type, kappa,
+    )
+    result["output_col"] = output_col
+
+    _store_history(state, result)
+    append_audit_event(state, "active_learning_recommendations", {
+        "mode": "objective", "acquisition": acquisition,
+        "output_col": output_col, "n_recommendations": n_recs,
+    })
+
+    return jsonify({"success": True, **result}), 200
+
+
+# ── History ───────────────────────────────────────────────────────────────────
+
+@bp.route("/history", methods=["GET"])
+def get_history():
+    """Return stored active learning history (most recent first)."""
+    state   = current_app.config["STATE"]
+    history = list(reversed(state["active_learning"]["history"]))
+    return jsonify({"success": True, "history": history, "count": len(history)}), 200
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _get_training_data(state):
+    """Return (X_train, input_cols, error_dict). error_dict is None on success."""
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    results     = models_dict.get("results")
+
+    if results is None:
+        return None, None, {
+            "success": False,
+            "error_code": "NO_TRAINED_MODEL",
+            "message": "No trained model. Complete Step 7 — Configure Training first.",
+        }
+
+    input_cols = results["input_columns"]
+    primary    = state["datasets"]["primary"]
+    _norm      = primary.get("normalized")
+    _clean     = primary.get("clean")
+    df         = _norm if _norm is not None else _clean
+    X_train    = df[input_cols].values
+
+    return X_train, input_cols, None
+
+
+def _store_history(state, result):
+    """Append result to active_learning history, capped at MAX_ACTIVE_LEARNING_HISTORY."""
+    history = state["active_learning"]["history"]
+    entry   = {**result, "timestamp": datetime.now(timezone.utc).isoformat()}
+    history.append(entry)
+    while len(history) > MAX_ACTIVE_LEARNING_HISTORY:
+        history.pop(0)
