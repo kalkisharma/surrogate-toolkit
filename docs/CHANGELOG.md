@@ -19,6 +19,32 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.4.0] — 2026-05-15
+
+### Phase 11 — Export & Compliance (v1.4.0)
+
+#### Added
+
+- **Step 13 — Export** sidebar panel, unlocked after column designation (so a dataset-only report is available even without a trained model).
+- **`POST /api/export/report`** — generates a self-contained HTML analysis report. Sections included automatically based on completed workflow steps: dataset summary, column designation, normalization, model metrics + parity plots (Plotly-rendered), Sobol sensitivity table, active learning recommendations, and audit trail. Returns as a file download.
+- **`GET /api/export/audit`** — downloads the export log as a CSV attachment.
+- **`GET /api/export/log`** — returns the export log as JSON for the history table in the panel.
+- **Classification watermark** — watermark banner at top and bottom of every generated report; ITAR/EAR banners use red styling; CUI uses blue; Unclassified uses green.
+- **ITAR/EAR confirmation gate** — when ITAR or EAR classification is selected, the panel shows an explicit acknowledgment checkbox. The Generate button is disabled until checked.
+- **Export history table** — last N exports shown with timestamp, filename, classification label, and truncated SHA-256 hash.
+- **`app/compliance/classification.py`** — `requires_confirmation()`, `get_watermark_text()`, `get_banner_text()`, `CLASSIFICATION_GUIDANCE` dict.
+- **`app/compliance/audit.py`** — `record_export()`, `set_file_hash()`, `get_export_log()`, `format_audit_csv()`.
+- **`app/report/generator.py`** — `build_report_data()` collects all available STATE sections into a flat dict for the Jinja2 template. Handles missing sections gracefully.
+- **`app/templates/report/report_base.html`** — Jinja2 template producing a professional standalone HTML report with embedded Plotly parity charts.
+
+#### Changed
+
+- `app/api/export_api.py` — added `POST /report`, `GET /audit`, `GET /log` routes; imports compliance and report modules; reads classification from `state["compliance"]["classification"]` (replacing Flask session cookie).
+- `static/js/main.js` — Step 13 registered in STEP_KEYS/STEP_LABELS/STEP_NUMS (export=13); `export` unlocked in stepUnlocked at designation; `_initExportPanel` added; import `initExport`.
+- `config/settings.py` — VERSION → 1.4.0.
+
+---
+
 ## [1.3.0] — 2026-05-15
 
 ### Phase 9 — Active Learning (v1.3.0)

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Surrogate Toolkit Report{% if dataset %} — {{ dataset.filename }}{% endif %}</title>
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js" charset="utf-8"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #1a1a2e;
+      background: #fff;
+    }
+    /* ── Classification banner ──────────────────────────────────────────────── */
+    .cls-banner {
+      text-align: center;
+      padding: 7px 16px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+    }
+    .cls-banner--unclassified { background: #f0fdf4; color: #166534; border-bottom: 1px solid #bbf7d0; }
+    .cls-banner--cui          { background: #eff6ff; color: #1e40af; border-bottom: 1px solid #bfdbfe; }
+    .cls-banner--controlled   { background: #fef2f2; color: #991b1b; border-bottom: 1px solid #fecaca; }
+
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    .container { max-width: 920px; margin: 0 auto; padding: 36px 32px 60px; }
+
+    /* ── Report header ──────────────────────────────────────────────────────── */
+    .rpt-header {
+      border-bottom: 3px solid #1e3a5f;
+      padding-bottom: 20px;
+      margin-bottom: 36px;
+    }
+    .rpt-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #1e3a5f;
+      margin-bottom: 6px;
+    }
+    .rpt-meta { font-size: 0.8rem; color: #6b7280; }
+    .rpt-meta span { margin-right: 16px; }
+
+    /* ── Sections ───────────────────────────────────────────────────────────── */
+    .rpt-section { margin-bottom: 48px; }
+    .rpt-section h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #1e3a5f;
+      border-left: 4px solid #3b82f6;
+      padding-left: 10px;
+      margin-bottom: 16px;
+    }
+    .rpt-section h3 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #374151;
+      margin: 20px 0 10px;
+    }
+
+    /* ── Tables ─────────────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 4px; }
+    th {
+      background: #f1f5f9;
+      color: #374151;
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    td {
+      padding: 7px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    .muted { color: #9ca3af; font-size: 0.8rem; }
+
+    /* ── Badges ─────────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .badge-good { background: #dcfce7; color: #166534; }
+    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge-bad  { background: #fee2e2; color: #991b1b; }
+
+    /* ── Charts ─────────────────────────────────────────────────────────────── */
+    .chart-wrap {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+    .chart-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+      gap: 16px;
+    }
+
+    /* ── Columns list ───────────────────────────────────────────────────────── */
+    .col-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .col-chip {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    .col-chip--output { background: #fce7f3; color: #9d174d; }
+
+    /* ── Audit trail ────────────────────────────────────────────────────────── */
+    code { font-family: 'Courier New', monospace; font-size: 0.8rem; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; }
+
+    /* ── Print ──────────────────────────────────────────────────────────────── */
+    @media print {
+      .cls-banner { position: static !important; }
+      .chart-wrap { break-inside: avoid; }
+      .rpt-section { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+{# ── Classification banner (top) ────────────────────────────────────────────── #}
+{% if watermark %}
+<div class="cls-banner cls-banner--controlled">{{ watermark }} &nbsp;|&nbsp; {{ banner_text }}</div>
+{% elif classification == "CUI" %}
+<div class="cls-banner cls-banner--cui">{{ banner_text }}</div>
+{% else %}
+<div class="cls-banner cls-banner--unclassified">UNCLASSIFIED</div>
+{% endif %}
+
+<div class="container">
+
+  {# ── Report header ─────────────────────────────────────────────────────────── #}
+  <div class="rpt-header">
+    <div class="rpt-title">Surrogate Modeling Toolkit — Analysis Report</div>
+    <div class="rpt-meta">
+      <span>Generated: {{ generated_at }}</span>
+      <span>Tool version: {{ tool_version }}</span>
+      {% if dataset %}<span>Dataset: <strong>{{ dataset.filename }}</strong></span>{% endif %}
+      <span>Classification: <strong>{{ classification }}</strong></span>
+    </div>
+  </div>
+
+  {# ── Section 1: Dataset Summary ───────────────────────────────────────────── #}
+  {% if dataset %}
+  <div class="rpt-section">
+    <h2>1 — Dataset Summary</h2>
+    <table>
+      <tr><th style="width:220px">Filename</th><td>{{ dataset.filename }}</td></tr>
+      <tr><th>Rows (after cleaning)</th><td>{{ dataset.n_rows | int }}</td></tr>
+      <tr><th>Original rows</th><td>{{ dataset.n_rows_original | int }}</td></tr>
+      <tr><th>Columns</th><td>{{ dataset.n_cols | int }}</td></tr>
+      {% if dataset.normalization_method %}
+      <tr><th>Normalization</th><td>{{ dataset.normalization_method }}</td></tr>
+      {% endif %}
+    </table>
+
+    {% if dataset.input_columns %}
+    <h3>Column Designation</h3>
+    <p style="margin-bottom:6px;font-size:0.8rem;color:#6b7280;">Inputs ({{ dataset.input_columns | length }})</p>
+    <div class="col-chips">
+      {% for col in dataset.input_columns %}<span class="col-chip">{{ col }}</span>{% endfor %}
+    </div>
+    {% if dataset.output_columns %}
+    <p style="margin:10px 0 6px;font-size:0.8rem;color:#6b7280;">Outputs ({{ dataset.output_columns | length }})</p>
+    <div class="col-chips">
+      {% for col in dataset.output_columns %}<span class="col-chip col-chip--output">{{ col }}</span>{% endfor %}
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% if dataset.null_counts %}
+    <h3>Columns with Missing Values</h3>
+    <table>
+      <thead><tr><th>Column</th><th>Null count</th></tr></thead>
+      <tbody>
+        {% for col, cnt in dataset.null_counts.items() %}
+        <tr><td>{{ col }}</td><td>{{ cnt }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Section 2: Model Training Results ───────────────────────────────────── #}
+  {% if model %}
+  <div class="rpt-section">
+    <h2>2 — Model Training Results</h2>
+    <table style="margin-bottom:16px;">
+      <tr><th style="width:220px">Model type</th><td><span class="badge">{{ model.model_type | upper }}</span></td></tr>
+      <tr><th>Training samples</th><td>{{ model.n_train }}</td></tr>
+      <tr><th>Test samples</th><td>{{ model.n_test }}</td></tr>
+      {% for k, v in model.hyperparams.items() %}
+      <tr><th>{{ k }}</th><td>{{ v }}</td></tr>
+      {% endfor %}
+    </table>
+
+    <h3>Test Set Metrics</h3>
+    <table>
+      <thead>
+        <tr><th>Output</th><th>R²</th><th>RMSE</th><th>MAE</th></tr>
+      </thead>
+      <tbody>
+        {% for m in model.test_metrics %}
+        <tr>
+          <td>{{ m.column }}</td>
+          <td>
+            <span class="badge {% if m.r2 >= 0.85 %}badge-good{% elif m.r2 >= 0.70 %}badge-warn{% else %}badge-bad{% endif %}">
+              {{ "%.4f" | format(m.r2) }}
+            </span>
+          </td>
+          <td>{{ "%.6g" | format(m.rmse) }}</td>
+          <td>{{ "%.6g" | format(m.mae) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if model.cv_metrics %}
+    <h3>Cross-Validation Metrics</h3>
+    <table>
+      <thead><tr><th>Output</th><th>CV R² (mean)</th><th>CV R² (std)</th></tr></thead>
+      <tbody>
+        {% for m in model.cv_metrics %}
+        <tr>
+          <td>{{ m.column }}</td>
+          <td>{{ "%.4f" | format(m.mean_r2) }}</td>
+          <td class="muted">± {{ "%.4f" | format(m.std_r2) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if model.parity_charts %}
+    <h3>Parity Plots (Actual vs. Predicted)</h3>
+    <div class="chart-row">
+      {% for chart in model.parity_charts %}
+      <div class="chart-wrap" id="parity-{{ loop.index0 }}"></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Section 3: Sensitivity Analysis ─────────────────────────────────────── #}
+  {% if sensitivity %}
+  <div class="rpt-section">
+    <h2>3 — Sensitivity Analysis (Sobol)</h2>
+    {% for sens in sensitivity %}
+    <h3>Output: {{ sens.output_col }} &nbsp;<span class="muted">{{ sens.method }} · {{ sens.n_evals | int }} model evaluations</span></h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Input</th>
+          <th>S₁ (First-order)</th>
+          <th>S₁ ±</th>
+          <th>Sₜ (Total)</th>
+          <th>Sₜ ±</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for col in sens.sorted_cols %}
+        <tr>
+          <td>{{ col }}</td>
+          <td>{{ "%.4f" | format(sens.S1.get(col, 0)) }}</td>
+          <td class="muted">± {{ "%.4f" | format(sens.S1_conf.get(col, 0)) }}</td>
+          <td><strong>{{ "%.4f" | format(sens.ST.get(col, 0)) }}</strong></td>
+          <td class="muted">± {{ "%.4f" | format(sens.ST_conf.get(col, 0)) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Section 4: Active Learning ───────────────────────────────────────────── #}
+  {% if active_learning %}
+  <div class="rpt-section">
+    <h2>4 — Active Learning Recommendations</h2>
+    <p style="font-size:0.85rem;color:#6b7280;margin-bottom:12px;">
+      Mode: <strong>{{ active_learning.mode }}</strong> &nbsp;|&nbsp;
+      {{ active_learning.n_recommendations }} recommended points
+    </p>
+    {% if active_learning.recommendations %}
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          {% for col in active_learning.input_cols %}<th>{{ col }}</th>{% endfor %}
+          <th>Score</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for rec in active_learning.recommendations %}
+        <tr>
+          <td>{{ rec._rank }}</td>
+          {% for col in active_learning.input_cols %}
+          <td>{{ "%.4g" | format(rec[col]) if rec[col] is not none else "—" }}</td>
+          {% endfor %}
+          <td class="muted">{{ "%.4g" | format(rec._score) if rec._score is not none else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Section 5: Audit Trail ───────────────────────────────────────────────── #}
+  <div class="rpt-section">
+    <h2>5 — Audit Trail</h2>
+    {% if audit_events %}
+    <table>
+      <thead><tr><th style="width:160px">Timestamp (UTC)</th><th>Event</th><th>Detail</th></tr></thead>
+      <tbody>
+        {% for ev in audit_events %}
+        <tr>
+          <td class="muted" style="white-space:nowrap;">{{ ev.timestamp[:19] if ev.timestamp else "—" }}</td>
+          <td><code>{{ ev.event_type }}</code></td>
+          <td class="muted">
+            {% for k, v in ev.detail.items() %}
+            <span style="margin-right:10px;"><em>{{ k }}:</em> {{ v }}</span>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">No audit events recorded in this session.</p>
+    {% endif %}
+  </div>
+
+</div>{# /container #}
+
+{# ── Classification banner (bottom) ─────────────────────────────────────────── #}
+{% if watermark %}
+<div class="cls-banner cls-banner--controlled" style="margin-top:40px;">{{ watermark }}</div>
+{% elif classification == "CUI" %}
+<div class="cls-banner cls-banner--cui" style="margin-top:40px;">CUI</div>
+{% else %}
+<div class="cls-banner cls-banner--unclassified" style="margin-top:40px;">UNCLASSIFIED</div>
+{% endif %}
+
+<script>
+(function () {
+  {% if model and model.parity_charts %}
+  var charts = {{ model.parity_charts | tojson }};
+  charts.forEach(function (c, i) {
+    var el = document.getElementById('parity-' + i);
+    if (!el) return;
+    Plotly.newPlot(el, c.traces, c.layout, {responsive: true, displayModeBar: false});
+  });
+  {% endif %}
+})();
+</script>
+</body>
+</html>

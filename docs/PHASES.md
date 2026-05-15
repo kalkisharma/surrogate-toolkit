@@ -11,7 +11,7 @@
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 7, 8, 9 complete |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 7, 8, 9, 11 complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
@@ -409,7 +409,7 @@
 ---
 
 ### Phase 11 — Export & Compliance
-**Status:** 🔲 Not started | **Version:** v1.6.x – v1.9.x
+**Status:** ✅ Complete (HTML report; PDF deferred) | **Version:** v1.4.0
 
 **Purpose:** Generate compliance-ready documentation of the surrogate modeling workflow and enforce data classification requirements before any data leaves the tool.
 

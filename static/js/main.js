@@ -2,10 +2,10 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 1.2.0
+// Version: 1.4.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
-//              workflow panel router (sidebar + 9 lazy-init panels).
+//              workflow panel router (sidebar + 10 lazy-init panels).
 // =============================================================================
 
 import { initLearningMode, registerPrimer } from "./learning_mode.js";
@@ -22,6 +22,7 @@ import { initResults } from "./modules/results.js";
 import { initPrediction } from "./modules/prediction.js";
 import { initInterpretation } from "./modules/interpretation.js";
 import { initActiveLearning } from "./modules/active_learning.js";
+import { initExport } from "./modules/export.js";
 import { el, clearEl, escHtml } from "./utils.js";
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -296,12 +297,14 @@ async function _renderExploration(uploadResponse) {
   app.appendChild(layout);
 
   // ── Panel containers ──────────────────────────────────────────────────────
-  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "interpret", "active"];
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "interpret", "active", "export"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
                         designate: "Designate", normalize: "Normalize", configure: "Configure",
-                        results: "Results", predict: "Predict", interpret: "Interpret", active: "Active" };
+                        results: "Results", predict: "Predict", interpret: "Interpret", active: "Active",
+                        export: "Export" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
-                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, interpret: 11, active: 12 };
+                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, interpret: 11, active: 12,
+                        export: 13 };
 
   const panelEls      = {};   // outer panel div — used only for .hidden toggling
   const _panelContent = {};   // inner content div — passed to modules; clearable
@@ -325,10 +328,12 @@ async function _renderExploration(uploadResponse) {
   const stepUnlocked = {
     upload: true, preview: true, explore: true, clean: true, designate: true,
     normalize: hasDesignation, configure: hasDesignation, results: false, predict: false, interpret: false, active: false,
+    export: hasDesignation,
   };
   const stepCompleted = {
     upload: true, preview: false, explore: false, clean: false,
     designate: hasDesignation, normalize: false, configure: false, results: false, predict: false, interpret: false, active: false,
+    export: false,
   };
 
   let _activeKey = "explore";
@@ -414,6 +419,7 @@ async function _renderExploration(uploadResponse) {
       case "predict":    await _initPredictPanel(container, key);    break;
       case "interpret":  await _initInterpretPanel(container, key);       break;
       case "active":     await _initActiveLearningPanel(container, key);  break;
+      case "export":     await _initExportPanel(container, key);          break;
     }
   }
 
@@ -483,6 +489,7 @@ async function _renderExploration(uploadResponse) {
 
         stepUnlocked["normalize"]  = true;
         stepUnlocked["configure"]  = true;
+        stepUnlocked["export"]     = true;
         stepCompleted["designate"] = true;
         buildSidebar();
 
@@ -552,6 +559,13 @@ async function _renderExploration(uploadResponse) {
     clearEl(container);
     _subtitle(key);
     await initActiveLearning(container);
+  }
+
+  // ── Step 13 — Export & Compliance ─────────────────────────────────────────
+  async function _initExportPanel(container, key) {
+    clearEl(container);
+    _subtitle(key);
+    await initExport(container);
   }
 
   // ── Check for existing trained model ─────────────────────────────────────
