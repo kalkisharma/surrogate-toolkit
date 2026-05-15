@@ -109,9 +109,9 @@ def _serialize_df_container(prefix: str, container: dict, zf: zipfile.ZipFile) -
     for df_key in ("raw", "clean", "normalized", "reduced", "active"):
         val = container.get(df_key)
         if isinstance(val, pd.DataFrame):
-            ref = f"data/{prefix}__{df_key}.parquet"
+            ref = f"data/{prefix}__{df_key}.csv"
             buf = io.BytesIO()
-            val.to_parquet(buf, index=False)
+            val.to_csv(buf, index=False)
             zf.writestr(ref, buf.getvalue())
             out[df_key] = {"_ref": ref}
         else:
@@ -192,8 +192,8 @@ def _resolve_refs(obj, zf: zipfile.ZipFile):
                 ref = val["_ref"]
                 try:
                     raw = zf.read(ref)
-                    if ref.endswith(".parquet"):
-                        obj[key] = pd.read_parquet(io.BytesIO(raw))
+                    if ref.endswith(".csv"):
+                        obj[key] = pd.read_csv(io.BytesIO(raw))
                     elif ref.endswith(".pkl"):
                         obj[key] = pickle.loads(raw)
                 except (KeyError, Exception):
