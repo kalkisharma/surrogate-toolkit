@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 0.9.4
+// Version: 1.1.1
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode), renders the upload view, and drives the workflow
 //              panel router (sidebar + 8 lazy-init panels).
@@ -206,7 +206,7 @@ function _renderInlineGate(uploadSection, uploadResponse) {
 
   const gateHeader = el("div", { cls: "section-header" });
   gateHeader.innerHTML = `
-    <h2 class="section-title">Step 2 — Data Type</h2>
+    <h2 class="section-title">Data Type</h2>
     <p class="section-desc">One question before we explore your data.</p>
   `;
   uploadSection.appendChild(gateHeader);

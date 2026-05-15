@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 1.0.0
+// Version: 1.1.1
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -459,6 +459,7 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
  * @param {string|null} [options.fontColor=null]        - null = theme default.
  * @param {string}      [options.colorscale="Viridis"]  - Plotly named colorscale.
  * @param {boolean}     [options.showAnnotations]       - Show cell values; auto-off above 7 cols.
+ * @param {number|null} [options.height=null]           - null = auto from column count.
  */
 export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
   const isDark      = document.documentElement.getAttribute("data-theme") === "dark";
@@ -467,7 +468,7 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
   const fontColor   = options.fontColor      ?? fontClr;
   const colorscale  = options.colorscale     ?? "Viridis";
   const showAnnot   = options.showAnnotations ?? (columns.length <= 7);
-  const height      = Math.max(320, columns.length * 48 + 100);
+  const height      = options.height         ?? Math.max(320, columns.length * 48 + 100);
 
   // Scale annotation font down gracefully for many columns (min 7px)
   const annotFontSize = Math.max(7, fontSize - Math.max(0, columns.length - 5));

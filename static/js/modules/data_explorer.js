@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.0.0
+// Version: 1.1.1
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -726,17 +726,20 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
 // ── Distance Correlation section ──────────────────────────────────────────────
 
 function _buildDCorSection() {
-  const details = document.createElement("details");
-  details.className = "dcor-section";
+  const card = el("div", { cls: "card dcor-card" });
 
-  const summary = document.createElement("summary");
-  summary.className = "dcor-section__summary";
-  summary.textContent = "Distance Correlation Heatmap";
-  details.appendChild(summary);
+  // ── Header ─────────────────────────────────────────────────────────────────
+  const header = el("div", { cls: "section-header" });
+  header.innerHTML = `
+    <h2 class="section-title">Distance Correlation Heatmap</h2>
+    <p class="section-desc">Measures non-linear dependence between every pair of columns.
+    0 = independent, 1 = perfect dependence.</p>
+  `;
+  card.appendChild(header);
 
   registerPrimer(
     "dcor",
-    summary,
+    header,
     "What is distance correlation?",
     `<p>Distance correlation (dCor) measures statistical dependence between any two variables
      without assuming linearity. A value of <strong>0</strong> means completely independent;
@@ -749,15 +752,17 @@ function _buildDCorSection() {
   );
 
   const contentWrap = el("div", { cls: "dcor-content" });
-  details.appendChild(contentWrap);
+  card.appendChild(contentWrap);
 
   // ── Closure state ──────────────────────────────────────────────────────────
-  let _resp        = null;
-  let _selCols     = [];
-  let _dcorFs      = null;        // null = inherit _chartSettings.fontSize
-  let _dcorAnnot   = null;        // null = auto (true when ≤ 7 cols selected)
-  let _dcorScale   = "Viridis";
-  let _plotEl      = null;
+  let _resp           = null;
+  let _selCols        = [];
+  let _dcorFs         = null;    // null = inherit _chartSettings.fontSize
+  let _dcorFontColor  = null;    // null = auto (inherit _chartSettings.fontColor)
+  let _dcorAnnot      = null;    // null = auto (true when ≤ 7 cols selected)
+  let _dcorScale      = "Viridis";
+  let _dcorHeight     = null;    // null = auto from column count
+  let _plotEl         = null;
 
   function _rerender() {
     if (!_plotEl || !_resp) return;
@@ -771,24 +776,24 @@ function _buildDCorSection() {
     }
 
     renderDCorHeatmap(_plotEl, cols, subMatrix, {
-      fontSize:        _dcorFs   !== null ? _dcorFs   : (_chartSettings.fontSize ?? 11),
-      fontColor:       _chartSettings.fontColor ?? null,
-      showAnnotations: _dcorAnnot !== null ? _dcorAnnot : (cols.length <= 7),
+      fontSize:        _dcorFs         !== null ? _dcorFs         : (_chartSettings.fontSize ?? 11),
+      fontColor:       _dcorFontColor  !== null ? _dcorFontColor  : (_chartSettings.fontColor ?? null),
+      showAnnotations: _dcorAnnot      !== null ? _dcorAnnot      : (cols.length <= 7),
       colorscale:      _dcorScale,
+      height:          _dcorHeight,
     });
     requestAnimationFrame(() => Plotly.Plots.resize(_plotEl));
   }
 
-  details.addEventListener("toggle", async () => {
-    if (!details.open || details.dataset.loaded) return;
-    details.dataset.loaded = "1";
-    contentWrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">Computing distance correlations…</p>`;
+  // Auto-fetch immediately instead of waiting for a user click.
+  (async () => {
+    contentWrap.innerHTML = `<p class="text-muted text-sm" style="padding:var(--space-3) 0">Computing distance correlations…</p>`;
 
     const resp = await get("/api/data/dcor");
     _resp = resp;
 
     if (!resp.success) {
-      contentWrap.innerHTML = `<p class="text-muted text-sm" style="padding:1rem 0">${resp.message || "Failed to compute dCor."}</p>`;
+      contentWrap.innerHTML = `<p class="text-muted text-sm" style="padding:var(--space-3) 0">${resp.message || "Failed to compute dCor."}</p>`;
       return;
     }
 
@@ -802,7 +807,7 @@ function _buildDCorSection() {
       }));
     }
 
-    // ── Column chip row ──────────────────────────────────────────────────────
+    // ── Column chip row ────────────────────────────────────────────────────
     {
       const chipWrap = el("div", { cls: "col-selector-wrap" });
       const hdr      = el("div", { cls: "col-selector-header" });
@@ -861,20 +866,51 @@ function _buildDCorSection() {
       refreshChips();
     }
 
-    // ── Plot settings ────────────────────────────────────────────────────────
+    // ── Plot settings ──────────────────────────────────────────────────────
     {
       const autoAnnot  = resp.columns.length <= 7;
-      _dcorAnnot = null;   // reset to auto on each data load
+      const autoHeight = Math.max(320, resp.columns.length * 48 + 100);
+      _dcorAnnot  = null;
+      _dcorHeight = null;
+
+      const isDark         = document.documentElement.getAttribute("data-theme") === "dark";
+      const fontColorAuto  = _dcorFontColor === null;
+      const fontColorVal   = _dcorFontColor ?? (isDark ? "#8b94b3" : "#4b5478");
+      const fontColorOpac  = fontColorAuto ? "0.4" : "1";
 
       const settingsPanel = document.createElement("details");
       settingsPanel.className = "chart-settings-panel";
       settingsPanel.innerHTML = `
         <summary class="chart-settings-panel__summary">Plot Settings</summary>
         <div class="chart-settings-controls">
+          <div class="settings-divider">Typography</div>
           <div class="chart-settings-group">
             <label class="chart-settings-group__label" for="dcor-cs-font">Font size (px)</label>
             <input id="dcor-cs-font" type="number" class="chart-settings-input"
                    min="7" max="18" step="1" value="${_chartSettings.fontSize ?? 11}">
+          </div>
+          <div class="chart-settings-group">
+            <label class="chart-settings-group__label" for="dcor-cs-font-color">Font color</label>
+            <div class="color-with-auto">
+              <input id="dcor-cs-font-color" type="color" class="chart-settings-color"
+                     value="${fontColorVal}" ${fontColorAuto ? "disabled" : ""}
+                     style="opacity:${fontColorOpac}">
+              <label class="chart-settings-check">
+                <input type="checkbox" id="dcor-cs-font-color-auto" ${fontColorAuto ? "checked" : ""}> Auto
+              </label>
+            </div>
+          </div>
+          <div class="settings-divider">Figure</div>
+          <div class="chart-settings-group">
+            <label class="chart-settings-group__label" for="dcor-cs-height">Height (px)</label>
+            <div class="width-control">
+              <input id="dcor-cs-height" type="number" class="chart-settings-input"
+                     min="200" max="1200" step="50" value="${autoHeight}"
+                     ${_dcorHeight === null ? "disabled" : ""}>
+              <label class="chart-settings-check">
+                <input type="checkbox" id="dcor-cs-height-auto" checked> Auto
+              </label>
+            </div>
           </div>
           <div class="chart-settings-group">
             <label class="chart-settings-group__label" for="dcor-cs-scale">Color scale</label>
@@ -896,10 +932,40 @@ function _buildDCorSection() {
       contentWrap.appendChild(settingsPanel);
 
       const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
       settingsPanel.querySelector("#dcor-cs-font").addEventListener("input", debounce((e) => {
         const v = parseInt(e.target.value, 10);
         if (v >= 7 && v <= 18) { _dcorFs = v; _rerender(); }
       }, 200));
+
+      const fontColorInput  = settingsPanel.querySelector("#dcor-cs-font-color");
+      const fontColorAuto$  = settingsPanel.querySelector("#dcor-cs-font-color-auto");
+      fontColorAuto$.addEventListener("change", () => {
+        const isAuto = fontColorAuto$.checked;
+        fontColorInput.disabled = isAuto;
+        fontColorInput.style.opacity = isAuto ? "0.4" : "1";
+        _dcorFontColor = isAuto ? null : fontColorInput.value;
+        _rerender();
+      });
+      fontColorInput.addEventListener("input", debounce((e) => {
+        if (!fontColorAuto$.checked) { _dcorFontColor = e.target.value; _rerender(); }
+      }, 200));
+
+      const heightInput = settingsPanel.querySelector("#dcor-cs-height");
+      const heightAuto$ = settingsPanel.querySelector("#dcor-cs-height-auto");
+      heightAuto$.addEventListener("change", () => {
+        const isAuto = heightAuto$.checked;
+        heightInput.disabled = isAuto;
+        _dcorHeight = isAuto ? null : parseInt(heightInput.value, 10);
+        _rerender();
+      });
+      heightInput.addEventListener("input", debounce((e) => {
+        if (!heightAuto$.checked) {
+          const v = parseInt(e.target.value, 10);
+          if (v >= 200 && v <= 1200) { _dcorHeight = v; _rerender(); }
+        }
+      }, 200));
+
       settingsPanel.querySelector("#dcor-cs-scale").addEventListener("change", (e) => {
         _dcorScale = e.target.value; _rerender();
       });
@@ -908,14 +974,14 @@ function _buildDCorSection() {
       });
     }
 
-    // ── Plot element ─────────────────────────────────────────────────────────
+    // ── Plot element ───────────────────────────────────────────────────────
     _plotEl = el("div", { cls: "dcor-heatmap-wrap" });
     contentWrap.appendChild(_plotEl);
 
-    _rerender();
-  });
+    requestAnimationFrame(() => _rerender());
+  })();
 
-  return details;
+  return card;
 }
 
 // ── Column selector (chip row) ────────────────────────────────────────────────
