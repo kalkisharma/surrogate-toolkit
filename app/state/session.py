@@ -2,14 +2,14 @@
 ================================================================================
 FILE: session.py
 MODULE: app/state/
-PURPOSE: Session lifecycle management
-DEPENDENCIES: None
-FUTURE EXTENSIONS: Session persistence, session restore on load
+PURPOSE: Session lifecycle management — thin wrappers around project.py
+         serialize/deserialize operations.
+DEPENDENCIES: app.state.project
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-14
+VERSION: 1.0.0
 ================================================================================
 """
 
@@ -17,4 +17,19 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
-# TODO: implement
+from app.state.project import write_project, read_project
+
+
+def save_session(state: dict) -> bytes:
+    """Serialize STATE to .surrogate ZIP bytes ready for download."""
+    return write_project(state)
+
+
+def load_session(file_bytes: bytes):
+    """
+    Deserialize a .surrogate ZIP file.
+
+    Returns:
+        (meta: dict, state: dict) — see project.read_project for details.
+    """
+    return read_project(file_bytes)

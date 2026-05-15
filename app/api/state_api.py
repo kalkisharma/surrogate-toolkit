@@ -11,8 +11,8 @@ FUTURE EXTENSIONS: Partial STATE updates via PATCH, STATE diff endpoint,
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.8.3
+LAST MODIFIED: 2026-05-14
+VERSION: 1.2.0
 ================================================================================
 """
 
@@ -20,7 +20,7 @@ VERSION: 0.8.3
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, send_file
 
 from app.state.schema import append_audit_event, get_state_json_safe, reset_state
 from config.settings import DEFAULT_CV_FOLDS, DEFAULT_TEST_SPLIT
@@ -163,6 +163,101 @@ def update_session():
         })
 
     return jsonify({"success": True, "session": session})
+
+
+@bp.route("/save", methods=["POST"])
+def save_project():
+    """
+    Serialize the current STATE to a .surrogate ZIP file and return it as a
+    file download. DataFrames → Parquet; fitted models → Pickle.
+
+    Returns:
+        200 application/octet-stream: The .surrogate ZIP file as an attachment.
+        500 JSON: Error envelope if serialization fails.
+    """
+    import io
+    from flask import current_app
+    from app.state.session import save_session
+
+    state = current_app.config["STATE"]
+    try:
+        data = save_session(state)
+    except Exception as e:
+        current_app.logger.exception("Failed to serialize project")
+        return jsonify({
+            "success": False,
+            "message": f"Failed to save project: {e}",
+        }), 500
+
+    project_name = (
+        state["session"].get("project_name")
+        or state["datasets"]["primary"].get("metadata", {}).get("filename", "").replace(".csv", "")
+        or "session"
+    )
+    filename = f"{project_name}.surrogate"
+    append_audit_event(state, "project_saved", {"filename": filename})
+
+    return send_file(
+        io.BytesIO(data),
+        download_name=filename,
+        as_attachment=True,
+        mimetype="application/octet-stream",
+    )
+
+
+@bp.route("/load", methods=["POST"])
+def load_project():
+    """
+    Accept a .surrogate ZIP file upload, restore STATE from it, and return
+    metadata about the loaded session.
+
+    Args (multipart/form-data):
+        file: The .surrogate file.
+
+    Returns:
+        JSON 200: {"success": True, "meta": {...}, "n_datasets": int}
+        JSON 400: Error envelope for bad/missing file or corrupt archive.
+    """
+    from flask import current_app, request
+    from app.state.session import load_session
+
+    if "file" not in request.files:
+        return jsonify({"success": False, "message": "No file provided."}), 400
+
+    f = request.files["file"]
+    if not f.filename.lower().endswith(".surrogate"):
+        return jsonify({
+            "success": False,
+            "message": "Invalid file type. Only .surrogate files can be loaded.",
+        }), 400
+
+    try:
+        meta, loaded = load_session(f.read())
+    except Exception as e:
+        current_app.logger.exception("Failed to deserialize project")
+        return jsonify({
+            "success": False,
+            "message": f"Failed to load project: {e}",
+        }), 400
+
+    # Restore STATE in-place so app.config["STATE"] reference stays valid
+    state = current_app.config["STATE"]
+    state.clear()
+    state.update(loaded)
+
+    append_audit_event(state, "project_loaded", {
+        "filename":          f.filename,
+        "surrogate_version": meta.get("surrogate_version"),
+    })
+    current_app.logger.info(
+        f"Project loaded: {f.filename} (saved with v{meta.get('surrogate_version')})"
+    )
+
+    return jsonify({
+        "success":    True,
+        "meta":       meta,
+        "n_datasets": len(state["datasets"].get("_datasets", {})),
+    }), 200
 
 
 @bp.route("/reset", methods=["POST"])

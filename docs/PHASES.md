@@ -11,7 +11,7 @@
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phase 8 complete |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 7, 8 complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
@@ -244,7 +244,7 @@
 ---
 
 ### Phase 7 — Session Persistence
-**Status:** 🔲 Not started | **Version:** v1.2.x
+**Status:** ✅ Complete | **Version:** v1.2.0
 
 **Purpose:** Let engineers save their full session to disk and reload it later — so no work is lost to a server restart.
 
@@ -272,11 +272,11 @@
 
 **Dependencies:** Phase 4 (fitted models exist to serialize). Phase 5 recommended but not blocking.
 
-**Definition of done:**
-- Save trained session → `.surrogate` file created on disk
+**Definition of done:** ✅
+- Save trained session → `.surrogate` file downloaded by browser
 - Load in a fresh session → full STATE restored, sidebar shows correct completion state
 - Load on incompatible app version → graceful error, not a crash
-- Compliance dialog appears when saving CUI or ITAR session
+- Compliance dialog appears when saving CUI or ITAR/EAR session; ITAR/EAR requires checkbox
 - `project_saved` and `project_loaded` audit events written
 
 ---

@@ -2,10 +2,10 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 1.1.1
+// Version: 1.2.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
-//              learning mode), renders the upload view, and drives the workflow
-//              panel router (sidebar + 8 lazy-init panels).
+//              learning mode, save/open), renders the upload view, and drives the
+//              workflow panel router (sidebar + 9 lazy-init panels).
 // =============================================================================
 
 import { initLearningMode, registerPrimer } from "./learning_mode.js";
@@ -30,13 +30,26 @@ import { el, clearEl, escHtml } from "./utils.js";
   initLearningMode(learningToggle);
   _initGlobalHeader();
   await refreshState();
-  renderUploadView();
+
+  // If STATE already has datasets (e.g. after loading a .surrogate file),
+  // restore the exploration view without requiring a new upload.
+  const datasetsResp = await get("/api/data/datasets");
+  if (datasetsResp.success && datasetsResp.count > 0) {
+    const active = datasetsResp.datasets.find(d => d.active) || datasetsResp.datasets[0];
+    await _renderExploration(_buildUploadMetaFromDataset(active));
+    if (datasetsResp.count > 1) _refreshDatasetSwitcher();
+  } else {
+    renderUploadView();
+  }
 })();
 
 // ── Module state ──────────────────────────────────────────────────────────────
 
 /** Stored so it can be removed before re-wiring when the active dataset changes. */
 let _headerFileHandler = null;
+
+/** True after any upload or training; cleared after save or load. */
+let _hasUnsavedChanges = false;
 
 // ── Views ─────────────────────────────────────────────────────────────────────
 
@@ -495,6 +508,7 @@ async function _renderExploration(uploadResponse) {
     clearEl(container);
     _subtitle(key);
     initModelConfig(container, async () => {
+      _hasUnsavedChanges = true;
       stepUnlocked["results"] = true;
       buildSidebar();
       panelDone["results"] = false;
@@ -750,12 +764,35 @@ function _initGlobalHeader() {
     showSuccess("Session cleared.");
   });
 
-  // "Load File" button in header triggers the hidden file input
+  // "Load File" button in header triggers the hidden CSV file input
   const headerAddBtn   = document.getElementById("header-load-file-btn");
   const headerAddInput = document.getElementById("header-add-file-input");
   if (headerAddBtn && headerAddInput) {
     headerAddBtn.addEventListener("click", () => headerAddInput.click());
   }
+
+  // Save / Open project buttons
+  const saveBtn       = document.getElementById("header-save-project-btn");
+  const openBtn       = document.getElementById("header-open-project-btn");
+  const openFileInput = document.getElementById("header-open-project-input");
+  if (saveBtn) saveBtn.addEventListener("click", _saveProject);
+  if (openBtn && openFileInput) {
+    openBtn.addEventListener("click", () => openFileInput.click());
+    openFileInput.addEventListener("change", () => {
+      const file = openFileInput.files[0];
+      if (!file) return;
+      openFileInput.value = "";
+      _openProject(file);
+    });
+  }
+
+  // Warn before tab close / navigation if there are unsaved changes
+  window.addEventListener("beforeunload", (e) => {
+    if (_hasUnsavedChanges) {
+      e.preventDefault();
+      return "";
+    }
+  });
 
   const storedTheme = localStorage.getItem("theme") || "light";
   _applyTheme(storedTheme, themeBtn);
@@ -796,6 +833,150 @@ function _initGlobalHeader() {
     });
     await refreshState();
   });
+}
+
+/** Build an uploadMeta object from a dataset entry returned by GET /api/data/datasets. */
+function _buildUploadMetaFromDataset(ds) {
+  return {
+    metadata: {
+      filename:             ds.filename,
+      n_rows:               ds.n_rows,
+      n_cols:               ds.n_cols,
+      upload_timestamp:     ds.last_accessed || new Date().toISOString(),
+      null_counts:          ds.null_counts          || {},
+      dtypes:               ds.dtypes               || {},
+      coercion_warnings:    [],
+      input_columns:        ds.input_columns        || [],
+      output_columns:       ds.output_columns       || [],
+      normalization_method: ds.normalization_method || null,
+      columns:              ds.columns              || [],
+    },
+    preview: {
+      columns:    ds.columns      || [],
+      rows:       ds.preview_rows || [],
+      total_rows: ds.n_rows,
+    },
+  };
+}
+
+/** Save the current session to a .surrogate file, prompting for compliance if needed. */
+async function _saveProject() {
+  const classification = document.getElementById("classification-select")?.value || "Unclassified";
+
+  if (classification !== "Unclassified") {
+    const confirmed = await _showComplianceModal(classification);
+    if (!confirmed) return;
+  }
+
+  const saveBtn = document.getElementById("header-save-project-btn");
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Saving…"; }
+
+  try {
+    const resp = await fetch("/api/state/save", { method: "POST" });
+    if (!resp.ok) {
+      let msg = "Failed to save project.";
+      try { msg = (await resp.json()).message || msg; } catch { /* empty */ }
+      showError(msg);
+      return;
+    }
+
+    const blob        = await resp.blob();
+    const disposition = resp.headers.get("Content-Disposition") || "";
+    const match       = disposition.match(/filename="([^"]+)"/);
+    const filename    = match ? match[1] : "session.surrogate";
+
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement("a");
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    _hasUnsavedChanges = false;
+    showSuccess(`Saved as "${filename}"`);
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "&#128190; Save"; }
+  }
+}
+
+/** Show a compliance acknowledgment <dialog> and resolve true/false on user action. */
+function _showComplianceModal(classification) {
+  return new Promise((resolve) => {
+    const isITAR = classification === "ITAR" || classification === "EAR";
+    const color  = isITAR ? "var(--color-error)" : "var(--color-warning)";
+
+    const dialog = document.createElement("dialog");
+    dialog.className = "gate-modal compliance-modal";
+    dialog.innerHTML = `
+      <div class="gate-modal__header">
+        <strong class="gate-modal__filename" style="color:${color}">${classification}</strong>
+        <span class="gate-modal__subtitle">Classification Acknowledgment Required</span>
+      </div>
+      <div class="compliance-modal__body">
+        <p>You are about to save a session containing <strong>${classification}</strong> data.</p>
+        <p>By saving, you confirm this file will be:</p>
+        <ul class="compliance-modal__list">
+          <li>Stored only in approved locations for ${classification} data</li>
+          <li>Shared only with personnel authorized to access ${classification} data</li>
+          <li>Handled in accordance with program security requirements</li>
+        </ul>
+        ${isITAR ? `
+        <div class="compliance-modal__itar-row">
+          <label class="compliance-modal__itar-label">
+            <input type="checkbox" id="compliance-itar-check">
+            I acknowledge this project is subject to ${classification} export control restrictions and I will handle it accordingly.
+          </label>
+        </div>` : ""}
+      </div>
+      <div class="gate-modal__actions">
+        <button id="compliance-confirm" class="btn btn-primary"${isITAR ? " disabled" : ""}>I Acknowledge, Save</button>
+        <button id="compliance-cancel" class="btn btn-secondary">Cancel</button>
+      </div>
+    `;
+
+    if (isITAR) {
+      dialog.querySelector("#compliance-itar-check").addEventListener("change", (e) => {
+        dialog.querySelector("#compliance-confirm").disabled = !e.target.checked;
+      });
+    }
+
+    const close = (result) => { dialog.close(); dialog.remove(); resolve(result); };
+    dialog.querySelector("#compliance-confirm").addEventListener("click", () => close(true));
+    dialog.querySelector("#compliance-cancel").addEventListener("click",  () => close(false));
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) close(false); });
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  });
+}
+
+/** Handle opening a .surrogate file: POST to load endpoint, then reload page. */
+async function _openProject(file) {
+  const openBtn = document.getElementById("header-open-project-btn");
+  if (openBtn) { openBtn.disabled = true; openBtn.textContent = "Loading…"; }
+
+  const fd = new FormData();
+  fd.append("file", file);
+
+  try {
+    const resp = await fetch("/api/state/load", { method: "POST", body: fd });
+    const data = await resp.json();
+
+    if (!data.success) {
+      showError(data.message || "Failed to load project.");
+      return;
+    }
+
+    _hasUnsavedChanges = false;
+    showSuccess(`Loaded — ${data.n_datasets} dataset(s) restored.`);
+    setTimeout(() => window.location.reload(), 800);
+  } catch {
+    showError("Failed to load project.");
+  } finally {
+    if (openBtn) { openBtn.disabled = false; openBtn.textContent = "&#128193; Open"; }
+  }
 }
 
 /** Apply theme to <html> and update toggle button label. */
@@ -842,4 +1023,5 @@ async function _handleFile(file, dropZone, onSuccess) {
 
   await _refreshDatasetSwitcher();
   onSuccess(result);
+  _hasUnsavedChanges = true;
 }

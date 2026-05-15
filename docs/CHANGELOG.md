@@ -19,6 +19,34 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [1.2.0] — 2026-05-14
+
+### Phase 7 — Session Persistence (v1.2.0)
+
+#### Added
+
+- **💾 Save / 📂 Open buttons** in the global header — always visible, no step gating.
+- **`.surrogate` file format** — ZIP archive containing:
+  - `meta.json` — surrogate version, save date, classification, dataset names
+  - `state.json` — full SESSION STATE with DataFrames replaced by `{"_ref": "..."}` path refs
+  - `data/<name>.parquet` — DataFrames serialized as Parquet (efficient, type-preserving)
+  - `models/<name>.pkl` — fitted surrogate model objects serialized with Pickle (protocol 4)
+- **`POST /api/state/save`** — serializes STATE → returns `.surrogate` file as download.
+- **`POST /api/state/load`** — accepts `.surrogate` upload → restores STATE in-place → frontend reloads.
+- **`app/state/project.py`** — `write_project()` / `read_project()` serialization core.
+- **`app/state/session.py`** — `save_session()` / `load_session()` thin wrappers.
+- **`app/state/cleanup.py`** — `cleanup_temp_files()` removes stale `.surrogate` temp files.
+- **Compliance acknowledgment modal** — shown before saving CUI sessions (informational); ITAR/EAR sessions require an explicit checkbox confirmation before the download proceeds.
+- **Session restore on page load** — if STATE has datasets on boot (e.g. after project load + page reload), the exploration view is rendered automatically instead of the upload screen.
+- **Unsaved-changes tracking** — `_hasUnsavedChanges` flag set on upload and training; `window.beforeunload` shows browser "Changes may not be saved" dialog if dirty.
+
+#### Changed
+
+- `static/js/main.js` — bootstrap IIFE checks `GET /api/data/datasets` on load and restores exploration view if datasets exist; Save/Open handlers wired in `_initGlobalHeader`; `_hasUnsavedChanges` marked dirty after upload and after training callback.
+- `app/api/state_api.py` — two new routes: `POST /api/state/save`, `POST /api/state/load`.
+
+---
+
 ## [1.1.0] — 2026-05-14
 
 ### Phase 8 — Model Interpretation (v1.1.0)
