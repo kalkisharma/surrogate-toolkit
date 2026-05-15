@@ -18,6 +18,7 @@ VERSION: 1.0.0
 # See LICENSE.md for full terms.
 
 from datetime import datetime, timezone
+from typing import Dict, List, Optional
 
 
 def build_report_data(state: dict, classification: str) -> dict:
@@ -50,7 +51,7 @@ def build_report_data(state: dict, classification: str) -> dict:
 
 # ── Section builders ──────────────────────────────────────────────────────────
 
-def _build_dataset_section(state: dict) -> dict | None:
+def _build_dataset_section(state: dict) -> Optional[dict]:
     active_key = state["datasets"].get("active_dataset_key")
     if not active_key:
         return None
@@ -74,7 +75,7 @@ def _build_dataset_section(state: dict) -> dict | None:
     }
 
 
-def _build_model_section(results: dict | None) -> dict | None:
+def _build_model_section(results: Optional[dict]) -> Optional[dict]:
     if not results:
         return None
 
@@ -160,7 +161,7 @@ def _build_parity_charts(results: dict) -> list:
     return charts
 
 
-def _build_sensitivity_section(interpretation: dict) -> list | None:
+def _build_sensitivity_section(interpretation: dict) -> Optional[list]:
     if not interpretation:
         return None
     sections = []
@@ -187,7 +188,7 @@ def _build_sensitivity_section(interpretation: dict) -> list | None:
     return sections or None
 
 
-def _build_al_section(al_history: list) -> dict | None:
+def _build_al_section(al_history: list) -> Optional[dict]:
     if not al_history:
         return None
     last = al_history[-1]
