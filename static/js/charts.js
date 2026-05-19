@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 1.1.1
+// Version: 2.1.0
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -975,4 +975,125 @@ export function renderBiasHistogram(containerEl, delta, outputCol, options = {})
     modeBarButtons: [["toImage"]],
     toImageButtonOptions: { filename: `bias_histogram_${outputCol}`, scale: 2 },
   });
+}
+
+/**
+ * Render a model comparison table (no Plotly — pure DOM table).
+ *
+ * Shows one row per model type with training time and per-output R², RMSE, MAE.
+ * The best R² value for each output column is highlighted in green.
+ * Failed model runs are shown with an error note instead of metrics.
+ *
+ * @param {HTMLElement} containerEl - Target element (cleared before render).
+ * @param {object}      compResp    - Response from POST /api/model/compare:
+ *   { comparison: [...], output_columns: [...], n_train: int, n_test: int }
+ */
+export function renderModelComparisonTable(containerEl, compResp) {
+  containerEl.innerHTML = "";
+
+  const { comparison, output_columns: outputCols, n_train, n_test } = compResp;
+  if (!comparison || comparison.length === 0) return;
+
+  const MODEL_LABELS = {
+    gpr:     "GPR",
+    kriging: "Kriging",
+    rf:      "Random Forest",
+    rbf:     "RBF",
+    pce:     "PCE",
+    linear:  "Linear",
+  };
+
+  // Find best R² per output column (among successful runs)
+  const bestR2 = {};
+  for (const col of outputCols) {
+    let best = -Infinity;
+    for (const entry of comparison) {
+      if (!entry.success) continue;
+      const m = (entry.metrics || []).find((x) => x.column === col);
+      if (m && m.r2 > best) best = m.r2;
+    }
+    bestR2[col] = best;
+  }
+
+  // Summary line
+  const summary = document.createElement("p");
+  summary.className = "section-desc";
+  summary.textContent = `${comparison.length} models trained — ${n_train.toLocaleString()} train / ${n_test.toLocaleString()} test rows. Best R² per output highlighted.`;
+  containerEl.appendChild(summary);
+
+  // Table
+  const wrap = document.createElement("div");
+  wrap.className = "sensitivity-table-wrap";
+  wrap.style.overflowX = "auto";
+
+  const table = document.createElement("table");
+  table.className = "results-table model-cmp-table";
+
+  // Header
+  const thead = document.createElement("thead");
+  const hRow = document.createElement("tr");
+  const headers = ["Model", "Time (s)"];
+  for (const col of outputCols) {
+    headers.push(`${col} R²`, `${col} RMSE`);
+  }
+  for (const h of headers) {
+    const th = document.createElement("th");
+    th.textContent = h;
+    hRow.appendChild(th);
+  }
+  thead.appendChild(hRow);
+  table.appendChild(thead);
+
+  // Body
+  const tbody = document.createElement("tbody");
+  for (const entry of comparison) {
+    const tr = document.createElement("tr");
+
+    const tdName = document.createElement("td");
+    tdName.textContent = MODEL_LABELS[entry.model_type] || entry.model_type;
+    tr.appendChild(tdName);
+
+    if (!entry.success) {
+      const tdTime = document.createElement("td");
+      tdTime.textContent = "—";
+      tr.appendChild(tdTime);
+      const tdErr = document.createElement("td");
+      tdErr.colSpan = outputCols.length * 2;
+      tdErr.className = "metric-secondary";
+      tdErr.textContent = entry.error || "Failed";
+      tr.appendChild(tdErr);
+    } else {
+      const tdTime = document.createElement("td");
+      tdTime.textContent = entry.train_time_s.toFixed(2);
+      tr.appendChild(tdTime);
+
+      for (const col of outputCols) {
+        const m = (entry.metrics || []).find((x) => x.column === col);
+        const r2   = m ? m.r2   : null;
+        const rmse = m ? m.rmse : null;
+
+        const tdR2 = document.createElement("td");
+        if (r2 !== null) {
+          tdR2.textContent = r2.toFixed(3);
+          if (Math.abs(r2 - bestR2[col]) < 1e-9) {
+            tdR2.style.color = "var(--color-success, #16a34a)";
+            tdR2.style.fontWeight = "600";
+          }
+        } else {
+          tdR2.textContent = "—";
+        }
+        tr.appendChild(tdR2);
+
+        const tdRmse = document.createElement("td");
+        tdRmse.className = "metric-secondary";
+        tdRmse.textContent = rmse !== null ? rmse.toExponential(3) : "—";
+        tr.appendChild(tdRmse);
+      }
+    }
+
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  containerEl.appendChild(wrap);
 }

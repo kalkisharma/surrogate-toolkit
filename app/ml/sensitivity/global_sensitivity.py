@@ -24,7 +24,11 @@ class SobolAnalyzer:
     """Compute Sobol first-order (S1) and total-order (ST) sensitivity indices."""
 
     def analyze(self, model, X_train, input_cols, output_col_idx, n_samples=512):
-        """Run Saltelli sampling + Sobol analysis for one output column.
+        """Return Sobol S1/ST indices for one output column.
+
+        For PCEModel, returns analytical indices directly from the expansion
+        coefficients (no Monte Carlo). For all other model types, runs Saltelli
+        sampling + SALib Sobol analysis.
 
         Args:
             model:          Fitted surrogate model (implements predict()).
@@ -36,6 +40,10 @@ class SobolAnalyzer:
         Returns:
             dict with keys: method, S1, ST, S1_conf, ST_conf, n_evaluations.
         """
+        # PCE shortcut: analytical sensitivity, no Monte Carlo needed
+        if hasattr(model, "get_sensitivity"):
+            return model.get_sensitivity(output_col_idx)
+
         from SALib.sample import saltelli
         from SALib.analyze import sobol
 

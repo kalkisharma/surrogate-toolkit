@@ -11,11 +11,38 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔲 Not started |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14 complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [2.1.0] — 2026-05-18
+
+### Phase 14 — Advanced Surrogate Models (v2.1.0)
+
+#### Added
+
+- **KrigingModel** (`app/ml/models/kriging_model.py`) — sklearn GPR with Matérn ν=1.5, Matérn ν=2.5, or Rational Quadratic kernel; identical interface to GPRModel including `predict_std()` for native uncertainty. Auto-tune via GridSearchCV over all 3 kernels × 4 alpha values.
+- **RBFModel** (`app/ml/models/rbf_model.py`) — `scipy.interpolate.RBFInterpolator`, one interpolator per output; kernels: thin-plate spline, multiquadric, inverse multiquadric, Gaussian, cubic. Exact interpolation at training points (smoothing=0) with regularization option. Auto-tune not supported.
+- **PCEModel** (`app/ml/models/pce_model.py`) — Polynomial Chaos Expansion via `chaospy`; order 1–5; uniform distributions over training ranges; Legendre basis. `get_sensitivity()` returns exact analytical Sobol S1/ST indices — no Monte Carlo needed. Auto-tune not supported.
+- **`POST /api/model/compare`** — trains all 6 model types with default hyperparameters on the same train/test split; returns side-by-side R², RMSE, MAE, and training time per output; does not change the trained model in STATE.
+- **`renderModelComparisonTable()`** in `charts.js` — DOM table showing all model results with best R² highlighted in green.
+- **Compare All Models** button in Step 7 Configure Training panel; calls `/api/model/compare` and renders comparison table inline.
+- `chaospy>=4.3` added to `requirements.txt`.
+
+#### Changed
+
+- `SUPPORTED_MODEL_TYPES` in `config/settings.py` extended to `["gpr", "kriging", "rf", "rbf", "pce", "linear"]`.
+- `model_config.js` — 3 new model type radio cards (Kriging, RBF, PCE) with matching hyperparameter sections; auto-tune disabled for RBF/PCE (shows "not available" note).
+- `app/ml/uncertainty/bootstrap.py` — `compute_uncertainty()` now covers `"kriging"` alongside `"gpr"` (both have native `predict_std()`).
+- `app/api/model_api.py` — `_make_model()` handles all 6 types; `tune()` guards for empty param_grid; `train()` computes `test_stds` for kriging; `_convert_best_params()` handles Kriging/RQ kernel.
+
+#### Dependencies
+
+- `chaospy>=4.3` (new) — PCE expansion and analytical sensitivity indices
 
 ---
 

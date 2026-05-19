@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 1.0.1
+// Version: 2.1.0
 // Description: Step 7 — Configure Training. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Shows a per-model
 //              hyperparameter section (kernel/alpha for GPR, trees/depth/features
@@ -16,11 +16,15 @@ import { showError, showSuccess, showWarning } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
+import { renderModelComparisonTable } from "../charts.js";
 
 const HYPERPARAM_DEFAULTS = {
-  gpr:    { kernel: "rbf", alpha: 0.1 },
-  rf:     { n_estimators: 100, max_depth: null, min_samples_leaf: 1, max_features: "sqrt" },
-  linear: { alpha: 1.0 },
+  gpr:     { kernel: "rbf", alpha: 0.1 },
+  kriging: { kernel: "matern25", alpha: 0.1 },
+  rf:      { n_estimators: 100, max_depth: null, min_samples_leaf: 1, max_features: "sqrt" },
+  rbf:     { kernel: "thin_plate_spline", smoothing: 0.001 },
+  pce:     { order: 3 },
+  linear:  { alpha: 1.0 },
 };
 
 const MODEL_TYPES = [
@@ -30,9 +34,24 @@ const MODEL_TYPES = [
     desc:  "Best for small datasets (< 5 000 rows). Provides prediction uncertainty — ideal for active learning and design space exploration.",
   },
   {
+    value: "kriging",
+    label: "Kriging (Matérn GPR)",
+    desc:  "GPR variant with Matérn or Rational Quadratic kernel — often fits rougher aerospace response surfaces better than the default RBF kernel. Same uncertainty estimates as GPR.",
+  },
+  {
     value: "rf",
     label: "Random Forest",
     desc:  "Handles larger datasets and non-linear relationships well. Robust to outliers. No built-in uncertainty estimate.",
+  },
+  {
+    value: "rbf",
+    label: "Radial Basis Function (RBF)",
+    desc:  "Exact interpolation through training points. Very fast inference. Best for 1 000–10 000 rows with smooth, well-behaved responses. No native uncertainty.",
+  },
+  {
+    value: "pce",
+    label: "Polynomial Chaos Expansion (PCE)",
+    desc:  "Explicit polynomial formula — fully interpretable. Provides exact Sobol sensitivity indices analytically (free from expansion coefficients). Best for smooth, low-dimensional problems.",
   },
   {
     value: "linear",
@@ -104,10 +123,14 @@ export async function initModelConfig(containerEl, onTrain) {
     "What does each model type mean?",
     `<p>See the card-level primer for a full description. In short:</p>
      <ul>
-       <li><strong>GPR</strong> — small datasets, uncertainty needed.</li>
+       <li><strong>GPR</strong> — small datasets (< 5 000 rows), uncertainty needed.</li>
+       <li><strong>Kriging</strong> — GPR with Matérn kernel; often better for rougher aerospace responses.</li>
        <li><strong>Random Forest</strong> — larger datasets, non-linear.</li>
+       <li><strong>RBF</strong> — fast exact interpolation, 1 000–10 000 rows, smooth responses.</li>
+       <li><strong>PCE</strong> — polynomial formula; free sensitivity indices; best for smooth, low-dimensional problems.</li>
        <li><strong>Linear</strong> — fast baseline, interpretable.</li>
-     </ul>`
+     </ul>
+     <p>Not sure which to pick? Use <strong>Compare All Models</strong> at the bottom to train all types at once and see which fits best.</p>`
   );
 
   const typeOptions = el("div", { cls: "model-type-options" });
@@ -169,6 +192,27 @@ export async function initModelConfig(containerEl, onTrain) {
             <span class="hyperparam-hint">0.0001 – 10 — higher = more noise tolerance</span>
           </div>
         </div>`;
+    } else if (modelType === "kriging") {
+      hyperparamOuter.innerHTML = `
+        <div class="hyperparam-section">
+          <div class="hyperparam-section-header">
+            <span class="hyperparam-section-label">Hyperparameters</span>
+            <button class="hyperparam-reset" id="hp-reset">Reset to defaults</button>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Kernel</span>
+            <select id="hp-kernel" class="hyperparam-select">
+              <option value="matern25" ${(merged.kernel ?? "matern25") === "matern25" ? "selected" : ""}>Matérn ν=2.5 (default)</option>
+              <option value="matern15" ${merged.kernel === "matern15" ? "selected" : ""}>Matérn ν=1.5</option>
+              <option value="rq"       ${merged.kernel === "rq"       ? "selected" : ""}>Rational Quadratic</option>
+            </select>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Noise level (alpha)</span>
+            <input id="hp-alpha" type="number" class="hyperparam-input" step="any" min="0.0001" max="10" value="${merged.alpha ?? 0.1}">
+            <span class="hyperparam-hint">0.0001 – 10 — higher = more noise tolerance</span>
+          </div>
+        </div>`;
     } else if (modelType === "rf") {
       const depthUnlimited = merged.max_depth == null;
       hyperparamOuter.innerHTML = `
@@ -207,6 +251,48 @@ export async function initModelConfig(containerEl, onTrain) {
       hyperparamOuter.querySelector("#hp-depth-unlimited").addEventListener("change", (e) => {
         hyperparamOuter.querySelector("#hp-max-depth").disabled = e.target.checked;
       });
+    } else if (modelType === "rbf") {
+      hyperparamOuter.innerHTML = `
+        <div class="hyperparam-section">
+          <div class="hyperparam-section-header">
+            <span class="hyperparam-section-label">Hyperparameters</span>
+            <button class="hyperparam-reset" id="hp-reset">Reset to defaults</button>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Basis function</span>
+            <select id="hp-rbf-kernel" class="hyperparam-select">
+              <option value="thin_plate_spline"  ${(merged.kernel ?? "thin_plate_spline") === "thin_plate_spline" ? "selected" : ""}>Thin-plate spline (default)</option>
+              <option value="multiquadric"        ${merged.kernel === "multiquadric"       ? "selected" : ""}>Multiquadric</option>
+              <option value="inverse_multiquadric" ${merged.kernel === "inverse_multiquadric" ? "selected" : ""}>Inverse multiquadric</option>
+              <option value="gaussian"            ${merged.kernel === "gaussian"           ? "selected" : ""}>Gaussian</option>
+              <option value="cubic"               ${merged.kernel === "cubic"              ? "selected" : ""}>Cubic</option>
+            </select>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Smoothing</span>
+            <input id="hp-rbf-smoothing" type="number" class="hyperparam-input" step="any" min="0" max="10" value="${merged.smoothing ?? 0.001}">
+            <span class="hyperparam-hint">0 = exact interpolation; > 0 = regularized</span>
+          </div>
+        </div>`;
+    } else if (modelType === "pce") {
+      hyperparamOuter.innerHTML = `
+        <div class="hyperparam-section">
+          <div class="hyperparam-section-header">
+            <span class="hyperparam-section-label">Hyperparameters</span>
+            <button class="hyperparam-reset" id="hp-reset">Reset to defaults</button>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Polynomial order</span>
+            <select id="hp-pce-order" class="hyperparam-select">
+              <option value="1" ${(merged.order ?? 3) === 1 ? "selected" : ""}>1 — linear</option>
+              <option value="2" ${(merged.order ?? 3) === 2 ? "selected" : ""}>2 — quadratic</option>
+              <option value="3" ${(merged.order ?? 3) === 3 ? "selected" : ""}>3 — cubic (default)</option>
+              <option value="4" ${(merged.order ?? 3) === 4 ? "selected" : ""}>4</option>
+              <option value="5" ${(merged.order ?? 3) === 5 ? "selected" : ""}>5</option>
+            </select>
+            <span class="hyperparam-hint">Higher order = more terms; needs more training data</span>
+          </div>
+        </div>`;
     } else if (modelType === "linear") {
       hyperparamOuter.innerHTML = `
         <div class="hyperparam-section">
@@ -225,33 +311,46 @@ export async function initModelConfig(containerEl, onTrain) {
     const resetBtn = hyperparamOuter.querySelector("#hp-reset");
     if (resetBtn) resetBtn.addEventListener("click", () => _renderHyperparams(modelType, {}));
 
-    // Auto-tune row (appended to all model types)
+    // Auto-tune row — only for model types that support GridSearchCV
+    const supportsAutoTune = !["rbf", "pce"].includes(modelType);
     const hpSection = hyperparamOuter.querySelector(".hyperparam-section");
     if (hpSection) {
-      const autoRow = document.createElement("div");
-      autoRow.className = "hyperparam-row hyperparam-autotune-row";
-      autoRow.innerHTML = `
-        <label class="chart-settings-check">
-          <input type="checkbox" id="hp-autotune">
-          Auto-tune with GridSearchCV
-        </label>
-        <span class="hyperparam-hint">Find best hyperparameters automatically (slower to train)</span>
-      `;
-      const autoNote = document.createElement("div");
-      autoNote.className = "hp-autotune-note";
-      autoNote.textContent = "Hyperparameters will be found automatically via grid search.";
-      hpSection.appendChild(autoRow);
-      hpSection.appendChild(autoNote);
+      if (supportsAutoTune) {
+        const autoRow = document.createElement("div");
+        autoRow.className = "hyperparam-row hyperparam-autotune-row";
+        autoRow.innerHTML = `
+          <label class="chart-settings-check">
+            <input type="checkbox" id="hp-autotune">
+            Auto-tune with GridSearchCV
+          </label>
+          <span class="hyperparam-hint">Find best hyperparameters automatically (slower to train)</span>
+        `;
+        const autoNote = document.createElement("div");
+        autoNote.className = "hp-autotune-note";
+        autoNote.textContent = "Hyperparameters will be found automatically via grid search.";
+        hpSection.appendChild(autoRow);
+        hpSection.appendChild(autoNote);
 
-      autoRow.querySelector("#hp-autotune").addEventListener("change", (e) => {
-        hyperparamOuter.classList.toggle("hp-autotune-active", e.target.checked);
-      });
+        autoRow.querySelector("#hp-autotune").addEventListener("change", (e) => {
+          hyperparamOuter.classList.toggle("hp-autotune-active", e.target.checked);
+        });
+      } else {
+        const noTuneNote = document.createElement("div");
+        noTuneNote.className = "hp-autotune-note";
+        noTuneNote.textContent = "Auto-tune is not available for this model type.";
+        hpSection.appendChild(noTuneNote);
+      }
     }
   }
 
   function _collectHyperparams() {
     const hp = {};
     if (selectedModel === "gpr") {
+      const k = hyperparamOuter.querySelector("#hp-kernel");
+      const a = hyperparamOuter.querySelector("#hp-alpha");
+      if (k) hp.kernel = k.value;
+      if (a) hp.alpha  = parseFloat(a.value) || 0.1;
+    } else if (selectedModel === "kriging") {
       const k = hyperparamOuter.querySelector("#hp-kernel");
       const a = hyperparamOuter.querySelector("#hp-alpha");
       if (k) hp.kernel = k.value;
@@ -266,6 +365,14 @@ export async function initModelConfig(containerEl, onTrain) {
       if (du) hp.max_depth       = du.checked ? null : (parseInt(d.value, 10) || null);
       if (ml) hp.min_samples_leaf = parseInt(ml.value, 10) || 1;
       if (mf) hp.max_features    = mf.value;
+    } else if (selectedModel === "rbf") {
+      const k = hyperparamOuter.querySelector("#hp-rbf-kernel");
+      const s = hyperparamOuter.querySelector("#hp-rbf-smoothing");
+      if (k) hp.kernel   = k.value;
+      if (s) hp.smoothing = parseFloat(s.value) || 0.001;
+    } else if (selectedModel === "pce") {
+      const o = hyperparamOuter.querySelector("#hp-pce-order");
+      if (o) hp.order = parseInt(o.value, 10) || 3;
     } else if (selectedModel === "linear") {
       const a = hyperparamOuter.querySelector("#hp-linear-alpha");
       if (a) hp.alpha = parseFloat(a.value) || 1.0;
@@ -366,6 +473,10 @@ export async function initModelConfig(containerEl, onTrain) {
       const names = { rbf: "RBF", matern15: "Matérn ν=1.5", matern25: "Matérn ν=2.5" };
       return `kernel = ${names[params.kernel] || params.kernel}  ·  noise = ${params.alpha}`;
     }
+    if (modelType === "kriging") {
+      const names = { matern15: "Matérn ν=1.5", matern25: "Matérn ν=2.5", rq: "Rational Quadratic" };
+      return `kernel = ${names[params.kernel] || params.kernel}  ·  noise = ${params.alpha}`;
+    }
     if (modelType === "rf") {
       const depth = params.max_depth ?? "unlimited";
       const feat  = { sqrt: "√n", log2: "log₂n", "0.5": "50%" };
@@ -386,6 +497,34 @@ export async function initModelConfig(containerEl, onTrain) {
     const tb = statusDiv.querySelector("#model-train-btn");
     statusDiv.insertBefore(card, tb);
   }
+
+  // ── Compare All Models section ────────────────────────────────────────────────
+  const compareSection = el("div", { cls: "model-config-section model-compare-section" });
+  const compareLabelEl = el("div", { cls: "model-config-section-label" });
+  compareLabelEl.textContent = "Compare all models";
+  const compareDesc = el("p", { cls: "section-desc", text: "Train all 6 model types with default hyperparameters on the same data split and compare accuracy side-by-side." });
+  const compareBtn = el("button", { cls: "btn btn-secondary", text: "Compare All Models", id: "model-compare-btn" });
+  const compareResultsDiv = el("div", { id: "model-compare-results" });
+  compareSection.appendChild(compareLabelEl);
+  compareSection.appendChild(compareDesc);
+  compareSection.appendChild(compareBtn);
+  compareSection.appendChild(compareResultsDiv);
+  containerEl.appendChild(compareSection);
+
+  compareBtn.addEventListener("click", async () => {
+    compareBtn.disabled = true;
+    compareBtn.textContent = "Comparing…";
+    showSpinner(compareBtn);
+    const resp = await post("/api/model/compare", {});
+    hideSpinner(compareBtn);
+    compareBtn.disabled = false;
+    compareBtn.textContent = "Compare All Models";
+    if (!resp.success) {
+      showError(resp.message || "Comparison failed. Make sure data is loaded and columns are designated.");
+      return;
+    }
+    renderModelComparisonTable(compareResultsDiv, resp);
+  });
 
   // ── Event handlers ────────────────────────────────────────────────────────────
   saveBtn.addEventListener("click", async () => {

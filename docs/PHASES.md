@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-18
 **Total phases:** 16 across 3 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -11,8 +11,8 @@
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | 🔶 In progress — Phases 6, 7, 8, 9, 10, 11 complete |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14 complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 ---
@@ -542,7 +542,7 @@
 ---
 
 ### Phase 14 — Advanced Surrogate Models
-**Status:** 🔲 Not started | **Version:** v2.3.x
+**Status:** ✅ Complete | **Version:** v2.1.0
 
 **Purpose:** Extend the available model types to cover complex aerospace response surfaces that GPR/RF/Linear cannot fit well.
 

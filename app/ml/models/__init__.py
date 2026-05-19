@@ -18,7 +18,10 @@ VERSION: 0.7.0
 # See LICENSE.md for full terms.
 
 from app.ml.models.gpr_model import GPRModel
+from app.ml.models.kriging_model import KrigingModel
 from app.ml.models.linear_model import LinearModel
+from app.ml.models.pce_model import PCEModel
+from app.ml.models.rbf_model import RBFModel
 from app.ml.models.rf_model import RFModel
 
-__all__ = ["GPRModel", "RFModel", "LinearModel"]
+__all__ = ["GPRModel", "KrigingModel", "RFModel", "RBFModel", "PCEModel", "LinearModel"]

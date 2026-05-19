@@ -9,8 +9,8 @@ FUTURE EXTENSIONS: Per-program overrides, runtime config loading from a database
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-15
-VERSION: 1.4.0
+LAST MODIFIED: 2026-05-18
+VERSION: 2.1.0
 ================================================================================
 """
 
@@ -20,7 +20,7 @@ VERSION: 1.4.0
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "1.6.0"
+VERSION = "2.1.0"
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ LOG_TRANSFORM_SKEW_THRESHOLD = 1.0   # |skew| > this flags a column as a candida
 
 # ─── MODEL TRAINING ────────────────────────────────────────────────────────────
 
-SUPPORTED_MODEL_TYPES = ["gpr", "rf", "linear"]
+SUPPORTED_MODEL_TYPES = ["gpr", "kriging", "rf", "rbf", "pce", "linear"]
 
 TEST_SPLIT_MIN = 0.05        # minimum fraction reserved for the test set
 TEST_SPLIT_MAX = 0.50        # maximum fraction reserved for the test set

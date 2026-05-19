@@ -11,8 +11,8 @@ FUTURE EXTENSIONS: GET /api/model/metrics, per-output model type selection.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 1.1.0
+LAST MODIFIED: 2026-05-18
+VERSION: 2.1.0
 ================================================================================
 """
 
@@ -24,10 +24,10 @@ import time
 
 import numpy as np
 from flask import Blueprint, current_app, jsonify, request
-from sklearn.gaussian_process.kernels import Matern
+from sklearn.gaussian_process.kernels import Matern, RationalQuadratic
 from sklearn.model_selection import train_test_split
 
-from app.ml.models import GPRModel, LinearModel, RFModel
+from app.ml.models import GPRModel, KrigingModel, LinearModel, PCEModel, RBFModel, RFModel
 from app.ml.sensitivity.global_sensitivity import SobolAnalyzer
 from app.ml.sensitivity.one_at_a_time import OATAnalyzer
 from app.ml.uncertainty.bootstrap import compute_uncertainty
@@ -38,6 +38,7 @@ from config.settings import (
     CV_FOLDS_MIN,
     DEFAULT_CV_FOLDS,
     DEFAULT_RANDOM_STATE,
+    DEFAULT_TEST_SPLIT,
     MAX_MODEL_HISTORY,
     MAX_PLOT_ROWS,
     SUPPORTED_MODEL_TYPES,
@@ -281,6 +282,17 @@ def tune():
     model      = _make_model(model_type)
     param_grid = model.get_param_grid()
 
+    if not param_grid:
+        return (
+            jsonify({
+                "success": False, "error_code": "AUTOTUNE_NOT_SUPPORTED",
+                "message": f"Auto-tune is not supported for '{model_type}'. "
+                           "RBF and PCE models do not have a hyperparameter grid.",
+                "detail": "", "recoverable": True, "allowed_actions": ["train"],
+            }),
+            422,
+        )
+
     gs = GridSearchCV(
         model._model, param_grid,
         cv=cv_folds, scoring="r2", n_jobs=-1, refit=False,
@@ -520,9 +532,9 @@ def train():
     y_pred_test = model.predict(X_test)
     test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
 
-    # GPR posterior std — free byproduct of prediction; None for other types.
+    # GPR/Kriging posterior std — free byproduct; None for RF/RBF/PCE/Linear.
     test_stds = None
-    if model_type == "gpr":
+    if model_type in ("gpr", "kriging"):
         test_stds = model.predict_std(X_test).tolist()
 
     # ── Persist to STATE ──────────────────────────────────────────────────────
@@ -650,6 +662,116 @@ def get_results():
     return jsonify({"success": True, "results": results, "history": history, "runs": runs}), 200
 
 
+@bp.route("/compare", methods=["POST"])
+def compare_models():
+    """Train all supported model types with default hyperparameters and return
+    side-by-side test metrics.
+
+    Uses the current primary dataset and config (test_split, cv_folds). The
+    trained model in STATE is not changed — this is a read-only comparison run.
+
+    Args (JSON body):
+        None — all parameters come from STATE.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "input_columns":  list[str],
+              "output_columns": list[str],
+              "n_train": int,
+              "n_test":  int,
+              "comparison": [
+                {
+                  "model_type":    str,
+                  "train_time_s":  float,
+                  "metrics":       [{column, r2, rmse, mae}, ...],
+                  "success":       true
+                },
+                { "model_type": str, "success": false, "error": str },
+                ...
+              ]
+            }
+        JSON 422: Validation error envelope.
+    """
+    state = current_app.config["STATE"]
+
+    primary = state["datasets"]["primary"]
+    _norm   = primary.get("normalized")
+    _clean  = primary.get("clean")
+    df = _norm if _norm is not None else _clean
+    if df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_CLEAN_DATA",
+                "message": "No clean data is loaded. Upload and prepare a dataset first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            422,
+        )
+
+    meta        = primary["metadata"]
+    input_cols  = meta.get("input_columns") or []
+    output_cols = meta.get("output_columns") or []
+    if not input_cols or not output_cols:
+        return (
+            jsonify({
+                "success": False, "error_code": "DESIGNATION_REQUIRED",
+                "message": "Input and output columns must be designated before comparing models.",
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+
+    config     = state["surrogate_sessions"]["primary"]["config"]
+    test_split = config.get("test_split") or DEFAULT_TEST_SPLIT
+    cv_folds   = min(config.get("cv_folds") or DEFAULT_CV_FOLDS, 5)
+
+    X = df[input_cols].values
+    y = df[output_cols].values
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_split, random_state=DEFAULT_RANDOM_STATE
+    )
+
+    comparison = []
+    for mt in SUPPORTED_MODEL_TYPES:
+        t0 = time.time()
+        try:
+            m = _make_model(mt)
+            m.fit(X_train, y_train, input_cols, output_cols)
+            y_pred = m.predict(X_test)
+            metrics = compute_metrics(y_test, y_pred, output_cols)
+            elapsed = round(time.time() - t0, 3)
+            comparison.append({
+                "model_type":   mt,
+                "train_time_s": elapsed,
+                "metrics":      metrics,
+                "success":      True,
+            })
+        except Exception as exc:
+            comparison.append({
+                "model_type": mt,
+                "success":    False,
+                "error":      str(exc),
+            })
+
+    append_audit_event(state, "model_comparison_run", {"n_models": len(comparison)})
+
+    current_app.logger.info(
+        f"Model comparison complete — {len(comparison)} types, "
+        f"n_train={len(X_train)}, n_test={len(X_test)}"
+    )
+
+    return jsonify({
+        "success":        True,
+        "input_columns":  input_cols,
+        "output_columns": output_cols,
+        "n_train":        int(len(X_train)),
+        "n_test":         int(len(X_test)),
+        "comparison":     comparison,
+    }), 200
+
+
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 
@@ -674,6 +796,11 @@ def _make_model(model_type: str, hyperparams: dict = None):
             kernel=hp.get("kernel", "rbf"),
             alpha=hp.get("alpha"),
         )
+    if model_type == "kriging":
+        return KrigingModel(
+            kernel=hp.get("kernel", "matern25"),
+            alpha=hp.get("alpha"),
+        )
     if model_type == "rf":
         return RFModel(
             n_estimators=hp.get("n_estimators"),
@@ -681,6 +808,13 @@ def _make_model(model_type: str, hyperparams: dict = None):
             min_samples_leaf=hp.get("min_samples_leaf", 1),
             max_features=hp.get("max_features", "sqrt"),
         )
+    if model_type == "rbf":
+        return RBFModel(
+            kernel=hp.get("kernel", "thin_plate_spline"),
+            smoothing=hp.get("smoothing", 1e-3),
+        )
+    if model_type == "pce":
+        return PCEModel(order=hp.get("order", 3))
     return LinearModel(alpha=hp.get("alpha", 1.0))
 
 
@@ -692,6 +826,15 @@ def _convert_best_params(model_type: str, best: dict) -> dict:
             kernel_str = "matern15" if abs(k.nu - 1.5) < 0.01 else "matern25"
         else:
             kernel_str = "rbf"
+        return {"kernel": kernel_str, "alpha": float(best["estimator__alpha"])}
+    if model_type == "kriging":
+        k = best.get("estimator__kernel")
+        if isinstance(k, Matern):
+            kernel_str = "matern15" if abs(k.nu - 1.5) < 0.01 else "matern25"
+        elif isinstance(k, RationalQuadratic):
+            kernel_str = "rq"
+        else:
+            kernel_str = "matern25"
         return {"kernel": kernel_str, "alpha": float(best["estimator__alpha"])}
     if model_type == "rf":
         return {
