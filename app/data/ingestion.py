@@ -5,11 +5,7 @@ MODULE: app/data/
 PURPOSE: CSV ingestion pipeline. Validates, coerces, and returns a clean
          DataFrame from an uploaded file stream. Pure function — no Flask
          imports — so it can be unit tested without an app context.
-DEPENDENCIES: pandas, numpy, datetime, io, config.settings
-FUTURE EXTENSIONS: Excel support (.xlsx), ZIP archives containing CSVs,
-                   URL-based data loading, database connection import.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0

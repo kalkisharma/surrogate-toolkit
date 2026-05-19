@@ -3,10 +3,7 @@
 FILE: active_learning_routes.py
 MODULE: app/routes/
 PURPOSE: Active learning route helpers
-DEPENDENCIES: None
-FUTURE EXTENSIONS: None
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0

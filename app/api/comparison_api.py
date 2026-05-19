@@ -5,10 +5,7 @@ MODULE: app/api/
 PURPOSE: Blueprint and routes for /api/comparison/*. Multi-dataset side-by-side
          comparison: status listing, LHS-sampled bias analysis, error model
          fitting, and cached result retrieval.
-DEPENDENCIES: flask, numpy, scipy, sklearn, app.state.schema
-FUTURE EXTENSIONS: Bootstrap CI on bias statistics, more error model types
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-15
 LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0

@@ -4,11 +4,7 @@ FILE: normalization.py
 MODULE: app/data/
 PURPOSE: Feature normalization and scaling for designated input columns.
          Writes to primary["normalized"]; primary["clean"] is never mutated.
-DEPENDENCIES: pandas, numpy
-FUTURE EXTENSIONS: Per-output normalization, inverse transform helper,
-                   log-transform, robust scaling.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.4.0

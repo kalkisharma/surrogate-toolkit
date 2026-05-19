@@ -4,7 +4,6 @@ FILE: __init__.py
 MODULE: app/report/
 PURPOSE: Report generation module — HTML report builder.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================

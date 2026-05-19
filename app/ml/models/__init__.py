@@ -3,10 +3,7 @@
 FILE: __init__.py
 MODULE: app/ml/models/
 PURPOSE: Package marker — exports the three concrete surrogate model classes
-DEPENDENCIES: gpr_model, rf_model, linear_model
-FUTURE EXTENSIONS: Export additional model types (XGBoost, neural surrogate)
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0

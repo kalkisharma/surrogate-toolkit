@@ -7,11 +7,7 @@ PURPOSE: Weighted ensemble of multiple surrogate model types.
          (out-of-fold meta-model). Implements the same BaseSurrogateModel
          interface as every other surrogate — all downstream panels
          (predictions, sensitivity, export) work without modification.
-DEPENDENCIES: numpy, scikit-learn, app.ml.models
-FUTURE EXTENSIONS: Non-negative least squares weighting, Bayesian model
-                   averaging, adaptive weighting based on local input density
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-19
 VERSION: 1.0.0
@@ -202,11 +198,7 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
 
         Notes:
             Weights are re-normalised inside predict() as a safety guard
-            against floating-point drift from OOF exclusions.
-
-        Future:
-            None.
-        """
+            against floating-point drift from OOF exclusions.        """
         self._check_fitted()
         X     = np.asarray(X, dtype=float)
         n     = len(X)
@@ -250,11 +242,7 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
             This is model disagreement, not posterior uncertainty. High std
             means the components disagree — a useful warning signal.
             For GPR/Kriging components, this complements the native posterior
-            std rather than replacing it.
-
-        Future:
-            None.
-        """
+            std rather than replacing it.        """
         self._check_fitted()
         X = np.asarray(X, dtype=float)
         if len(self._components) < 2:
@@ -277,16 +265,8 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
             dict with "_type", "model_type", "is_fitted", "input_columns",
                 "output_columns", "strategy", "components", "weights",
                 "component_cv_r2", "failed_components".
-
-        Raises:
-            Nothing.
-
         Notes:
-            Called by get_state_json_safe() in schema.py.
-
-        Future:
-            None.
-        """
+            Called by get_state_json_safe() in schema.py.        """
         return {
             "_type":             "model",
             "model_type":        self.model_type,

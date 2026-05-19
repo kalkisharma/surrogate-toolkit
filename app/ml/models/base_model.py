@@ -3,10 +3,7 @@
 FILE: base_model.py
 MODULE: app/ml/models/
 PURPOSE: Abstract base class for all surrogate models
-DEPENDENCIES: abc, numpy
-FUTURE EXTENSIONS: SHAP values, model versioning, health score
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.0.1
@@ -76,10 +73,6 @@ class BaseSurrogateModel(ABC):
 
         Raises:
             RuntimeError: If called before fit().
-
-        Notes:
-            None.
-
         Future:
             Return uncertainty alongside point estimates.
         """
@@ -107,10 +100,6 @@ class BaseSurrogateModel(ABC):
                     "input_columns": list,
                     "output_columns": list,
                 }
-
-        Raises:
-            Nothing.
-
         Notes:
             Used by get_state_json_safe() in schema.py to replace the model
             object with a serializable dict. Must never return non-serializable
@@ -135,11 +124,7 @@ class BaseSurrogateModel(ABC):
             RuntimeError: If self._is_fitted is False.
 
         Notes:
-            Call at the top of predict() in every subclass.
-
-        Future:
-            None.
-        """
+            Call at the top of predict() in every subclass.        """
         if not self._is_fitted:
             raise RuntimeError(
                 f"{self.__class__.__name__} has not been fitted yet. "

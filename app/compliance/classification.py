@@ -3,9 +3,7 @@
 FILE: classification.py
 MODULE: app/compliance/
 PURPOSE: Classification label constants and helpers for export compliance.
-DEPENDENCIES: None
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0

@@ -5,11 +5,7 @@ MODULE: app/api/
 PURPOSE: Blueprint for /api/state/* — exposes the live STATE dict to the
          frontend as JSON. Used by state.js refreshState() after every mutating
          POST.
-DEPENDENCIES: flask, app.state.schema
-FUTURE EXTENSIONS: Partial STATE updates via PATCH, STATE diff endpoint,
-                   per-session STATE isolation.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.2.0

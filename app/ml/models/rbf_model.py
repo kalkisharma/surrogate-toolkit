@@ -8,10 +8,7 @@ PURPOSE: Radial Basis Function interpolation surrogate model.
          scales better than GPR for medium datasets (1 000–10 000 rows) because
          the solver is O(n²) rather than O(n³). No kernel hyperparameter
          optimisation required — just choose the basis function shape.
-DEPENDENCIES: scipy, numpy
-FUTURE EXTENSIONS: Epsilon parameter for multiquadric, grid-search wrapper
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-18
 LAST MODIFIED: 2026-05-18
 VERSION: 1.0.0
@@ -117,11 +114,7 @@ class RBFModel(BaseSurrogateModel):
             RuntimeError: If called before fit().
 
         Notes:
-            Each estimator is called independently; results are column-stacked.
-
-        Future:
-            None.
-        """
+            Each estimator is called independently; results are column-stacked.        """
         self._check_fitted()
         X = np.asarray(X, dtype=float)
         preds = [est(X) for est in self._estimators]
@@ -141,16 +134,8 @@ class RBFModel(BaseSurrogateModel):
         Returns:
             dict with "_type", "model_type", "is_fitted", "input_columns",
                 "output_columns", "kernel", "smoothing".
-
-        Raises:
-            Nothing.
-
         Notes:
-            Called by get_state_json_safe() in schema.py.
-
-        Future:
-            None.
-        """
+            Called by get_state_json_safe() in schema.py.        """
         return {
             "_type":          "model",
             "model_type":     self.model_type,

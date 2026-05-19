@@ -5,9 +5,7 @@ MODULE: app/api/
 PURPOSE: Blueprint and routes for /api/export/*. Provides CSV download of
          cleaned and normalized datasets, HTML report generation, and audit log
          export.
-DEPENDENCIES: flask, app.compliance, app.report
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-15
 VERSION: 1.1.0

@@ -3,10 +3,7 @@
 FILE: test_models.py
 MODULE: tests/unit/
 PURPOSE: Unit tests for surrogate model implementations and diagnostics
-DEPENDENCIES: pytest, numpy
-FUTURE EXTENSIONS: Tests for uncertainty estimates, hyperparameter overrides
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0

@@ -4,9 +4,7 @@ FILE: active_learning_api.py
 MODULE: app/api/
 PURPOSE: Blueprint and routes for /api/active/* — coverage and objective-mode
          active learning recommendations.
-DEPENDENCIES: flask, numpy, app.ml.active_learning
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0

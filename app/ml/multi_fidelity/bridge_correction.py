@@ -6,10 +6,7 @@ PURPOSE: Bridge correction multi-fidelity model.  Trains a LF surrogate on
          full low-fidelity data, then fits an RF error model on the residuals
          (y_hf - lf_pred) at the high-fidelity sample points.  Prediction =
          LF_prediction + RF_correction.
-DEPENDENCIES: scikit-learn, numpy, app.ml.models.base_model
-FUTURE EXTENSIONS: Configurable error model type; kriging-based correction
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-19
 VERSION: 1.0.0

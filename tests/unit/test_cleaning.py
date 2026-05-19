@@ -4,11 +4,7 @@ FILE: test_cleaning.py
 MODULE: tests/unit/
 PURPOSE: Unit tests for app/data/cleaning.py — compute_cleaning_stats,
          handle_nulls, handle_outliers, remove_duplicates.
-DEPENDENCIES: pytest, pandas, numpy
-FUTURE EXTENSIONS: Tests for winsorize (post-designation), edge cases with
-                   all-null columns, mixed-type DataFrames.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-12
 LAST MODIFIED: 2026-05-12
 VERSION: 0.5.1

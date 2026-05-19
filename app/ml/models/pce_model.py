@@ -6,11 +6,7 @@ PURPOSE: Polynomial Chaos Expansion surrogate model using chaospy.
          Represents each output as a sum of orthogonal polynomials in the inputs.
          Sobol sensitivity indices (S1, ST) fall out analytically from the
          expansion coefficients — no Monte Carlo sampling needed.
-DEPENDENCIES: chaospy, numpy
-FUTURE EXTENSIONS: Hermite expansion for Gaussian inputs, sparse PCE (LARS),
-                   multi-output chaining
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-18
 LAST MODIFIED: 2026-05-18
 VERSION: 1.0.0
@@ -143,11 +139,7 @@ class PCEModel(BaseSurrogateModel):
 
         Notes:
             chaospy evaluates polynomials via cp.call(poly, X.T). Each column
-            of X.T is one input variable; rows correspond to samples.
-
-        Future:
-            None.
-        """
+            of X.T is one input variable; rows correspond to samples.        """
         self._check_fitted()
         import chaospy as cp
 
@@ -184,11 +176,7 @@ class PCEModel(BaseSurrogateModel):
 
         Notes:
             cp.Sens_m returns first-order indices; cp.Sens_t returns total-order.
-            Both return arrays of length n_inputs.
-
-        Future:
-            None.
-        """
+            Both return arrays of length n_inputs.        """
         self._check_fitted()
         import chaospy as cp
 
@@ -222,10 +210,6 @@ class PCEModel(BaseSurrogateModel):
         Returns:
             dict with "_type", "model_type", "is_fitted", "input_columns",
                 "output_columns", "order".
-
-        Raises:
-            Nothing.
-
         Notes:
             Called by get_state_json_safe() in schema.py.
 

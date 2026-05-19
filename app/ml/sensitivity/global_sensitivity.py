@@ -3,10 +3,7 @@
 FILE: global_sensitivity.py
 MODULE: app/ml/sensitivity/
 PURPOSE: Sobol global sensitivity analysis
-DEPENDENCIES: numpy, SALib
-FUTURE EXTENSIONS: Morris method
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.1.0

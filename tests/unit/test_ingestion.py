@@ -4,10 +4,7 @@ FILE: test_ingestion.py
 MODULE: tests/unit/
 PURPOSE: Unit tests for app/data/ingestion.py. Tests each validation step
          of the ingestion pipeline independently.
-DEPENDENCIES: pytest, io, app.data.ingestion, tests.conftest
-FUTURE EXTENSIONS: Property-based tests with hypothesis, fuzz testing.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0

@@ -4,9 +4,7 @@ FILE: cleanup.py
 MODULE: app/state/
 PURPOSE: Temp file cleanup — removes stale .surrogate files from the system
          temp directory to avoid unbounded disk growth.
-DEPENDENCIES: os, glob, tempfile, time
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.0.0

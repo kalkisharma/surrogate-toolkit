@@ -5,11 +5,7 @@ MODULE: app/data/
 PURPOSE: Data cleaning: outlier removal, imputation, deduplication.
          All functions are non-mutating — they accept a DataFrame and return
          a new DataFrame plus a count of affected rows.
-DEPENDENCIES: pandas, numpy, config.settings
-FUTURE EXTENSIONS: Winsorize (post-designation, inputs only), column-level null
-                   strategies, advanced imputation (KNN, iterative).
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-12
 LAST MODIFIED: 2026-05-12
 VERSION: 0.5.1

@@ -4,9 +4,7 @@ FILE: optimization_api.py
 MODULE: app/api/
 PURPOSE: Blueprint and routes for /api/optimize/*. Single-objective and
          multi-objective surrogate optimization endpoints.
-DEPENDENCIES: flask, app.ml.optimization, scipy, pymoo
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================

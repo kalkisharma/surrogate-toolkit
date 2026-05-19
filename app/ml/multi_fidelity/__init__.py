@@ -3,10 +3,7 @@
 FILE: __init__.py
 MODULE: app/ml/multi_fidelity/
 PURPOSE: Package marker for multi-fidelity modeling modules
-DEPENDENCIES: None
-FUTURE EXTENSIONS: None
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-19
 VERSION: 1.0.0

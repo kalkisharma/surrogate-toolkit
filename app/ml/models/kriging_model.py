@@ -6,10 +6,7 @@ PURPOSE: Kriging surrogate model — GPR with Matérn or Rational Quadratic kern
          Extends BaseSurrogateModel identically to GPRModel; the distinction is
          that Kriging exposes non-RBF kernels suited to responses with finite
          differentiability (e.g. sharp transonic gradients, contact discontinuities).
-DEPENDENCIES: scikit-learn, numpy
-FUTURE EXTENSIONS: Anisotropic length-scale, noise-free mode
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-18
 LAST MODIFIED: 2026-05-18
 VERSION: 1.0.0
@@ -102,10 +99,6 @@ class KrigingModel(BaseSurrogateModel):
 
         Raises:
             RuntimeError: If called before fit().
-
-        Notes:
-            None.
-
         Future:
             None.
         """
@@ -129,11 +122,7 @@ class KrigingModel(BaseSurrogateModel):
             RuntimeError: If called before fit().
 
         Notes:
-            Delegates to each per-output GaussianProcessRegressor estimator.
-
-        Future:
-            None.
-        """
+            Delegates to each per-output GaussianProcessRegressor estimator.        """
         self._check_fitted()
         X = np.asarray(X, dtype=float)
         stds = []
@@ -157,10 +146,6 @@ class KrigingModel(BaseSurrogateModel):
         Returns:
             dict with "_type", "model_type", "is_fitted", "input_columns",
                 "output_columns", "kernel".
-
-        Raises:
-            Nothing.
-
         Notes:
             Called by get_state_json_safe() in schema.py.
 

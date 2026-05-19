@@ -5,12 +5,7 @@ MODULE: app/
 PURPOSE: Flask application factory. Creates and configures the Flask app,
          registers all blueprints, initializes STATE, and sets global error
          handlers.
-DEPENDENCIES: flask, os, config.settings, app.state.schema, app.routes.main,
-              app.api.data_api, app.api.state_api
-FUTURE EXTENSIONS: Flask-CORS for Vite dev server (Phase 2), per-request
-                   classification enforcement, async job queue registration.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-13
 VERSION: 0.9.0

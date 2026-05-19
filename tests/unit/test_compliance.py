@@ -3,10 +3,7 @@
 FILE: test_compliance.py
 MODULE: tests/unit/
 PURPOSE: Unit tests for compliance module
-DEPENDENCIES: None
-FUTURE EXTENSIONS: None
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0

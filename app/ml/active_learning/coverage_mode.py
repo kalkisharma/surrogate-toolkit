@@ -5,9 +5,7 @@ MODULE: app/ml/active_learning/
 PURPOSE: Coverage-based recommendation using max-min distance criterion.
          Generates Latin Hypercube candidates and selects those farthest from
          existing training samples to maximise design space coverage.
-DEPENDENCIES: numpy, scipy
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0

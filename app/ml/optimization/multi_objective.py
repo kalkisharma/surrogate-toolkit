@@ -3,9 +3,7 @@
 FILE: multi_objective.py
 MODULE: app/ml/optimization/
 PURPOSE: Multi-objective surrogate optimization via NSGA-II (pymoo).
-DEPENDENCIES: pymoo, numpy
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================

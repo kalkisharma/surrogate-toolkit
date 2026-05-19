@@ -3,9 +3,7 @@
 FILE: single_objective.py
 MODULE: app/ml/optimization/
 PURPOSE: Single-objective surrogate optimization via scipy differential_evolution.
-DEPENDENCIES: scipy, numpy
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================

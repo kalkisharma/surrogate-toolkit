@@ -4,9 +4,7 @@ FILE: objective_mode.py
 MODULE: app/ml/active_learning/
 PURPOSE: Objective-guided recommendation using Expected Improvement (EI) or
          Upper Confidence Bound (UCB) acquisition functions.
-DEPENDENCIES: numpy, scipy
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0

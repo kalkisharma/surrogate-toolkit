@@ -3,10 +3,7 @@
 FILE: cross_validation.py
 MODULE: app/ml/validation/
 PURPOSE: K-fold cross-validation for surrogate models
-DEPENDENCIES: scikit-learn, numpy
-FUTURE EXTENSIONS: Time-series CV, nested CV, learning curve generation
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0

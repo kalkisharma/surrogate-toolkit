@@ -8,11 +8,7 @@ PURPOSE: Simplified Kennedy-O'Hagan co-kriging.
          f_lf is a GPR trained on LF data; δ is an independent GPR trained
          on the discrepancy at HF sample points.  Provides native uncertainty
          estimates by combining LF and δ posterior stds.
-DEPENDENCIES: scikit-learn, numpy
-FUTURE EXTENSIONS: Joint ρ / hyperparameter optimisation via scipy.minimize;
-                   non-stationary kernels; noise-aware HF observations
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-19
 VERSION: 1.0.1

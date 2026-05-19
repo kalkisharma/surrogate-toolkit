@@ -5,9 +5,7 @@ MODULE: app/report/
 PURPOSE: Collect STATE data into a flat dict for the Jinja2 report template.
          Handles missing sections gracefully — sections appear only when data
          is available.
-DEPENDENCIES: app.compliance.classification, config.settings
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================

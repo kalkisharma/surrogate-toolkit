@@ -4,10 +4,7 @@ FILE: settings.py
 MODULE: config/
 PURPOSE: Single source of truth for all configurable constants. Nothing is
          hardcoded elsewhere in the application — all tunable values live here.
-DEPENDENCIES: None — this module has no internal imports.
-FUTURE EXTENSIONS: Per-program overrides, runtime config loading from a database.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-19
 VERSION: 2.3.1

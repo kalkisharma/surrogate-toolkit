@@ -3,10 +3,7 @@
 FILE: dimensionality.py
 MODULE: app/data/
 PURPOSE: Dimensionality reduction and feature selection
-DEPENDENCIES: pandas, numpy, scikit-learn
-FUTURE EXTENSIONS: PCA, UMAP, importance-based selection
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0

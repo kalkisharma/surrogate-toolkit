@@ -3,10 +3,7 @@
 FILE: linear_model.py
 MODULE: app/ml/models/
 PURPOSE: Linear regression surrogate model
-DEPENDENCIES: scikit-learn, numpy
-FUTURE EXTENSIONS: Polynomial features, Lasso variant
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-19
 VERSION: 1.0.2
@@ -83,10 +80,6 @@ class LinearModel(BaseSurrogateModel):
 
         Raises:
             RuntimeError: If called before fit().
-
-        Notes:
-            None.
-
         Future:
             None.
         """
@@ -110,10 +103,6 @@ class LinearModel(BaseSurrogateModel):
         Returns:
             dict: "_type", "model_type", "is_fitted", "input_columns",
                   "output_columns".
-
-        Raises:
-            Nothing.
-
         Notes:
             Called by get_state_json_safe() in schema.py.
 

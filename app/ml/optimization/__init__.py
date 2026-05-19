@@ -4,7 +4,6 @@ FILE: __init__.py
 MODULE: app/ml/optimization/
 PURPOSE: Single-objective and multi-objective surrogate optimization.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================

@@ -3,10 +3,7 @@
 FILE: one_at_a_time.py
 MODULE: app/ml/sensitivity/
 PURPOSE: One-at-a-time sensitivity analysis
-DEPENDENCIES: numpy
-FUTURE EXTENSIONS: None
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.1.0

@@ -4,9 +4,7 @@ FILE: session.py
 MODULE: app/state/
 PURPOSE: Session lifecycle management — thin wrappers around project.py
          serialize/deserialize operations.
-DEPENDENCIES: app.state.project
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.0.0

@@ -3,10 +3,7 @@
 FILE: bootstrap.py
 MODULE: app/ml/uncertainty/
 PURPOSE: Uncertainty estimation — GPR native posterior std; RF tree variance
-DEPENDENCIES: numpy
-FUTURE EXTENSIONS: Jackknife, conformal prediction
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.1.0

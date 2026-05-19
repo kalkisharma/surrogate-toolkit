@@ -4,10 +4,7 @@ FILE: conftest.py
 MODULE: tests/
 PURPOSE: pytest fixtures shared across all test modules. Provides a Flask test
          client, pre-built CSV byte buffers, and helper file-like objects.
-DEPENDENCIES: pytest, flask, io, pathlib, app
-FUTURE EXTENSIONS: Database fixtures, mocked external service clients.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0

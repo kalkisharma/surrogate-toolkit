@@ -3,10 +3,7 @@
 FILE: gpr_model.py
 MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
-DEPENDENCIES: scikit-learn, numpy
-FUTURE EXTENSIONS: Custom kernels, active learning integration
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.0.1
@@ -100,10 +97,6 @@ class GPRModel(BaseSurrogateModel):
 
         Raises:
             RuntimeError: If called before fit().
-
-        Notes:
-            None.
-
         Future:
             Expose posterior standard deviation for uncertainty propagation.
         """
@@ -139,10 +132,6 @@ class GPRModel(BaseSurrogateModel):
         Returns:
             dict: "_type", "model_type", "is_fitted", "input_columns",
                   "output_columns".
-
-        Raises:
-            Nothing.
-
         Notes:
             Called by get_state_json_safe() in schema.py.
 

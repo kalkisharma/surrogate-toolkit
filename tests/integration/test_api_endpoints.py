@@ -4,10 +4,7 @@ FILE: test_api_endpoints.py
 MODULE: tests/integration/
 PURPOSE: Integration tests for the /api/data/* HTTP endpoints. Tests the full
          request/response cycle including STATE mutations.
-DEPENDENCIES: pytest, pytest-flask, io, json, tests.conftest
-FUTURE EXTENSIONS: Tests for /api/model/*, /api/predict/*, authentication tests.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0

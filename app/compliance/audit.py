@@ -3,9 +3,7 @@
 FILE: audit.py
 MODULE: app/compliance/
 PURPOSE: Export audit trail recording and CSV export.
-DEPENDENCIES: hashlib, csv, datetime, io
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0

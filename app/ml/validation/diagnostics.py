@@ -3,10 +3,7 @@
 FILE: diagnostics.py
 MODULE: app/ml/validation/
 PURPOSE: Model diagnostic metrics — R², RMSE, MAE per output column
-DEPENDENCIES: numpy, scikit-learn
-FUTURE EXTENSIONS: Case influence analysis, data removal analysis
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0

@@ -4,12 +4,7 @@ FILE: model_api.py
 MODULE: app/api/
 PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
-DEPENDENCIES: flask, app.state.schema, app.ml.models, app.ml.validation,
-              app.ml.sensitivity, app.ml.uncertainty, config.settings,
-              sklearn.model_selection
-FUTURE EXTENSIONS: GET /api/model/metrics, per-output model type selection.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-19
 VERSION: 2.3.1

@@ -4,9 +4,7 @@ FILE: stats.py
 MODULE: app/data/
 PURPOSE: Statistical helpers beyond basic pandas — currently distance correlation
          (dCor). Pure numpy, no external dependencies.
-DEPENDENCIES: numpy
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-14
 LAST MODIFIED: 2026-05-14
 VERSION: 1.0.0

@@ -6,11 +6,7 @@ PURPOSE: Thin re-export wrapper for the stacking OOF utilities defined in
          ensemble_model.py. Kept as a separate module so future standalone
          stacking workflows can import directly from here without pulling in
          the full EnsembleSurrogateModel class.
-DEPENDENCIES: app.ml.ensemble.ensemble_model
-FUTURE EXTENSIONS: Non-negative least squares meta-learner, Bayesian
-                   model averaging, conformal prediction intervals
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-19
 VERSION: 1.0.0

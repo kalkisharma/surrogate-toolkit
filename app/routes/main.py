@@ -4,10 +4,7 @@ FILE: main.py
 MODULE: app/routes/
 PURPOSE: SPA shell route. Serves index.html for GET / and any unknown non-API
          path so the JavaScript router can handle client-side navigation.
-DEPENDENCIES: flask
-FUTURE EXTENSIONS: Deep-link validation, per-path CSP headers.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0

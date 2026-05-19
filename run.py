@@ -4,10 +4,7 @@ FILE: run.py
 MODULE: (root)
 PURPOSE: Development entry point. Reads HOST/PORT/DEBUG from .env and starts
          the Flask development server.
-DEPENDENCIES: app, python-dotenv, os
-FUTURE EXTENSIONS: None — production uses gunicorn, not this file.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.2.0

@@ -4,11 +4,7 @@ FILE: schema.py
 MODULE: app/state/
 PURPOSE: Defines the canonical STATE dict shape and helpers to reset, read, and
          serialize it. STATE is the single source of truth for all session data.
-DEPENDENCIES: config.settings, copy, pandas (for JSON-safe serialization only)
-FUTURE EXTENSIONS: Persistent STATE (Redis or SQLite), per-user STATE isolation,
-                   STATE diff/patch for undo support.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0
@@ -245,10 +241,6 @@ def get_state() -> dict:
     Returns:
         dict: The live STATE dict. Do NOT store this reference — always call
               get_state() to ensure you have the current object after a reset.
-
-    Raises:
-        Nothing.
-
     Notes:
         The returned dict is mutable. Callers should write directly to keys
         rather than replacing the dict itself.
@@ -273,10 +265,6 @@ def get_state_json_safe() -> dict:
     Returns:
         dict: A deep copy of STATE with all pd.DataFrame values replaced by
               {"_type": "dataframe", "shape": [n_rows, n_cols], "columns": [...]}.
-
-    Raises:
-        Nothing.
-
     Future:
         Include column dtype info and sample row count in the replacement dict.
     """

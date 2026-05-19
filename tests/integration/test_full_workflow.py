@@ -4,10 +4,7 @@ FILE: test_full_workflow.py
 MODULE: tests/integration/
 PURPOSE: End-to-end integration tests covering the full surrogate modeling
          pipeline: upload → designate → configure → train → results.
-DEPENDENCIES: pytest, pytest-flask, io, json
-FUTURE EXTENSIONS: Normalization step, GPR workflow, prediction endpoint tests.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0

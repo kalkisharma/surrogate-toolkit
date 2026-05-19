@@ -4,9 +4,7 @@ FILE: prediction_api.py
 MODULE: app/api/
 PURPOSE: Blueprint and routes for /api/predict/*. Single-point and batch
          prediction against a trained surrogate model stored in STATE.
-DEPENDENCIES: flask, numpy, pandas, io, app.state.schema
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 0.9.2

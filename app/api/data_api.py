@@ -5,11 +5,7 @@ MODULE: app/api/
 PURPOSE: Blueprint and route handlers for /api/data/*. Wires the ingestion
          pipeline to the HTTP API, updates STATE, and returns standardised
          JSON responses.
-DEPENDENCIES: flask, numpy, werkzeug.utils, app.data.ingestion, app.state.schema
-FUTURE EXTENSIONS: POST /api/data/reduce, GET /api/data/visualization,
-                   POST /api/data/filter, winsorize (post-designation).
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
-CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.0.0
