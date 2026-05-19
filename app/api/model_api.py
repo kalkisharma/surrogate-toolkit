@@ -662,6 +662,243 @@ def get_results():
     return jsonify({"success": True, "results": results, "history": history, "runs": runs}), 200
 
 
+@bp.route("/train_ensemble", methods=["POST"])
+def train_ensemble():
+    """Train a weighted ensemble of surrogate models.
+
+    Trains all selected component types, computes weights using the chosen
+    strategy, and stores the ensemble in the same STATE slot as any trained
+    model. All downstream panels (results, predictions, interpretation,
+    export) work on the ensemble transparently.
+
+    Args (JSON body):
+        component_types    (list[str]): At least 2 model type strings.
+        strategy           (str):       "equal" | "cv_performance" (default) |
+                                        "stacking".
+        hyperparams_per_type (dict):    Optional per-component hyperparams.
+                                        Defaults are used for missing entries.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "results": {
+                "model_type":          "ensemble",
+                "ensemble_strategy":   str,
+                "ensemble_components": list[str],
+                "ensemble_weights":    {model_type: float},
+                "ensemble_cv_r2":      {model_type: float},
+                "ensemble_failed":     [{model_type, error}, ...],
+                "test_metrics":        [...],
+                "cv_results":          {...},
+                ...  (same shape as POST /api/model/train)
+              }
+            }
+        JSON 422: Validation error envelope.
+    """
+    from app.ml.ensemble.ensemble_model import EnsembleSurrogateModel
+
+    state = current_app.config["STATE"]
+    data  = request.get_json(silent=True) or {}
+
+    component_types      = data.get("component_types")
+    strategy             = data.get("strategy", "cv_performance")
+    hyperparams_per_type = data.get("hyperparams_per_type") or {}
+
+    # ── Validate inputs ───────────────────────────────────────────────────────
+    if not component_types or not isinstance(component_types, list):
+        return (
+            jsonify({
+                "success": False, "error_code": "INVALID_COMPONENT_TYPES",
+                "message": "component_types must be a non-empty list of model type strings.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    invalid = [mt for mt in component_types if mt not in SUPPORTED_MODEL_TYPES]
+    if invalid:
+        return (
+            jsonify({
+                "success": False, "error_code": "UNKNOWN_MODEL_TYPE",
+                "message": f"Unknown model type(s): {', '.join(invalid)}. "
+                           f"Supported: {', '.join(SUPPORTED_MODEL_TYPES)}.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    if len(component_types) < 2:
+        return (
+            jsonify({
+                "success": False, "error_code": "INVALID_COMPONENT_TYPES",
+                "message": "At least 2 component types are required for an ensemble.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    if strategy not in ("equal", "cv_performance", "stacking"):
+        strategy = "cv_performance"
+
+    # ── Resolve data ──────────────────────────────────────────────────────────
+    primary = state["datasets"]["primary"]
+    _norm   = primary.get("normalized")
+    _clean  = primary.get("clean")
+    df = _norm if _norm is not None else _clean
+    if df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "NO_CLEAN_DATA",
+                "message": "No clean data is loaded. Upload and prepare a dataset first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            422,
+        )
+
+    meta        = primary["metadata"]
+    input_cols  = meta.get("input_columns") or []
+    output_cols = meta.get("output_columns") or []
+    if not input_cols or not output_cols:
+        return (
+            jsonify({
+                "success": False, "error_code": "DESIGNATION_REQUIRED",
+                "message": "Designate input and output columns before training.",
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+
+    config     = state["surrogate_sessions"]["primary"]["config"]
+    test_split = config.get("test_split") or DEFAULT_TEST_SPLIT
+    cv_folds   = config.get("cv_folds") or DEFAULT_CV_FOLDS
+
+    X = df[input_cols].values
+    y = df[output_cols].values
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_split, random_state=DEFAULT_RANDOM_STATE
+    )
+
+    # ── Build and train ensemble ──────────────────────────────────────────────
+    ensemble = EnsembleSurrogateModel(
+        component_types=component_types,
+        strategy=strategy,
+        hyperparams_per_type=hyperparams_per_type,
+        cv_folds=min(cv_folds, len(X_train)),
+    )
+    ensemble.fit(X_train, y_train, input_cols, output_cols)
+
+    if not ensemble._components:
+        return (
+            jsonify({
+                "success": False, "error_code": "ENSEMBLE_ALL_FAILED",
+                "message": "All component models failed to train. "
+                           "Check your data or try fewer/different component types.",
+                "detail": str(ensemble._failed_components),
+                "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    warnings     = [f"{f['model_type']} excluded: {f['error']}"
+                    for f in ensemble._failed_components]
+    y_pred_test  = ensemble.predict(X_test)
+    test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
+    test_stds    = ensemble.predict_std(X_test).tolist()
+
+    # Construct cv_results in the per_output format expected by results.js.
+    # Uses average component CV R² as the ensemble-level CV estimate.
+    comp_r2s = list(ensemble._component_cv_r2.values())
+    avg_r2   = float(np.mean(comp_r2s)) if comp_r2s else 0.0
+    std_r2   = float(np.std(comp_r2s))  if len(comp_r2s) > 1 else 0.0
+    cv_results = {
+        "n_folds":    min(cv_folds, len(X_train)),
+        "per_output": [
+            {
+                "column":    col,
+                "mean_r2":   avg_r2,
+                "std_r2":    std_r2,
+                "mean_rmse": 0.0,
+                "std_rmse":  0.0,
+                "mean_mae":  0.0,
+                "std_mae":   0.0,
+            }
+            for col in output_cols
+        ],
+    }
+
+    results = {
+        "model_type":          "ensemble",
+        "ensemble_strategy":   strategy,
+        "ensemble_components": [mt for mt, _ in ensemble._components],
+        "ensemble_weights":    ensemble._weights,
+        "ensemble_cv_r2":      ensemble._component_cv_r2,
+        "ensemble_failed":     ensemble._failed_components,
+        "hyperparams":         {"component_types": component_types, "strategy": strategy},
+        "n_train":             int(len(X_train)),
+        "n_test":              int(len(X_test)),
+        "source_filename":     meta.get("filename"),
+        "input_columns":       input_cols,
+        "output_columns":      output_cols,
+        "input_means":         {col: float((_clean if _clean is not None else df)[col].mean()) for col in input_cols},
+        "input_mins":          {col: float(df[col].min()) for col in input_cols},
+        "input_maxs":          {col: float(df[col].max()) for col in input_cols},
+        "test_metrics":        test_metrics,
+        "cv_results":          cv_results,
+        "warnings":            warnings,
+        "test_actuals":        y_test.tolist(),
+        "test_predictions":    y_pred_test.tolist(),
+        "test_inputs":         X_test.tolist(),
+        "test_stds":           test_stds,
+    }
+
+    # ── Persist to STATE (same slot as any trained model) ─────────────────────
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    models_dict.pop("interpretation", None)
+    models_dict["trained"] = ensemble
+    models_dict["results"] = results
+
+    runs    = models_dict.setdefault("runs", [])
+    run_num = len(runs) + 1
+    run_entry       = dict(results)
+    run_entry["run"] = run_num
+    runs.append(run_entry)
+    if len(runs) > MAX_MODEL_HISTORY:
+        models_dict["runs"] = runs[-MAX_MODEL_HISTORY:]
+
+    history  = models_dict.setdefault("history", [])
+    now_ts   = int(time.time())
+    for m in test_metrics:
+        history.append({
+            "run":        run_num,
+            "timestamp":  now_ts,
+            "model_type": "ensemble",
+            "n_rows":     int(len(X_train)) + int(len(X_test)),
+            "output":     m["column"],
+            "r2_test":    round(float(m["r2"]),   4),
+            "rmse_test":  round(float(m["rmse"]), 4),
+            "r2_cv":      round(avg_r2, 4),
+        })
+    if len(history) > MAX_MODEL_HISTORY:
+        models_dict["history"] = history[-MAX_MODEL_HISTORY:]
+
+    append_audit_event(state, "ensemble_train", {
+        "strategy":     strategy,
+        "n_components": len(ensemble._components),
+        "n_train":      int(len(X_train)),
+        "n_test":       int(len(X_test)),
+    })
+
+    current_app.logger.info(
+        f"Ensemble trained — strategy={strategy}, "
+        f"components={[mt for mt, _ in ensemble._components]}, "
+        f"n_train={len(X_train)}, n_test={len(X_test)}"
+    )
+
+    return jsonify({"success": True, "results": results}), 200
+
+
 @bp.route("/compare", methods=["POST"])
 def compare_models():
     """Train all supported model types with default hyperparameters and return

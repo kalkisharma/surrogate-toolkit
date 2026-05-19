@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 0.9.9
+// Version: 2.2.0
 // Description: Step 8 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -15,7 +15,7 @@ import { get } from "../api.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
-import { renderOutputFigure } from "../charts.js";
+import { renderOutputFigure, renderEnsembleWeights } from "../charts.js";
 
 // R² thresholds — mirror config/settings.py constants
 const R2_MINIMUM = 0.70;
@@ -406,6 +406,43 @@ function _render(containerEl, r) {
     containerEl.appendChild(warnBox);
   }
 
+  // ── Ensemble breakdown (shown instead of CV table for ensemble models) ───────
+  if (r.model_type === "ensemble") {
+    const ensSection = el("div", { cls: "results-section" });
+    const ensTitle   = el("h3", { cls: "results-section-title", text: "Ensemble Composition" });
+    const stratLabel = { equal: "Equal weights", cv_performance: "CV Performance", stacking: "Stacking (meta-model)" };
+    const stratDesc  = el("p", { cls: "section-desc",
+      text: `Strategy: ${stratLabel[r.ensemble_strategy] || r.ensemble_strategy}  ·  ${r.ensemble_components.length} active component${r.ensemble_components.length !== 1 ? "s" : ""}` });
+    ensSection.appendChild(ensTitle);
+    ensSection.appendChild(stratDesc);
+
+    if (r.ensemble_failed && r.ensemble_failed.length > 0) {
+      const warnBox = el("div", { cls: "results-warning-box" });
+      for (const f of r.ensemble_failed) {
+        warnBox.appendChild(el("p", { cls: "results-warning-text",
+          text: `⚠ ${f.model_type} excluded: ${f.error}` }));
+      }
+      ensSection.appendChild(warnBox);
+    }
+
+    const weightChart = el("div", { cls: "ensemble-weight-chart" });
+    ensSection.appendChild(weightChart);
+    renderEnsembleWeights(
+      weightChart,
+      r.ensemble_components,
+      r.ensemble_weights  || {},
+      r.ensemble_cv_r2    || {},
+      r.ensemble_failed   || [],
+    );
+    requestAnimationFrame(() => {
+      const p = weightChart.querySelector(".js-plotly-plot");
+      if (p) Plotly.Plots.resize(p); // eslint-disable-line no-undef
+    });
+
+    ensSection.appendChild(_buildEnsembleTable(r));
+    containerEl.appendChild(ensSection);
+  }
+
   // ── Test-set metrics table ───────────────────────────────────────────────────
   const testSection = el("div", { cls: "results-section" });
   const testTitle   = el("h3", { cls: "results-section-title", text: "Test Set Performance" });
@@ -422,7 +459,9 @@ function _render(containerEl, r) {
   testSection.appendChild(_buildMetricsTable(r.test_metrics));
   containerEl.appendChild(testSection);
 
-  // ── CV summary ───────────────────────────────────────────────────────────────
+  // ── CV summary (skipped for ensemble — breakdown shown above instead) ────────
+  if (r.model_type === "ensemble") { /* no-op */ }
+  else {
   const cvSection = el("div", { cls: "results-section" });
   const cvTitle   = el("h3", {
     cls:  "results-section-title",
@@ -443,6 +482,7 @@ function _render(containerEl, r) {
   cvSection.appendChild(cvTitle);
   cvSection.appendChild(_buildCVTable(r.cv_results.per_output));
   containerEl.appendChild(cvSection);
+  } // end else (non-ensemble CV section)
 
   // ── Diagnostic Figures ────────────────────────────────────────────────────
   if (r.test_actuals && r.test_predictions && r.output_columns) {
@@ -563,6 +603,49 @@ function _buildCVTable(perOutput) {
           <span class="results-std">± ${m.std_mae.toFixed(4)}</span></td>`;
     tbody.appendChild(tr);
   }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function _buildEnsembleTable(r) {
+  const wrap  = el("div", { cls: "results-table-wrap" });
+  const table = el("table", { cls: "results-table ensemble-comp-table" });
+
+  const thead = el("thead");
+  thead.innerHTML = `
+    <tr>
+      <th>Component</th>
+      <th>Weight</th>
+      <th>CV R²</th>
+      <th>Status</th>
+    </tr>`;
+  table.appendChild(thead);
+
+  const tbody = el("tbody");
+  for (const modelType of (r.ensemble_components || [])) {
+    const weight = r.ensemble_weights ? r.ensemble_weights[modelType] : null;
+    const cvR2   = r.ensemble_cv_r2   ? r.ensemble_cv_r2[modelType]   : null;
+    const tr = el("tr");
+    tr.innerHTML = `
+      <td class="results-col-name">${modelType.toUpperCase()}</td>
+      <td class="results-metric">${weight != null ? (weight * 100).toFixed(1) + "%" : "—"}</td>
+      <td>${cvR2 != null ? `<span class="results-badge results-badge--${_r2Class(cvR2)}">${cvR2.toFixed(3)}</span>` : "—"}</td>
+      <td><span class="ensemble-status ensemble-status--active">Active</span></td>
+    `;
+    tbody.appendChild(tr);
+  }
+  for (const f of (r.ensemble_failed || [])) {
+    const tr = el("tr", { cls: "ensemble-comp-failed" });
+    tr.innerHTML = `
+      <td class="results-col-name">${f.model_type.toUpperCase()}</td>
+      <td class="results-metric">—</td>
+      <td>—</td>
+      <td><span class="ensemble-status ensemble-status--excluded" title="${f.error}">Excluded</span></td>
+    `;
+    tbody.appendChild(tr);
+  }
+
   table.appendChild(tbody);
   wrap.appendChild(table);
   return wrap;

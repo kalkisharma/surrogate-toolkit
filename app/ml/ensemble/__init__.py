@@ -17,4 +17,6 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
-# TODO: implement
+from app.ml.ensemble.ensemble_model import EnsembleSurrogateModel
+
+__all__ = ["EnsembleSurrogateModel"]

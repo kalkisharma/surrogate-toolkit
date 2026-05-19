@@ -988,6 +988,79 @@ export function renderBiasHistogram(containerEl, delta, outputCol, options = {})
  * @param {object}      compResp    - Response from POST /api/model/compare:
  *   { comparison: [...], output_columns: [...], n_train: int, n_test: int }
  */
+/**
+ * Render a horizontal bar chart of ensemble component weights.
+ *
+ * Shows one bar per component sorted by weight descending. Failed/excluded
+ * components are shown as gray zero-weight bars with an "excluded" label.
+ *
+ * @param {HTMLElement} containerEl   - Target element (cleared before render).
+ * @param {string[]}    components    - Component model types included (ordered).
+ * @param {object}      weights       - {model_type: float} — weights summing to 1.
+ * @param {object}      cvR2          - {model_type: float} — CV R² per component.
+ * @param {object[]}    failed        - [{model_type, error}, ...] excluded components.
+ * @param {object}      [options]
+ */
+export function renderEnsembleWeights(containerEl, components, weights, cvR2, failed, options = {}) {
+  const { fontSize = 12, fontColor = null, plotBgColor = null, paperBgColor = null } = options;
+  const theme = _getThemeColors();
+  const _fc   = fontColor    ?? theme.font;
+  const _pb   = plotBgColor  ?? "rgba(0,0,0,0)";
+  const _ppb  = paperBgColor ?? "rgba(0,0,0,0)";
+
+  const MODEL_LABELS = {
+    gpr: "GPR", kriging: "Kriging", rf: "Random Forest",
+    rbf: "RBF", pce: "PCE", linear: "Linear",
+  };
+
+  // Build sorted bars (included components, descending weight)
+  const included = [...components].sort((a, b) => (weights[b] ?? 0) - (weights[a] ?? 0));
+  const excluded = (failed || []).map(f => f.model_type);
+
+  const allTypes  = [...included, ...excluded];
+  const allNames  = allTypes.map(mt => MODEL_LABELS[mt] || mt);
+  const allWeights = allTypes.map(mt => weights[mt] ?? 0);
+  const allCvR2   = allTypes.map(mt => cvR2[mt] ?? 0);
+  const colors    = allTypes.map((mt, i) =>
+    i < included.length ? "rgba(99,102,241,0.80)" : "rgba(160,160,160,0.40)"
+  );
+  const customdata = allTypes.map((mt, i) => ({
+    cv_r2:    allCvR2[i].toFixed(3),
+    excluded: i >= included.length,
+  }));
+
+  const trace = {
+    type:        "bar",
+    orientation: "h",
+    x: allWeights,
+    y: allNames,
+    marker: { color: colors },
+    customdata,
+    hovertemplate: "<b>%{y}</b><br>Weight: %{x:.3f}<br>CV R²: %{customdata.cv_r2}<extra></extra>",
+  };
+
+  const height = Math.max(200, allTypes.length * 40 + 80);
+  const layout = {
+    height,
+    margin:  { t: 16, b: 50, l: 120, r: 20 },
+    xaxis:   { title: "Weight", range: [0, Math.max(...allWeights) + 0.05],
+               color: _fc, tickfont: { size: fontSize - 1 },
+               gridcolor: "rgba(128,128,128,0.18)" },
+    yaxis:   { color: _fc, tickfont: { size: fontSize - 1 }, automargin: true },
+    font:    { size: fontSize, color: _fc },
+    plot_bgcolor:  _pb,
+    paper_bgcolor: _ppb,
+    showlegend: false,
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, [trace], layout, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage"]],
+    toImageButtonOptions: { filename: "ensemble_weights", scale: 2 },
+  });
+}
+
 export function renderModelComparisonTable(containerEl, compResp) {
   containerEl.innerHTML = "";
 

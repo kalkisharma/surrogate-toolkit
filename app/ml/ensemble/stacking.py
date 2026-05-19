@@ -1,0 +1,30 @@
+"""
+================================================================================
+FILE: stacking.py
+MODULE: app/ml/ensemble/
+PURPOSE: Thin re-export wrapper for the stacking OOF utilities defined in
+         ensemble_model.py. Kept as a separate module so future standalone
+         stacking workflows can import directly from here without pulling in
+         the full EnsembleSurrogateModel class.
+DEPENDENCIES: app.ml.ensemble.ensemble_model
+FUTURE EXTENSIONS: Non-negative least squares meta-learner, Bayesian
+                   model averaging, conformal prediction intervals
+MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+CLASSIFICATION: Not program-specific
+CREATED: 2026-05-19
+LAST MODIFIED: 2026-05-19
+VERSION: 1.0.0
+================================================================================
+"""
+
+# Copyright © 2026 Kalki Sharma. All rights reserved.
+# Licensed for internal use by Lockheed Martin employees only.
+# See LICENSE.md for full terms.
+
+from app.ml.ensemble.ensemble_model import (  # noqa: F401
+    EnsembleSurrogateModel,
+    _compute_cv_weights,
+    _create_component,
+)
+
+__all__ = ["EnsembleSurrogateModel", "_create_component", "_compute_cv_weights"]

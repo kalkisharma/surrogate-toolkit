@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 2.1.0
+// Version: 2.2.0
 // Description: Step 7 — Configure Training. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Shows a per-model
 //              hyperparameter section (kernel/alpha for GPR, trees/depth/features
@@ -524,6 +524,94 @@ export async function initModelConfig(containerEl, onTrain) {
       return;
     }
     renderModelComparisonTable(compareResultsDiv, resp);
+  });
+
+  // ── Ensemble Builder section ──────────────────────────────────────────────────
+  const ensembleSection = el("div", { cls: "model-config-section ensemble-builder-section" });
+  const ensLabelEl = el("div", { cls: "model-config-section-label" });
+  ensLabelEl.textContent = "Train Ensemble (Experimental)";
+  const ensDesc = el("p", { cls: "section-desc",
+    text: "Combine multiple model types into a weighted ensemble. Requires at least 2 components." });
+  ensembleSection.appendChild(ensLabelEl);
+  ensembleSection.appendChild(ensDesc);
+
+  registerPrimer(
+    "ensemble-builder",
+    ensLabelEl,
+    "How does the ensemble work?",
+    `<p>An ensemble combines predictions from multiple surrogate model types, each trained independently on the same data.</p>
+     <p><strong>Equal</strong> — all components weighted equally (1/n each).</p>
+     <p><strong>CV Performance</strong> — components weighted by their cross-validation R² score; better-fitting models receive higher weight.</p>
+     <p><strong>Stacking</strong> — trains a Ridge meta-model on out-of-fold predictions to learn the optimal blend automatically.</p>
+     <p>If a component fails to train (e.g., PCE on a high-dimensional dataset), it is excluded and the remaining components continue.</p>`
+  );
+
+  const checksLabel = el("div", { cls: "model-config-section-label", text: "Components" });
+  const checksGrid  = el("div", { cls: "ensemble-component-checks" });
+  const ENS_TYPES  = ["gpr", "kriging", "rf", "rbf", "pce", "linear"];
+  const ENS_LABELS = { gpr: "GPR", kriging: "Kriging", rf: "Random Forest", rbf: "RBF", pce: "PCE", linear: "Linear" };
+  for (const t of ENS_TYPES) {
+    const lbl = document.createElement("label");
+    lbl.className = "ensemble-check-label";
+    lbl.innerHTML = `<input type="checkbox" class="ens-comp-check" value="${t}"${["gpr", "rf"].includes(t) ? " checked" : ""}> ${ENS_LABELS[t]}`;
+    checksGrid.appendChild(lbl);
+  }
+  ensembleSection.appendChild(checksLabel);
+  ensembleSection.appendChild(checksGrid);
+
+  const stratRow   = el("div", { cls: "model-config-row" });
+  const stratLabel = el("span", { cls: "hyperparam-label", text: "Strategy" });
+  const stratSel   = el("select", { cls: "model-config-select", id: "ens-strategy-select" });
+  for (const [val, lbl] of [
+    ["cv_performance", "CV Performance (recommended)"],
+    ["equal",          "Equal weights"],
+    ["stacking",       "Stacking (meta-model)"],
+  ]) {
+    const opt = document.createElement("option");
+    opt.value = val; opt.textContent = lbl;
+    stratSel.appendChild(opt);
+  }
+  stratRow.appendChild(stratLabel);
+  stratRow.appendChild(stratSel);
+  ensembleSection.appendChild(stratRow);
+
+  const ensTrainBtn  = el("button", { cls: "btn btn-primary", text: "Train Ensemble →", id: "ens-train-btn" });
+  const ensStatusDiv = el("div", { cls: "ens-status-note", id: "ens-status-note" });
+  ensembleSection.appendChild(ensTrainBtn);
+  ensembleSection.appendChild(ensStatusDiv);
+  containerEl.appendChild(ensembleSection);
+
+  ensTrainBtn.addEventListener("click", async () => {
+    const componentTypes = [...checksGrid.querySelectorAll(".ens-comp-check:checked")].map(c => c.value);
+    if (componentTypes.length < 2) {
+      showError("Select at least 2 components for the ensemble.");
+      return;
+    }
+    const strategy = stratSel.value;
+    const cv_folds = parseInt(cvSelect.value, 10) || 5;
+
+    ensTrainBtn.disabled = true;
+    ensTrainBtn.textContent = "Training Ensemble…";
+    showSpinner(ensTrainBtn);
+    ensStatusDiv.textContent = "";
+
+    const resp = await post("/api/model/train_ensemble", { component_types: componentTypes, strategy, cv_folds });
+    hideSpinner(ensTrainBtn);
+    ensTrainBtn.disabled = false;
+    ensTrainBtn.textContent = "Train Ensemble →";
+
+    if (!resp.success) {
+      showError(resp.message || "Ensemble training failed.");
+      return;
+    }
+    if (resp.results?.warnings?.length) {
+      for (const w of resp.results.warnings) showWarning(w, 10000);
+    }
+    const nActive = resp.results?.ensemble_components?.length ?? 0;
+    const nFailed = resp.results?.ensemble_failed?.length ?? 0;
+    ensStatusDiv.textContent = `Ensemble trained — ${nActive} active component${nActive !== 1 ? "s" : ""}${nFailed > 0 ? `, ${nFailed} excluded` : ""}.`;
+    showSuccess("Ensemble trained successfully.");
+    await onTrain(resp.results);
   });
 
   // ── Event handlers ────────────────────────────────────────────────────────────

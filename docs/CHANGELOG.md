@@ -12,10 +12,33 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14 complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14, 16 complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [2.2.0] — 2026-05-19
+
+### Phase 16 — Ensemble Surrogates (v2.2.0)
+
+#### Added
+
+- **EnsembleSurrogateModel** (`app/ml/ensemble/ensemble_model.py`) — wraps any combination of the 6 supported model types; three weighting strategies: `equal` (1/n), `cv_performance` (CV R² normalized), `stacking` (Ridge meta-model trained on OOF predictions). Failed components are excluded gracefully. `predict_std()` returns std across component predictions as a free uncertainty proxy.
+- **`app/ml/ensemble/stacking.py`** — thin re-export wrapper for standalone stacking imports.
+- **`POST /api/model/train_ensemble`** — trains an ensemble with user-selected components and strategy; stores result in the same STATE slot as any trained model; returns `ensemble_components`, `ensemble_weights`, `ensemble_cv_r2`, `ensemble_failed` alongside standard test metrics.
+- **`renderEnsembleWeights()`** in `charts.js` — horizontal bar chart sorted by weight, gray bars for excluded components.
+- **Ensemble Builder** section in Step 7 Configure Training — component checkboxes (GPR, Kriging, RF, RBF, PCE, Linear; at least 2 required), strategy dropdown, "Train Ensemble →" button, post-train status note.
+- **Ensemble breakdown** section in Step 8 Training Results — weight chart + component table (weight %, CV R², active/excluded status); CV table suppressed for ensemble (replaced by breakdown).
+- `app/ml/ensemble/__init__.py` updated; `app/ml/ensemble/stacking.py` created.
+
+#### Changed
+
+- `results.js` — `_buildEnsembleTable()` added; ensemble breakdown shown before test metrics for `model_type === "ensemble"`; standard CV section skipped for ensemble.
+- `model_config.js` — Ensemble Builder section appended after Compare All Models.
+- `main.css` — ensemble builder and results styles added.
+- `config/settings.py` — VERSION → `"2.2.0"`.
 
 ---
 
