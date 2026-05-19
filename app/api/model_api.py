@@ -12,7 +12,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-19
-VERSION: 2.3.0
+VERSION: 2.3.1
 ================================================================================
 """
 
@@ -1227,7 +1227,13 @@ def train_multifidelity():
                            method, base_model_type, cv_folds, use_loo)
     hf_loo   = _hf_only_loo_r2(X_hf, y_hf, input_cols, output_cols,
                                 cv_folds, use_loo)
-    cv_label = "loo" if use_loo else f"{cv_folds}-fold"
+    if method == "co_kriging":
+        k_used   = min(5, max(2, n_hf // 3))
+        cv_label = f"{k_used}-fold"
+    elif use_loo:
+        cv_label = "loo"
+    else:
+        cv_label = f"{cv_folds}-fold"
 
     mf_comparison = {
         "method":     method,
@@ -1278,6 +1284,20 @@ def train_multifidelity():
             f"HF dataset has fewer rows ({n_hf}) than 2× the number of inputs "
             f"({len(input_cols) * 2}). Results may be unreliable."
         )
+    if method == "bridge" and base_model_type in ("gpr", "kriging") and n_hf > 10:
+        warnings.append(
+            f"LOO/k-fold CV with bridge + {base_model_type} base refits the LF GP "
+            f"once per fold. With {n_hf} HF rows this may be slow. "
+            "Use 'rf' as the base model for faster CV."
+        )
+    if method == "co_kriging" and hasattr(mf_model, "_rhos"):
+        for i, rho in enumerate(mf_model._rhos):
+            col = output_cols[i] if i < len(output_cols) else f"output {i}"
+            if rho <= 0.011 or rho >= 9.989:
+                warnings.append(
+                    f"ρ for '{col}' hit the clamp boundary ({rho:.3f}). "
+                    "LF and HF fidelity levels may be poorly matched."
+                )
 
     # ── Build result dict ─────────────────────────────────────────────────────
     lf_filename = lf_meta.get("filename", lf_key)

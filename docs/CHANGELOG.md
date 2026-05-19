@@ -19,6 +19,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [2.3.1] — 2026-05-19
+
+### Patch — Multi-Fidelity Bug Fixes (v2.3.1)
+
+#### Fixed
+
+- **F1 — cv_label mismatch** (`model_api.py`): `train_multifidelity` was setting `cv_label = "loo"` even for `co_kriging`, which always uses k-fold (capped at 5). `cv_label` now mirrors the splitter logic in `_mf_loo_r2()` — co_kriging always shows `{k}-fold`, bridge follows LOO/k-fold based on `n_hf ≤ 30`.
+- **F2 — ρ clamp** (`kennedy_ohagan.py`): OLS estimate for ρ is now clamped to [0.01, 10.0] via `np.clip` to prevent degenerate predictions when LF and HF are poorly correlated. A warning is emitted in `train_multifidelity` if any ρ hits the boundary.
+- **F3 — slow LOO warning** (`model_api.py`): `train_multifidelity` now emits a warning when `method == "bridge"` and the base model is a GP (`gpr` or `kriging`) and `n_hf > 10`, alerting the user that each CV fold refits the LF GP.
+
+---
+
 ## [2.3.0] — 2026-05-19
 
 ### Phase 15 — Multi-Fidelity Modeling (v2.3.0)

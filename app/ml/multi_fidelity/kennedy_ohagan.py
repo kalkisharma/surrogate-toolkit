@@ -15,7 +15,7 @@ MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-19
-VERSION: 1.0.0
+VERSION: 1.0.1
 ================================================================================
 """
 
@@ -104,6 +104,7 @@ class KOCoKrigingModel(BaseSurrogateModel):
             lf_at_hf = gp_lf.predict(X_hf)          # (n_hf,)
             denom    = float(lf_at_hf @ lf_at_hf)
             rho      = float(lf_at_hf @ y_hf[:, i]) / denom if denom > 1e-12 else 1.0
+            rho      = float(np.clip(rho, 0.01, 10.0))
             self._rhos.append(rho)
 
             # ── Step 3: fit GP on discrepancy ─────────────────────────────
