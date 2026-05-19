@@ -10,7 +10,7 @@
 
 import { initLearningMode, registerPrimer } from "./learning_mode.js";
 import { get, post, put } from "./api.js";
-import { refreshState } from "./state.js";
+import { refreshState, getPath } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
 import { initExploration, updateColumnSelectorRoles } from "./modules/data_explorer.js";
@@ -27,6 +27,21 @@ import { initComparison } from "./modules/comparison.js";
 import { initExport } from "./modules/export.js";
 import { el, clearEl, escHtml } from "./utils.js";
 
+// ── Experience level ──────────────────────────────────────────────────────────
+
+/**
+ * Apply an experience level to the document — sets data-experience on <body>
+ * and syncs the level selector value.
+ * @param {string} level  "beginner" | "intermediate" | "expert"
+ */
+function _applyExperienceLevel(level) {
+  const valid = ["beginner", "intermediate", "expert"];
+  const safe  = valid.includes(level) ? level : "beginner";
+  document.body.dataset.experience = safe;
+  const sel = document.getElementById("level-select");
+  if (sel) sel.value = safe;
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 (async () => {
@@ -34,6 +49,7 @@ import { el, clearEl, escHtml } from "./utils.js";
   initLearningMode(learningToggle);
   _initGlobalHeader();
   await refreshState();
+  _applyExperienceLevel(getPath("session.experience_level") || "beginner");
 
   // If STATE already has datasets (e.g. after loading a .surrogate file),
   // restore the exploration view without requiring a new upload.
@@ -850,9 +866,29 @@ function _initGlobalHeader() {
   });
 
   levelSel.addEventListener("change", async () => {
+    _applyExperienceLevel(levelSel.value);
     await put("/api/state/session", { experience_level: levelSel.value });
     await refreshState();
   });
+
+  const stateViewerBtn = document.getElementById("state-viewer-btn");
+  if (stateViewerBtn) {
+    stateViewerBtn.addEventListener("click", async () => {
+      const resp = await get("/api/state/");
+      const overlay = el("div", { cls: "state-viewer-overlay" });
+      overlay.innerHTML = `
+        <div class="state-viewer-modal">
+          <div class="state-viewer-header">
+            <span>Session STATE (read-only)</span>
+            <button class="state-viewer-close" aria-label="Close">✕</button>
+          </div>
+          <pre class="state-viewer-pre">${escHtml(JSON.stringify(resp.state || {}, null, 2))}</pre>
+        </div>`;
+      document.body.appendChild(overlay);
+      overlay.querySelector(".state-viewer-close").addEventListener("click", () => overlay.remove());
+      overlay.addEventListener("click", e => { if (e.target === overlay) overlay.remove(); });
+    });
+  }
 
   const coresInput = document.getElementById("cores-input");
   const cpuCount   = navigator.hardwareConcurrency || 8;

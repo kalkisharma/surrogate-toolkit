@@ -1090,6 +1090,12 @@ def clean_outliers():
     data     = request.get_json(silent=True) or {}
     strategy = data.get("strategy", "")
     columns  = data.get("columns", None)     # optional per-column selection
+    try:
+        iqr_multiplier = float(data["iqr_multiplier"]) if "iqr_multiplier" in data else None
+        if iqr_multiplier is not None:
+            iqr_multiplier = max(0.5, min(5.0, iqr_multiplier))
+    except (TypeError, ValueError):
+        iqr_multiplier = None
 
     if strategy not in CLEANING_STRATEGIES_OUTLIER:
         return (
@@ -1105,7 +1111,7 @@ def clean_outliers():
     clean_df = state["datasets"]["primary"]["clean"]
 
     try:
-        result_df, affected = handle_outliers(clean_df, strategy, columns=columns)
+        result_df, affected = handle_outliers(clean_df, strategy, columns=columns, iqr_multiplier=iqr_multiplier)
     except Exception as exc:
         current_app.logger.error(f"Outlier handling error: {exc}")
         return (

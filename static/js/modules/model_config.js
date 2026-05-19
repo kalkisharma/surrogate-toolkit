@@ -175,6 +175,8 @@ export async function initModelConfig(containerEl, onTrain) {
     const merged = Object.assign({}, defs, hp || {});
 
     if (modelType === "gpr") {
+      const _lvl = document.body.dataset.experience || "beginner";
+      const _showRQ = _lvl === "intermediate" || _lvl === "expert";
       hyperparamOuter.innerHTML = `
         <div class="hyperparam-section">
           <div class="hyperparam-section-header">
@@ -187,6 +189,7 @@ export async function initModelConfig(containerEl, onTrain) {
               <option value="rbf"      ${merged.kernel === "rbf"      ? "selected" : ""}>RBF (default)</option>
               <option value="matern15" ${merged.kernel === "matern15" ? "selected" : ""}>Matérn ν=1.5</option>
               <option value="matern25" ${merged.kernel === "matern25" ? "selected" : ""}>Matérn ν=2.5</option>
+              ${_showRQ ? `<option value="rq" ${merged.kernel === "rq" ? "selected" : ""}>Rational Quadratic</option>` : ""}
             </select>
           </div>
           <div class="hyperparam-row">

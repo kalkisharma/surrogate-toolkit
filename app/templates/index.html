@@ -50,8 +50,8 @@
             <span class="global-header__control-label">Level</span>
             <select id="level-select" class="global-header__select" aria-label="Experience level">
               <option value="beginner" selected>Beginner</option>
-              <option value="intermediate" disabled>Intermediate (Phase 3)</option>
-              <option value="expert" disabled>Expert (Phase 3)</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="expert">Expert</option>
             </select>
           </div>
           <div class="global-header__control-group">
@@ -77,6 +77,7 @@
       <button id="header-open-project-btn" class="global-header__btn" aria-label="Open project" title="Open a saved .surrogate file">📂 Open</button>
       <button id="clear-session-btn" class="global-header__btn" aria-label="Clear session" title="Clear all loaded datasets and return to upload screen">✕ Clear</button>
       <button id="theme-toggle" class="global-header__btn" aria-label="Switch to dark mode" title="Switch to dark mode">🌙</button>
+      <button id="state-viewer-btn" class="global-header__btn level-expert-only" aria-label="View raw session STATE" title="View raw session STATE (Expert)">{ }</button>
       <button id="learning-toggle" class="global-header__btn global-header__btn--learning" aria-label="Toggle learning mode" aria-pressed="false">📚 Learning</button>
     </nav>
   </header>

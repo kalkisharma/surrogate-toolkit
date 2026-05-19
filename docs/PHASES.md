@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14, 15, 16 complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 12, 14, 15, 16 complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 ---
@@ -455,7 +455,7 @@
 ---
 
 ### Phase 12 — Experience Levels
-**Status:** 🔲 Not started | **Version:** v2.1.x
+**Status:** ✅ Complete | **Version:** v2.4.0
 
 **Purpose:** Allow the tool to adapt its interface to the engineer's experience level — less hand-holding as engineers grow, full control for experts.
 

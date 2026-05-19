@@ -507,8 +507,14 @@ def train():
     # ── Build model ───────────────────────────────────────────────────────────
     model = _make_model(model_type, hyperparams)
 
-    # ── GPR large-dataset warning ─────────────────────────────────────────────
+    # ── Training size warnings ────────────────────────────────────────────────
     warnings = []
+    if model_type in ("gpr", "kriging") and len(X_train) < 30:
+        warnings.append(
+            f"Training set has only {len(X_train)} rows. "
+            "GP models are typically reliable with 30+ samples; "
+            "predictions may be noisy on small datasets."
+        )
     if model_type == "gpr" and len(X_train) > MAX_PLOT_ROWS:
         warnings.append(
             f"GPR training time scales as O(n³). Your training set has "

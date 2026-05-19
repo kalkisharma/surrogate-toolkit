@@ -2560,3 +2560,73 @@ details[open] .al-history-summary::before { content: "▼ "; }
 }
 #model-compare-results { margin-top: var(--space-4); }
 
+
+/* ── Experience level — conditional visibility ─────────────────────────────── */
+/* Intermediate/Expert elements hidden in Beginner */
+body:not([data-experience="intermediate"]):not([data-experience="expert"]) .level-intermediate-up {
+  display: none !important;
+}
+/* Expert-only elements hidden in Beginner and Intermediate */
+body:not([data-experience="expert"]) .level-expert-only {
+  display: none !important;
+}
+/* Intermediate: show primers regardless of learning mode toggle */
+body[data-experience="intermediate"] .primer.hidden {
+  display: block;
+}
+/* Expert: primers and learning toggle always hidden */
+body[data-experience="expert"] .primer,
+body[data-experience="expert"] #learning-toggle {
+  display: none !important;
+}
+
+/* ── STATE viewer modal (Expert) ───────────────────────────────────────────── */
+.state-viewer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.state-viewer-modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  width: min(90vw, 860px);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.state-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+}
+.state-viewer-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+  padding: 0 var(--space-1);
+  line-height: 1;
+}
+.state-viewer-close:hover { color: var(--color-text-primary); }
+.state-viewer-pre {
+  overflow: auto;
+  padding: var(--space-4);
+  margin: 0;
+  font-size: var(--text-xs);
+  font-family: monospace;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-alt, var(--color-bg-base));
+  flex: 1;
+  white-space: pre;
+}

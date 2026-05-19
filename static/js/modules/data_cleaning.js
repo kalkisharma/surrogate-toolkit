@@ -386,6 +386,14 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
     });
   }
 
+  const iqrRow = el("div", { cls: "hyperparam-row level-expert-only" });
+  iqrRow.innerHTML = `
+    <span class="hyperparam-label">IQR multiplier</span>
+    <input id="iqr-multiplier-input" type="number" class="hyperparam-input"
+           min="0.5" max="5.0" step="0.1" value="1.5">
+    <span class="hyperparam-hint">Default 1.5 — lower = stricter, higher = lenient</span>`;
+  card.appendChild(iqrRow);
+
   const applyBtn = el("button", {
     cls:  "btn btn-primary btn-sm cleaning-apply-btn",
     text: "Apply",
@@ -397,8 +405,10 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
     const strategy = card.querySelector("#outlier-strategy").value;
     const checked  = [...checklistDetails.querySelectorAll("input[type=checkbox]:checked")].map(c => c.value);
     const columns  = checked.length > 0 ? checked : null;   // null = all (backend default)
+    const iqrInput = card.querySelector("#iqr-multiplier-input");
+    const iqr_multiplier = iqrInput ? (parseFloat(iqrInput.value) || 1.5) : 1.5;
     applyBtn.disabled = true;
-    const resp = await post("/api/data/clean/outliers", { strategy, columns });
+    const resp = await post("/api/data/clean/outliers", { strategy, columns, iqr_multiplier });
     applyBtn.disabled = false;
     if (resp.success) {
       if (strategy === "keep") {

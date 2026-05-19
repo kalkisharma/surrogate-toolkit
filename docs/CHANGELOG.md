@@ -19,6 +19,28 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [2.4.0] — 2026-05-19
+
+### Phase 12 — Experience Levels (v2.4.0)
+
+#### Added
+
+- **Experience level selector** fully enabled — Intermediate and Expert options are now live (previously labelled "(Phase 3)" and disabled).
+- **`_applyExperienceLevel(level)`** in `main.js` — sets `data-experience` on `<body>` for CSS-driven conditional rendering; called on page load (restores from STATE) and on selector change.
+- **CSS level gates** (`main.css`) — `.level-intermediate-up` hidden in Beginner; `.level-expert-only` hidden in Beginner and Intermediate; no JS logic scattered across modules.
+- **Primer behaviour per level** — Intermediate: primers always visible (not dependent on learning mode toggle); Expert: primers and the Learning Mode button hidden entirely.
+- **Rational Quadratic kernel option** for GPR in Intermediate and Expert mode (`model_config.js`).
+- **GPR/Kriging small-dataset warning** — `train()` emits a warning when training set has < 30 rows for GP models.
+- **Custom IQR multiplier** (Expert) — number input (0.5–5.0, default 1.5) in the outlier cleaning card; passed to `POST /api/data/clean/outliers`. Backend: `handle_outliers()` and `_outlier_mask()` in `cleaning.py` accept optional `iqr_multiplier`; `data_api.py` validates and clamps to [0.5, 5.0].
+- **STATE JSON viewer** (Expert) — `{ }` button in global header opens a read-only modal showing the full serialised session STATE. Dismissed by clicking the overlay or the ✕ button.
+
+#### Changed
+
+- `app/templates/index.html` — level selector options enabled; STATE viewer button added.
+- `config/settings.py` — VERSION → `"2.4.0"`.
+
+---
+
 ## [2.3.1] — 2026-05-19
 
 ### Patch — Multi-Fidelity Bug Fixes (v2.3.1)
