@@ -12,10 +12,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14, 16 complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14, 15, 16 complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [2.3.0] — 2026-05-19
+
+### Phase 15 — Multi-Fidelity Modeling (v2.3.0)
+
+#### Added
+
+- **BridgeCorrectionModel** (`app/ml/multi_fidelity/bridge_correction.py`) — trains a LF surrogate on full LF data, then fits an RF error model on residuals (y_hf − LF_pred) at HF points. Final prediction = LF prediction + RF correction.
+- **KOCoKrigingModel** (`app/ml/multi_fidelity/kennedy_ohagan.py`) — simplified Kennedy-O'Hagan co-kriging: f_hf = ρ·f_lf + δ, where ρ is estimated via OLS per output and δ is an independent GPR correction. Provides `predict_std()` for combined uncertainty propagation.
+- **`POST /api/model/train_multifidelity`** — trains the selected MF model; validates matching input/output columns across LF/HF datasets; runs LOO-CV (n_hf ≤ 30) or k-fold comparison against HF-only RF baseline; stores in same STATE slot as any trained model.
+- **`_mf_loo_r2()` / `_hf_only_loo_r2()`** — private helpers for multi-fidelity LOO/k-fold CV comparison. Bridge uses LOO when n_hf ≤ 30; K-O uses k-fold (capped at 5) due to GPR training cost.
+- **Multi-Fidelity Training section** in Step 7 Configure Training — LF/HF dataset selectors (pre-filtered to datasets with designations), method dropdown (Bridge/Co-Kriging), LF surrogate type selector (bridge only), "Train Multi-Fidelity →" button.
+- **Multi-Fidelity Comparison table** in Step 8 Training Results — shows MF R² vs HF-only RF R² side-by-side with improvement delta per output column.
+- `app/ml/multi_fidelity/__init__.py` updated from stub.
+- `app/ml/uncertainty/bootstrap.py` — `"co_kriging"` added alongside `"gpr"` and `"kriging"` for `predict_std()` path.
+- Multi-fidelity CSS: `.mf-section`, `.mf-selector-row`, `.mf-comparison-table`, `.mf-improve--positive/negative`.
+
+#### Changed
+
+- `config/settings.py` — VERSION → `"2.3.0"`.
 
 ---
 

@@ -8,8 +8,8 @@ FUTURE EXTENSIONS: None
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-05-19
+VERSION: 1.0.0
 ================================================================================
 """
 
@@ -17,4 +17,7 @@ VERSION: 0.1.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
-# TODO: implement
+from app.ml.multi_fidelity.bridge_correction import BridgeCorrectionModel
+from app.ml.multi_fidelity.kennedy_ohagan    import KOCoKrigingModel
+
+__all__ = ["BridgeCorrectionModel", "KOCoKrigingModel"]

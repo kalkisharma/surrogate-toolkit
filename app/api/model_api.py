@@ -11,8 +11,8 @@ FUTURE EXTENSIONS: GET /api/model/metrics, per-output model type selection.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-18
-VERSION: 2.1.0
+LAST MODIFIED: 2026-05-19
+VERSION: 2.3.0
 ================================================================================
 """
 
@@ -28,6 +28,8 @@ from sklearn.gaussian_process.kernels import Matern, RationalQuadratic
 from sklearn.model_selection import train_test_split
 
 from app.ml.models import GPRModel, KrigingModel, LinearModel, PCEModel, RBFModel, RFModel
+from app.ml.multi_fidelity.bridge_correction import BridgeCorrectionModel
+from app.ml.multi_fidelity.kennedy_ohagan    import KOCoKrigingModel
 from app.ml.sensitivity.global_sensitivity import SobolAnalyzer
 from app.ml.sensitivity.one_at_a_time import OATAnalyzer
 from app.ml.uncertainty.bootstrap import compute_uncertainty
@@ -1009,6 +1011,340 @@ def compare_models():
     }), 200
 
 
+@bp.route("/train_multifidelity", methods=["POST"])
+def train_multifidelity():
+    """Train a multi-fidelity surrogate from two loaded datasets.
+
+    Args (JSON body):
+        lf_dataset_key   (str):  Key of the low-fidelity dataset.
+        hf_dataset_key   (str):  Key of the high-fidelity dataset.
+        method           (str):  "bridge" (default) | "co_kriging".
+        base_model_type  (str):  LF surrogate type for bridge correction
+                                 (ignored for co_kriging). Default "rf".
+        cv_folds         (int):  Folds for HF CV comparison. Default 5.
+
+    Returns:
+        JSON 200:
+            {
+              "success": true,
+              "results": {
+                "model_type":    "bridge_correction" | "co_kriging",
+                "n_train":       int   (n_lf),
+                "n_test":        int   (n_hf),
+                "test_metrics":  [...],
+                "cv_results":    {...},
+                "mf_comparison": {method, n_lf, n_hf, cv_type, per_output},
+                "warnings":      list[str],
+                ...
+              }
+            }
+        JSON 400/404/422: Error envelopes.
+    """
+    state = current_app.config["STATE"]
+    data  = request.get_json(silent=True) or {}
+
+    lf_key          = data.get("lf_dataset_key")
+    hf_key          = data.get("hf_dataset_key")
+    method          = data.get("method", "bridge")
+    base_model_type = data.get("base_model_type", "rf")
+    cv_folds        = max(2, min(int(data.get("cv_folds", 5)), 10))
+
+    # ── Validate keys ─────────────────────────────────────────────────────────
+    if not lf_key or not hf_key:
+        return (
+            jsonify({
+                "success": False, "error_code": "MISSING_DATASET_KEYS",
+                "message": "lf_dataset_key and hf_dataset_key are required.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            400,
+        )
+    if lf_key == hf_key:
+        return (
+            jsonify({
+                "success": False, "error_code": "SAME_DATASET",
+                "message": "LF and HF dataset keys must be different.",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            400,
+        )
+
+    _datasets = state["datasets"]["_datasets"]
+    lf_ds = _datasets.get(lf_key)
+    hf_ds = _datasets.get(hf_key)
+
+    if lf_ds is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "LF_NOT_FOUND",
+                "message": f"LF dataset '{lf_key}' not found. Load it first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            404,
+        )
+    if hf_ds is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "HF_NOT_FOUND",
+                "message": f"HF dataset '{hf_key}' not found. Load it first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            404,
+        )
+
+    # ── Resolve dataframes ────────────────────────────────────────────────────
+    _lf_norm  = lf_ds.get("normalized")
+    _lf_clean = lf_ds.get("clean")
+    lf_df     = _lf_norm if _lf_norm is not None else _lf_clean
+
+    _hf_norm  = hf_ds.get("normalized")
+    _hf_clean = hf_ds.get("clean")
+    hf_df     = _hf_norm if _hf_norm is not None else _hf_clean
+
+    if lf_df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "LF_NOT_PROCESSED",
+                "message": "LF dataset has not been cleaned. Complete Steps 4–5 for it first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["clean"],
+            }),
+            422,
+        )
+    if hf_df is None:
+        return (
+            jsonify({
+                "success": False, "error_code": "HF_NOT_PROCESSED",
+                "message": "HF dataset has not been cleaned. Complete Steps 4–5 for it first.",
+                "detail": "", "recoverable": True, "allowed_actions": ["clean"],
+            }),
+            422,
+        )
+
+    # ── Validate column designations ──────────────────────────────────────────
+    lf_meta      = lf_ds["metadata"]
+    hf_meta      = hf_ds["metadata"]
+    input_cols   = lf_meta.get("input_columns") or []
+    output_cols  = lf_meta.get("output_columns") or []
+    hf_in_cols   = hf_meta.get("input_columns") or []
+    hf_out_cols  = hf_meta.get("output_columns") or []
+
+    if not input_cols or not output_cols:
+        return (
+            jsonify({
+                "success": False, "error_code": "LF_NO_DESIGNATION",
+                "message": "LF dataset columns have not been designated. Complete Step 5 for it.",
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+    if not hf_in_cols or not hf_out_cols:
+        return (
+            jsonify({
+                "success": False, "error_code": "HF_NO_DESIGNATION",
+                "message": "HF dataset columns have not been designated. Complete Step 5 for it.",
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+    if set(input_cols) != set(hf_in_cols):
+        return (
+            jsonify({
+                "success": False, "error_code": "INPUT_COLUMN_MISMATCH",
+                "message": (
+                    f"LF input columns {sorted(input_cols)} do not match "
+                    f"HF input columns {sorted(hf_in_cols)}."
+                ),
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+    if set(output_cols) != set(hf_out_cols):
+        return (
+            jsonify({
+                "success": False, "error_code": "OUTPUT_COLUMN_MISMATCH",
+                "message": (
+                    f"LF output columns {sorted(output_cols)} do not match "
+                    f"HF output columns {sorted(hf_out_cols)}."
+                ),
+                "detail": "", "recoverable": True, "allowed_actions": ["designate"],
+            }),
+            422,
+        )
+
+    # ── Build arrays ──────────────────────────────────────────────────────────
+    X_lf = lf_df[input_cols].values.astype(float)
+    y_lf = lf_df[output_cols].values.astype(float)
+    X_hf = hf_df[input_cols].values.astype(float)
+    y_hf = hf_df[output_cols].values.astype(float)
+    if y_lf.ndim == 1:
+        y_lf = y_lf.reshape(-1, 1)
+    if y_hf.ndim == 1:
+        y_hf = y_hf.reshape(-1, 1)
+
+    n_hf = len(X_hf)
+    if n_hf < 3:
+        return (
+            jsonify({
+                "success": False, "error_code": "INSUFFICIENT_HF_DATA",
+                "message": f"HF dataset must have at least 3 rows; got {n_hf}.",
+                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
+            }),
+            422,
+        )
+
+    if method not in ("bridge", "co_kriging"):
+        method = "bridge"
+    if base_model_type not in SUPPORTED_MODEL_TYPES:
+        base_model_type = "rf"
+
+    # ── Train model ───────────────────────────────────────────────────────────
+    try:
+        if method == "bridge":
+            mf_model = BridgeCorrectionModel(_make_model(base_model_type, {}))
+        else:
+            mf_model = KOCoKrigingModel()
+        mf_model.fit_multifidelity(X_lf, y_lf, X_hf, y_hf, input_cols, output_cols)
+    except Exception as exc:
+        return (
+            jsonify({
+                "success": False, "error_code": "TRAINING_FAILED",
+                "message": str(exc),
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            500,
+        )
+
+    # ── In-sample HF evaluation (test metrics) ────────────────────────────────
+    y_pred_hf = mf_model.predict(X_hf)
+    if y_pred_hf.ndim == 1:
+        y_pred_hf = y_pred_hf.reshape(-1, 1)
+
+    test_metrics = compute_metrics(y_hf, y_pred_hf, output_cols)
+
+    # ── LOO / k-fold comparison: MF vs HF-only RF ─────────────────────────────
+    use_loo  = n_hf <= 30
+    mf_loo   = _mf_loo_r2(X_lf, y_lf, X_hf, y_hf, input_cols, output_cols,
+                           method, base_model_type, cv_folds, use_loo)
+    hf_loo   = _hf_only_loo_r2(X_hf, y_hf, input_cols, output_cols,
+                                cv_folds, use_loo)
+    cv_label = "loo" if use_loo else f"{cv_folds}-fold"
+
+    mf_comparison = {
+        "method":     method,
+        "n_lf":       int(len(X_lf)),
+        "n_hf":       int(n_hf),
+        "cv_type":    cv_label,
+        "per_output": [
+            {
+                "column":     col,
+                "mf_r2":      round(mf_loo[i], 4),
+                "hf_only_r2": round(hf_loo[i], 4),
+            }
+            for i, col in enumerate(output_cols)
+        ],
+    }
+
+    # ── test_stds for co_kriging (GPR-based uncertainty) ─────────────────────
+    test_stds = None
+    if method == "co_kriging":
+        test_stds = mf_model.predict_std(X_hf).tolist()
+
+    # ── cv_results stub (LOO R² as CV R²) ────────────────────────────────────
+    cv_results = {
+        "n_folds": n_hf if use_loo else cv_folds,
+        "per_output": [
+            {
+                "column":    col,
+                "mean_r2":   round(mf_loo[i], 4),
+                "std_r2":    0.0,
+                "mean_rmse": 0.0,
+                "std_rmse":  0.0,
+                "mean_mae":  0.0,
+                "std_mae":   0.0,
+            }
+            for i, col in enumerate(output_cols)
+        ],
+    }
+
+    # ── Warnings ──────────────────────────────────────────────────────────────
+    warnings = []
+    if n_hf < 20:
+        warnings.append(
+            f"Only {n_hf} HF rows — test metrics are in-sample; "
+            "LOO CV provides the unbiased comparison below."
+        )
+    if n_hf < len(input_cols) * 2:
+        warnings.append(
+            f"HF dataset has fewer rows ({n_hf}) than 2× the number of inputs "
+            f"({len(input_cols) * 2}). Results may be unreliable."
+        )
+
+    # ── Build result dict ─────────────────────────────────────────────────────
+    lf_filename = lf_meta.get("filename", lf_key)
+    hf_filename = hf_meta.get("filename", hf_key)
+    result = {
+        "model_type":       mf_model.model_type,
+        "n_train":          int(len(X_lf)),
+        "n_test":           int(n_hf),
+        "source_filename":  f"LF: {lf_filename}  +  HF: {hf_filename}",
+        "input_columns":    input_cols,
+        "output_columns":   output_cols,
+        "input_means":      {col: float(lf_df[col].mean()) for col in input_cols},
+        "input_mins":       {col: float(lf_df[col].min()) for col in input_cols},
+        "input_maxs":       {col: float(lf_df[col].max()) for col in input_cols},
+        "test_metrics":     test_metrics,
+        "cv_results":       cv_results,
+        "warnings":         warnings,
+        "test_actuals":     y_hf.tolist(),
+        "test_predictions": y_pred_hf.tolist(),
+        "test_stds":        test_stds,
+        "test_inputs":      X_hf.tolist(),
+        "mf_comparison":    mf_comparison,
+        "hyperparams":      {"method": method, "base_model_type": base_model_type},
+    }
+
+    # ── Persist to STATE ──────────────────────────────────────────────────────
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    models_dict.pop("interpretation", None)
+    models_dict["trained"] = mf_model
+    models_dict["results"] = result
+
+    runs    = models_dict.setdefault("runs", [])
+    run_num = len(runs) + 1
+    run_entry        = dict(result)
+    run_entry["run"] = run_num
+    runs.append(run_entry)
+    if len(runs) > MAX_MODEL_HISTORY:
+        models_dict["runs"] = runs[-MAX_MODEL_HISTORY:]
+
+    history = models_dict.setdefault("history", [])
+    now_ts  = int(time.time())
+    for m in test_metrics:
+        history.append({
+            "run":        run_num,
+            "timestamp":  now_ts,
+            "model_type": mf_model.model_type,
+            "n_rows":     int(len(X_lf)) + int(n_hf),
+            "output":     m["column"],
+            "r2_test":    round(float(m["r2"]),   4),
+            "rmse_test":  round(float(m["rmse"]), 4),
+            "r2_cv":      round(mf_loo[output_cols.index(m["column"])], 4),
+        })
+    if len(history) > MAX_MODEL_HISTORY:
+        models_dict["history"] = history[-MAX_MODEL_HISTORY:]
+
+    append_audit_event(state, "multifidelity_trained", {
+        "method": method, "n_lf": int(len(X_lf)), "n_hf": int(n_hf),
+    })
+
+    current_app.logger.info(
+        f"Multi-fidelity trained — method={method}, "
+        f"n_lf={len(X_lf)}, n_hf={n_hf}"
+    )
+
+    return jsonify({"success": True, "results": result}), 200
+
+
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 
@@ -1053,6 +1389,111 @@ def _make_model(model_type: str, hyperparams: dict = None):
     if model_type == "pce":
         return PCEModel(order=hp.get("order", 3))
     return LinearModel(alpha=hp.get("alpha", 1.0))
+
+
+def _mf_loo_r2(
+    X_lf, y_lf, X_hf, y_hf,
+    input_cols, output_cols,
+    method, base_model_type, cv_folds, use_loo,
+):
+    """LOO or k-fold CV R² for the MF model evaluated on held-out HF points."""
+    from sklearn.model_selection import LeaveOneOut, KFold
+    from sklearn.metrics import r2_score as sk_r2
+
+    n_hf      = len(X_hf)
+    n_outputs = y_hf.shape[1] if y_hf.ndim > 1 else 1
+    if y_hf.ndim == 1:
+        y_hf = y_hf.reshape(-1, 1)
+    if y_lf.ndim == 1:
+        y_lf = y_lf.reshape(-1, 1)
+
+    if method == "co_kriging":
+        k        = min(5, max(2, n_hf // 3))
+        splitter = KFold(n_splits=k, shuffle=True, random_state=42)
+    elif use_loo:
+        splitter = LeaveOneOut()
+    else:
+        splitter = KFold(n_splits=min(cv_folds, n_hf // 2),
+                         shuffle=True, random_state=42)
+
+    y_true_all = [[] for _ in range(n_outputs)]
+    y_pred_all = [[] for _ in range(n_outputs)]
+
+    for tr_idx, te_idx in splitter.split(X_hf):
+        if len(tr_idx) < 2:
+            continue
+        try:
+            if method == "bridge":
+                m = BridgeCorrectionModel(_make_model(base_model_type, {}))
+            else:
+                m = KOCoKrigingModel()
+            m.fit_multifidelity(
+                X_lf, y_lf, X_hf[tr_idx], y_hf[tr_idx],
+                input_cols, output_cols,
+            )
+            preds = m.predict(X_hf[te_idx])
+            if preds.ndim == 1:
+                preds = preds.reshape(-1, 1)
+            for i in range(n_outputs):
+                y_true_all[i].extend(y_hf[te_idx, i].tolist())
+                y_pred_all[i].extend(preds[:, i].tolist())
+        except Exception:
+            continue
+
+    result = []
+    for i in range(n_outputs):
+        if len(y_true_all[i]) >= 2:
+            try:
+                result.append(float(sk_r2(y_true_all[i], y_pred_all[i])))
+            except Exception:
+                result.append(0.0)
+        else:
+            result.append(0.0)
+    return result
+
+
+def _hf_only_loo_r2(X_hf, y_hf, input_cols, output_cols, cv_folds, use_loo):
+    """LOO or k-fold CV R² for an RF model trained on HF data only (baseline)."""
+    from sklearn.model_selection import LeaveOneOut, KFold
+    from sklearn.metrics import r2_score as sk_r2
+
+    n_hf      = len(X_hf)
+    n_outputs = y_hf.shape[1] if y_hf.ndim > 1 else 1
+    if y_hf.ndim == 1:
+        y_hf = y_hf.reshape(-1, 1)
+
+    splitter = (LeaveOneOut() if use_loo
+                else KFold(n_splits=min(cv_folds, n_hf // 2),
+                           shuffle=True, random_state=42))
+
+    y_true_all = [[] for _ in range(n_outputs)]
+    y_pred_all = [[] for _ in range(n_outputs)]
+
+    for tr_idx, te_idx in splitter.split(X_hf):
+        if len(tr_idx) < 2:
+            continue
+        try:
+            m = _make_model("rf", {})
+            m.fit(X_hf[tr_idx], y_hf[tr_idx], input_cols, output_cols)
+            preds = m.predict(X_hf[te_idx])
+            if preds.ndim == 1:
+                preds = preds.reshape(-1, 1)
+            for i in range(n_outputs):
+                y_true_all[i].extend(y_hf[te_idx, i].tolist())
+                y_pred_all[i].extend(preds[:, i].tolist())
+        except Exception:
+            continue
+
+    result = []
+    for i in range(n_outputs):
+        if len(y_true_all[i]) >= 2:
+            try:
+                result.append(float(sk_r2(y_true_all[i], y_pred_all[i])))
+            except Exception:
+                result.append(0.0)
+        else:
+            result.append(0.0)
+    return result
 
 
 def _convert_best_params(model_type: str, best: dict) -> dict:

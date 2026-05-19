@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 2.2.0
+// Version: 2.3.0
 // Description: Step 7 — Configure Training. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Shows a per-model
 //              hyperparameter section (kernel/alpha for GPR, trees/depth/features
@@ -71,7 +71,10 @@ export async function initModelConfig(containerEl, onTrain) {
   clearEl(containerEl);
   showSpinner(containerEl);
 
-  const configResp = await get("/api/model/config");
+  const [configResp, datasetsResp] = await Promise.all([
+    get("/api/model/config"),
+    get("/api/data/datasets"),
+  ]);
   hideSpinner(containerEl);
 
   if (!configResp.success) {
@@ -699,4 +702,152 @@ export async function initModelConfig(containerEl, onTrain) {
       showError(resp.message || "Failed to save configuration.");
     }
   });
+
+  // ── Multi-Fidelity Training section ──────────────────────────────────────
+  const mfSection  = el("div", { cls: "model-config-section mf-section" });
+  const mfLabelEl  = el("div", { cls: "model-config-section-label" });
+  mfLabelEl.textContent = "Multi-Fidelity Training (Experimental)";
+  const mfDesc = el("p", { cls: "section-desc",
+    text: "Fuse cheap low-fidelity and expensive high-fidelity simulation data to build a more accurate surrogate at lower total simulation cost." });
+  mfSection.appendChild(mfLabelEl);
+  mfSection.appendChild(mfDesc);
+
+  registerPrimer(
+    "mf-training",
+    mfLabelEl,
+    "How does multi-fidelity training work?",
+    `<p>Multi-fidelity modeling combines two datasets: many cheap <strong>low-fidelity</strong>
+     runs (e.g., a panel code) and fewer expensive <strong>high-fidelity</strong> runs
+     (e.g., a CFD solver).</p>
+     <p><strong>Bridge Correction</strong>: trains a surrogate on all LF data, then learns
+     an RF error model on the difference (y_hf − LF_pred) at HF points.
+     Final prediction = LF prediction + error correction.</p>
+     <p><strong>Co-Kriging (Kennedy-O'Hagan)</strong>: models f_hf = ρ·f_lf + δ, where ρ is
+     a scale factor and δ is a GPR correction. Provides uncertainty estimates.
+     Slower than bridge correction.</p>
+     <p>Both datasets must share the same input and output column names.</p>`
+  );
+
+  const allDatasets = (datasetsResp && datasetsResp.success ? datasetsResp.datasets : []) || [];
+  const readyDatasets = allDatasets.filter(
+    d => (d.input_columns && d.input_columns.length > 0) &&
+         (d.output_columns && d.output_columns.length > 0)
+  );
+
+  if (readyDatasets.length < 2) {
+    const note = el("p", { cls: "mf-unavailable-note",
+      text: "Load and designate at least two datasets with matching input/output columns to enable multi-fidelity training." });
+    mfSection.appendChild(note);
+  } else {
+    // LF selector
+    const lfRow = el("div", { cls: "mf-selector-row" });
+    const lfLbl = el("span", { cls: "hyperparam-label", text: "Low-fidelity dataset" });
+    const lfSel = el("select", { cls: "model-config-select", id: "mf-lf-select" });
+    for (const d of readyDatasets) {
+      const opt = document.createElement("option");
+      opt.value = d.key; opt.textContent = `${d.filename} (${d.n_rows.toLocaleString()} rows)`;
+      lfSel.appendChild(opt);
+    }
+    lfRow.appendChild(lfLbl);
+    lfRow.appendChild(lfSel);
+    mfSection.appendChild(lfRow);
+
+    // HF selector (default to second dataset)
+    const hfRow = el("div", { cls: "mf-selector-row" });
+    const hfLbl = el("span", { cls: "hyperparam-label", text: "High-fidelity dataset" });
+    const hfSel = el("select", { cls: "model-config-select", id: "mf-hf-select" });
+    for (let i = 0; i < readyDatasets.length; i++) {
+      const d = readyDatasets[i];
+      const opt = document.createElement("option");
+      opt.value = d.key; opt.textContent = `${d.filename} (${d.n_rows.toLocaleString()} rows)`;
+      if (i === 1) opt.selected = true;
+      hfSel.appendChild(opt);
+    }
+    hfRow.appendChild(hfLbl);
+    hfRow.appendChild(hfSel);
+    mfSection.appendChild(hfRow);
+
+    // Method selector
+    const methodRow = el("div", { cls: "mf-selector-row" });
+    const methodLbl = el("span", { cls: "hyperparam-label", text: "Method" });
+    const methodSel = el("select", { cls: "model-config-select", id: "mf-method-select" });
+    for (const [val, lbl] of [
+      ["bridge",     "Bridge Correction (recommended)"],
+      ["co_kriging", "Co-Kriging / Kennedy-O'Hagan"],
+    ]) {
+      const opt = document.createElement("option");
+      opt.value = val; opt.textContent = lbl;
+      methodSel.appendChild(opt);
+    }
+    methodRow.appendChild(methodLbl);
+    methodRow.appendChild(methodSel);
+    mfSection.appendChild(methodRow);
+
+    // LF surrogate type for bridge
+    const baseRow    = el("div", { cls: "mf-selector-row", id: "mf-base-row" });
+    const baseLbl    = el("span", { cls: "hyperparam-label", text: "LF surrogate type" });
+    const baseSel    = el("select", { cls: "model-config-select", id: "mf-base-select" });
+    for (const [val, lbl] of [
+      ["rf",      "Random Forest (recommended)"],
+      ["gpr",     "Gaussian Process (GPR)"],
+      ["kriging", "Kriging"],
+      ["linear",  "Linear"],
+    ]) {
+      const opt = document.createElement("option");
+      opt.value = val; opt.textContent = lbl;
+      baseSel.appendChild(opt);
+    }
+    baseRow.appendChild(baseLbl);
+    baseRow.appendChild(baseSel);
+    mfSection.appendChild(baseRow);
+
+    methodSel.addEventListener("change", () => {
+      baseRow.style.display = methodSel.value === "bridge" ? "" : "none";
+    });
+
+    const mfTrainBtn  = el("button", { cls: "btn btn-primary", text: "Train Multi-Fidelity →", id: "mf-train-btn" });
+    const mfStatusDiv = el("div", { cls: "mf-status-note", id: "mf-status-note" });
+    mfSection.appendChild(mfTrainBtn);
+    mfSection.appendChild(mfStatusDiv);
+
+    mfTrainBtn.addEventListener("click", async () => {
+      const lf_key        = lfSel.value;
+      const hf_key        = hfSel.value;
+      const method        = methodSel.value;
+      const base_model_type = baseSel.value;
+      const cv_folds      = parseInt(cvSelect.value, 10) || 5;
+
+      if (lf_key === hf_key) {
+        showError("Low-fidelity and high-fidelity datasets must be different.");
+        return;
+      }
+
+      mfTrainBtn.disabled = true;
+      mfTrainBtn.textContent = "Training…";
+      showSpinner(mfTrainBtn);
+      mfStatusDiv.textContent = "";
+
+      const resp = await post("/api/model/train_multifidelity", {
+        lf_dataset_key: lf_key, hf_dataset_key: hf_key,
+        method, base_model_type, cv_folds,
+      });
+      hideSpinner(mfTrainBtn);
+      mfTrainBtn.disabled = false;
+      mfTrainBtn.textContent = "Train Multi-Fidelity →";
+
+      if (!resp.success) {
+        showError(resp.message || "Multi-fidelity training failed.");
+        return;
+      }
+      if (resp.results?.warnings?.length) {
+        for (const w of resp.results.warnings) showWarning(w, 10000);
+      }
+      const methodLabel = method === "bridge" ? "Bridge Correction" : "Co-Kriging";
+      mfStatusDiv.textContent = `${methodLabel} trained — LF: ${resp.results.n_train.toLocaleString()} rows, HF: ${resp.results.n_test.toLocaleString()} rows.`;
+      showSuccess("Multi-fidelity model trained successfully.");
+      await onTrain(resp.results);
+    });
+  }
+
+  containerEl.appendChild(mfSection);
 }

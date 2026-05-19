@@ -2477,6 +2477,33 @@ details[open] .al-history-summary::before { content: "▼ "; }
 .opt-pareto-chart { width: 100%; }
 .opt-solutions-table td, .opt-solutions-table th { font-size: var(--text-xs); }
 
+/* ── Multi-fidelity section ──────────────────────────────────────────────── */
+.mf-section {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.mf-selector-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+.mf-unavailable-note {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  padding: var(--space-2) 0 var(--space-4);
+}
+.mf-status-note {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+.mf-comparison-table td, .mf-comparison-table th { padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
+.mf-improve--positive { color: #166534; font-weight: var(--font-semibold); }
+.mf-improve--negative { color: #991b1b; }
+
 /* ── Ensemble builder / results ──────────────────────────────────────────── */
 .ensemble-builder-section {
   margin-top: var(--space-8);

@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 2.2.0
+// Version: 2.3.0
 // Description: Step 8 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -406,6 +406,20 @@ function _render(containerEl, r) {
     containerEl.appendChild(warnBox);
   }
 
+  // ── Multi-fidelity comparison (shown for bridge_correction / co_kriging) ─────
+  if (r.mf_comparison) {
+    const mfSection = el("div", { cls: "results-section" });
+    const methodLabel = r.mf_comparison.method === "bridge" ? "Bridge Correction" : "Co-Kriging (K-O)";
+    const cvLabel     = r.mf_comparison.cv_type === "loo" ? "LOO-CV" : r.mf_comparison.cv_type;
+    const mfTitle = el("h3", { cls: "results-section-title", text: "Multi-Fidelity Comparison" });
+    const mfDesc  = el("p", { cls: "section-desc",
+      text: `${methodLabel}  ·  LF: ${r.mf_comparison.n_lf.toLocaleString()} rows  ·  HF: ${r.mf_comparison.n_hf.toLocaleString()} rows  ·  ${cvLabel} R²` });
+    mfSection.appendChild(mfTitle);
+    mfSection.appendChild(mfDesc);
+    mfSection.appendChild(_buildMFComparisonTable(r.mf_comparison));
+    containerEl.appendChild(mfSection);
+  }
+
   // ── Ensemble breakdown (shown instead of CV table for ensemble models) ───────
   if (r.model_type === "ensemble") {
     const ensSection = el("div", { cls: "results-section" });
@@ -601,6 +615,41 @@ function _buildCVTable(perOutput) {
           <span class="results-std">± ${m.std_rmse.toFixed(4)}</span></td>
       <td class="results-metric">${m.mean_mae.toFixed(4)}
           <span class="results-std">± ${m.std_mae.toFixed(4)}</span></td>`;
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function _buildMFComparisonTable(mfComp) {
+  const wrap  = el("div", { cls: "results-table-wrap" });
+  const table = el("table", { cls: "results-table mf-comparison-table" });
+  const cvLbl = mfComp.cv_type === "loo" ? "LOO-CV" : mfComp.cv_type;
+
+  const thead = el("thead");
+  thead.innerHTML = `
+    <tr>
+      <th>Output</th>
+      <th>MF R² (${cvLbl})</th>
+      <th>HF-only R² (${cvLbl})</th>
+      <th>Improvement</th>
+    </tr>`;
+  table.appendChild(thead);
+
+  const tbody = el("tbody");
+  for (const m of (mfComp.per_output || [])) {
+    const improvement = m.mf_r2 - m.hf_only_r2;
+    const improvCls   = improvement > 0.01  ? "mf-improve--positive"
+                      : improvement < -0.01 ? "mf-improve--negative"
+                      : "";
+    const tr = el("tr");
+    tr.innerHTML = `
+      <td class="results-col-name">${m.column}</td>
+      <td><span class="results-badge results-badge--${_r2Class(m.mf_r2)}">${m.mf_r2.toFixed(3)}</span></td>
+      <td><span class="results-badge results-badge--${_r2Class(m.hf_only_r2)}">${m.hf_only_r2.toFixed(3)}</span></td>
+      <td class="${improvCls}">${improvement >= 0 ? "+" : ""}${improvement.toFixed(3)}</td>
+    `;
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);

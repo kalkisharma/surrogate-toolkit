@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14, 16 complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14, 15, 16 complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 ---
@@ -582,7 +582,7 @@
 ---
 
 ### Phase 15 — Multi-Fidelity Modeling
-**Status:** 🔲 Not started | **Version:** v2.4.x
+**Status:** ✅ Complete | **Version:** v2.3.0
 
 **Purpose:** Build a more accurate surrogate at lower simulation cost by fusing cheap low-fidelity data with expensive high-fidelity data.
 
