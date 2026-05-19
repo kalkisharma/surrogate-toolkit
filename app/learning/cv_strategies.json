@@ -1,1 +1,28 @@
-{}
+{
+  "sections": [
+    {
+      "title": "Why Cross-Validate?",
+      "body": "You cannot evaluate a model on the data it trained on — training error is always optimistically low because the model has seen those points. Cross-validation estimates how the model performs on new, unseen data without consuming your held-out test set. It is the primary tool for hyperparameter selection and model comparison during development."
+    },
+    {
+      "title": "K-Fold CV — The Standard Choice",
+      "body": "The training set is divided into k equal folds. The model trains on k-1 folds and is evaluated on the remaining fold, rotating through all k folds. Final CV score is the mean across all k evaluations. The standard value is k=5 for datasets of 50+ rows. k=10 is sometimes used for larger datasets or when you need a lower-variance estimate. Smaller k (2–3) is faster but noisier. The toolkit default is k=5."
+    },
+    {
+      "title": "Leave-One-Out CV (LOO-CV)",
+      "body": "Leave-One-Out is k-fold with k = n (the number of training points). Each data point is held out exactly once. LOO gives an almost unbiased estimate of true generalisation error and is the best choice for very small datasets (< 30 rows) where k-fold would create unstable folds. The trade-off: LOO requires n separate model fits — expensive for GPR (O(n⁴) total) but acceptable for RF and Linear. The multi-fidelity endpoint uses LOO by default when n_HF ≤ 30."
+    },
+    {
+      "title": "How Many Folds for GPR?",
+      "body": "Each CV fold retrains the GPR from scratch. With 5 folds and 500 training rows, each fold trains on 400 points — manageable. With 10 folds and 500 rows, each fold trains on 450 points — only marginally more informative but taking twice as long. For GPR, k=5 is recommended unless you specifically need a low-variance estimate. The toolkit caps auto-tune CV at 5 folds for GPR to keep tuning tractable."
+    },
+    {
+      "title": "CV Score vs. Test Score",
+      "body": "CV score is computed on training data and is used to compare models or tune hyperparameters. Test score is computed on the held-out test set after all decisions are made and estimates real-world performance. If you select the model with the best CV score, the CV estimate is slightly optimistic due to selection bias. Always report the test score as the final accuracy metric."
+    },
+    {
+      "title": "CV for Multi-Fidelity Models",
+      "body": "Multi-fidelity CV is more expensive than standard CV because each fold retrains both the low-fidelity surrogate and the correction model. The toolkit uses LOO when n_HF ≤ 30, and switches to k-fold otherwise. Kennedy-O'Hagan co-kriging is capped at min(5, max(2, n_HF ÷ 3))-fold because each fold retrains two GPRs. With n_HF = 15, this gives 5-fold CV; with n_HF = 9, it gives 3-fold."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-18
+**Last updated:** 2026-05-19
 **Total phases:** 16 across 3 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 12, 14, 15, 16 complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 ---
@@ -495,49 +495,52 @@
 
 ---
 
-### Phase 13 — Guided Learning & Exercises
-**Status:** 🔲 Not started | **Version:** v2.2.x
+### Phase 13 — Guided Learning & Reference Content
+**Status:** ✅ Complete (Phase 13A) | **Version:** v3.0.0
 
-**Purpose:** Complete the teaching tool mandate with structured exercises, curated learning content, and progress tracking.
+**Purpose:** Complete the teaching tool mandate with curated learning content, a searchable glossary, a model selection guide, and interactive decision trees for surrogate and CV choice.
 
-**User story:** A junior engineer opens the tool and selects "Exercise 1: Your First Surrogate." A guided workflow loads a synthetic dataset, walks through each phase with contextual explanations, and quizzes the engineer after each section.
+**Scope delivered (Phase 13A):**
 
-**Scope:**
+*Learning Content (10 JSON files, all populated):*
+- `glossary.json` — 50 terms across 11 categories with plain-language definitions
+- `models.json` — 7 model entries with description, strengths, weaknesses, best-for, avoid-when
+- `diagnostics.json` — R², RMSE, MAE, parity plot patterns, residual plot patterns, CV vs test, GPR error bars
+- `uncertainty.json` — GPR native posterior, RF tree variance, Linear/RBF none, co-kriging MF, ensemble proxy, extrapolation
+- `cv_strategies.json` — k-fold, LOO, GPR-specific, CV vs test, multi-fidelity CV
+- `sensitivity.json` — Sobol variance decomposition, S₁/Sₜ interpretation, Saltelli sampling, OAT, tornado chart
+- `active_learning.json` — space-filling vs goal-directed, LHS, EI acquisition, UCB, limits
+- `data_cleaning.json` — missing values, IQR outlier detection, log-transform, duplicates, correlation
+- `decision_trees/model_selection.json` — 16-node interactive flowchart: GPR vs RF vs Linear by dataset size, dimensionality, smoothness, uncertainty
+- `decision_trees/cv_selection.json` — 12-node interactive flowchart: fold count by dataset size, model type, auto-tune
 
-*Learning Content (populate all empty JSON files):*
-- `glossary.json` — 40–60 terms with plain-language definitions
-- `models.json` — description, strengths, weaknesses, and best-use guidance per model type
-- `uncertainty.json` — prediction uncertainty, bootstrap, confidence intervals, when they matter
-- `diagnostics.json` — how to read R², RMSE, MAE, parity plots, residual patterns
-- `cv_strategies.json` — k-fold, leave-one-out, stratified — when to use each
-- `sensitivity.json` — Sobol indices, tornado charts, first-order vs. total-order
-- `active_learning.json` — design of experiments, space-filling, exploitation vs. exploration
-- `decision_trees/model_selection.json` — flowchart: choose GPR vs. RF vs. Linear based on dataset size, smoothness, interpretability
-- `decision_trees/cv_selection.json` — flowchart: choose fold count based on dataset size
+*Guide Modal:*
+- "? Guide" button in global header (all levels) opens a three-tab modal: Glossary (live search), Model Guide (collapsible cards), Topics (sidebar nav + section reader + interactive decision trees)
+- `app/api/learning_api.py` — Blueprint at `/api/learning` with `GET /glossary`, `/models`, `/content/<topic>`, `/guide/<guide_name>`
 
-*Exercise System:*
-- Exercise format: JSON workflow script with steps, synthetic dataset, expected actions, explanatory text, quiz questions
-- Synthetic datasets: 3–5 datasets (aerodynamics, structural, thermal) shipped as fixtures; no real program data
-- Progress tracking: completed exercises stored in localStorage
-- Exercise viewer: guided overlay highlighting the relevant UI step with contextual explanation
-- Quiz component: 2–3 multiple-choice questions per phase; correct/incorrect feedback
+*Inline integration:*
+- Step 7 — Configure Training: collapsible "Help me choose" model selection decision tree (Intermediate/Expert only)
+
+**Deferred to M4 (Phase 13B):**
+- Exercise / quiz system — guided workflow scripts, synthetic datasets, quiz components, progress tracking
 
 **Backend:**
-- `GET /api/learning/glossary`, `/models`, `/exercises`, `/exercise/<id>`
+- `app/api/learning_api.py` — new; Blueprint at `/api/learning`
 
 **Frontend:**
-- New module: `static/js/modules/learning_guide.js` — exercise viewer, step highlighter, quiz renderer
-- Step 15 in sidebar (visible in Beginner/Intermediate mode)
-- Glossary panel accessible from global header "?" button
+- `static/js/modules/learning_guide.js` — guide modal, decision tree runner
+- `static/js/modules/model_config.js` — collapsible inline decision tree
 
-**Dependencies:** Phase 12 (experience levels; exercise content is level-aware).
+**Dependencies:** Phase 12 (experience levels gate inline guide to Intermediate/Expert).
 
-**Definition of done:**
-- All 8 learning JSON files populated with non-empty, accurate content
-- Exercise 1 completes without errors using the synthetic dataset
-- Quiz validation: correct = green feedback, incorrect = explanation shown
-- Glossary returns definitions for at least 40 terms
-- Completing Exercise 1 marks it done in localStorage on page reload
+**Definition of done (Phase 13A):**
+- All 10 learning JSON files populated with accurate content
+- Glossary returns 50+ terms; search filters correctly
+- Model Guide shows all 7 model types with full detail
+- Decision trees walk to a recommendation in ≤ 5 clicks
+- "? Guide" button visible in all experience levels; modal opens and tab-switches correctly
+- Inline model selection guide visible in Intermediate/Expert; hidden in Beginner
+- All existing tests pass
 
 ---
 

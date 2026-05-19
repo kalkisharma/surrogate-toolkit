@@ -1,1 +1,32 @@
-{}
+{
+  "sections": [
+    {
+      "title": "Why Uncertainty Matters",
+      "body": "A point prediction without uncertainty is incomplete for engineering decisions. If a surrogate predicts Cd = 0.025, knowing the 95% confidence interval is [0.023, 0.027] is very different from knowing it is [0.015, 0.035]. Uncertainty quantification (UQ) tells you how much to trust each prediction and where to run additional simulations to improve the model."
+    },
+    {
+      "title": "GPR/Kriging — Native Posterior Uncertainty",
+      "body": "GPR and Kriging provide uncertainty estimates from the mathematical structure of the model itself — no extra computation required. The posterior standard deviation σ(x) at a new input x depends on how close x is to training points: σ is small near training data and grows as you move away. The 95% confidence interval is prediction ± 1.96σ. These intervals are shown as error bars on the parity plot in the Training Results panel, and the mean CI width is reported in the Interpret panel."
+    },
+    {
+      "title": "Random Forest — Tree Variance Uncertainty",
+      "body": "Random Forest has no native probabilistic interpretation, but a useful uncertainty proxy is the variance across the individual tree predictions. Each of the 100 trees in the forest makes an independent prediction; the spread (2.5th to 97.5th percentile) forms a 95% empirical interval. This is not a true Bayesian credible interval, but it correlates well with prediction error in practice. The mean CI width is shown in the Interpret panel. No refitting is required — the trees are already trained."
+    },
+    {
+      "title": "Linear and RBF — No Native Uncertainty",
+      "body": "Ridge Regression and RBF interpolation do not provide uncertainty estimates from their model structure. For these models, the Interpret panel notes that uncertainty is unavailable and recommends switching to GPR or RF if prediction intervals are required. The parity plot does not show error bars for these model types."
+    },
+    {
+      "title": "Multi-Fidelity Co-Kriging Uncertainty",
+      "body": "Kennedy-O'Hagan co-kriging propagates uncertainty from both the low-fidelity GP and the discrepancy GP: σ_mf² ≈ ρ²σ_lf² + σ_δ². The combined uncertainty is typically smaller than either component alone in well-covered regions. This uncertainty is passed to the results panel as error bars on the HF parity plot."
+    },
+    {
+      "title": "Ensemble Uncertainty Proxy",
+      "body": "For ensemble surrogates, the toolkit computes the standard deviation across component model predictions as a rough uncertainty proxy. This captures model uncertainty due to different model assumptions but is not a calibrated confidence interval. Wide variance across components in a region suggests that model choice significantly affects the prediction there — a candidate for additional simulation data."
+    },
+    {
+      "title": "Extrapolation and Uncertainty",
+      "body": "Uncertainty estimates are most reliable inside the training data range (interpolation). Outside this range (extrapolation), GPR and Kriging report growing uncertainty correctly, but the intervals may be miscalibrated because the model reverts to its prior rather than reflecting true process behaviour. The toolkit flags inputs more than 25% outside the training range as a high-extrapolation warning regardless of the reported uncertainty."
+    }
+  ]
+}

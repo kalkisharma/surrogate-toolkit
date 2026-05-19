@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 2.3.0
+// Version: 3.0.0
 // Description: Step 7 — Configure Training. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Shows a per-model
 //              hyperparameter section (kernel/alpha for GPR, trees/depth/features
@@ -17,6 +17,7 @@ import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
 import { renderModelComparisonTable } from "../charts.js";
+import { runDecisionTree } from "./learning_guide.js";
 
 const HYPERPARAM_DEFAULTS = {
   gpr:     { kernel: "rbf", alpha: 0.1 },
@@ -164,6 +165,26 @@ export async function initModelConfig(containerEl, onTrain) {
 
   typeSection.appendChild(typeOptions);
   form.appendChild(typeSection);
+
+  // ── Model selection guide (Intermediate/Expert) ───────────────────────────────
+  const guideSection = el("div", { cls: "model-config-section level-intermediate-up" });
+  const guideToggle  = el("button", { cls: "model-guide-toggle", text: "▸ Help me choose — interactive guide" });
+  const guideBody    = el("div", { cls: "model-guide-body hidden" });
+  let   _guideLoaded = false;
+
+  guideToggle.addEventListener("click", () => {
+    const open = !guideBody.classList.contains("hidden");
+    guideBody.classList.toggle("hidden", open);
+    guideToggle.textContent = (open ? "▸" : "▾") + " Help me choose — interactive guide";
+    if (!open && !_guideLoaded) {
+      _guideLoaded = true;
+      runDecisionTree(guideBody, "model_selection");
+    }
+  });
+
+  guideSection.appendChild(guideToggle);
+  guideSection.appendChild(guideBody);
+  form.appendChild(guideSection);
 
   // ── Hyperparameters ───────────────────────────────────────────────────────────
   const hyperparamOuter = el("div", { id: "hyperparam-outer" });

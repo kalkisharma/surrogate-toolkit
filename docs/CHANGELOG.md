@@ -12,10 +12,43 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔶 In progress — Phase 14, 15, 16 complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete — Phases 12 & 13 delivered; 14, 15, 16 complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.0.0] — 2026-05-19
+
+### Phase 13A — Learning Content (M3 complete) (v3.0.0)
+
+#### Added
+
+- **10 learning content JSON files** in `app/learning/` — fully populated with expert-authored content:
+  - `glossary.json` — 50 terms across 11 categories (Core Concepts, Model Types, Metrics, Diagnostics, Validation, Training, Data Preparation, Sensitivity Analysis, Active Learning, Optimization, Multi-Fidelity)
+  - `models.json` — 7 model entries (GPR, Kriging, RF, RBF, PCE, Linear, Ensemble) with strengths, weaknesses, best-for, and avoid-when
+  - `diagnostics.json` — R², RMSE, MAE, parity plot, residual plot, CV vs test metrics, GPR error bars
+  - `uncertainty.json` — GPR native posterior, RF tree variance, Linear/RBF none, co-kriging, ensemble proxy, extrapolation
+  - `cv_strategies.json` — why CV, k-fold, LOO, GPR-specific guidance, CV vs test score, multi-fidelity CV
+  - `sensitivity.json` — Sobol variance decomposition, S₁/Sₜ interpretation, Saltelli sampling, OAT analysis, tornado chart, surrogate accuracy caveat
+  - `active_learning.json` — space-filling vs goal-directed, LHS, EI acquisition, UCB, when active learning cannot help
+  - `data_cleaning.json` — why clean, missing values, IQR outlier detection, log-transform, duplicates, correlation
+  - `decision_trees/model_selection.json` — 16-node interactive guide walking through dataset size, dimensionality, smoothness, uncertainty needs
+  - `decision_trees/cv_selection.json` — 12-node interactive guide for fold count selection by dataset size and model type
+- **`app/api/learning_api.py`** — new Flask Blueprint at `/api/learning` with four read-only endpoints: `GET /glossary`, `GET /models`, `GET /content/<topic>`, `GET /guide/<guide_name>`
+- **`static/js/modules/learning_guide.js`** — full learning guide modal (three tabs: Glossary with live search, Model Guide with collapsible cards, Topics with sidebar nav + section reader + interactive decision trees)
+- **"? Guide" button** in global header (all experience levels) — opens the learning guide modal
+- **Model selection decision tree** collapsible in Step 7 — Configure Training (Intermediate/Expert only, `level-intermediate-up` gate)
+
+#### Changed
+
+- `app/__init__.py` — registers `learning_api` Blueprint at `/api/learning`
+- `app/templates/index.html` — "? Guide" button added to header nav
+- `static/js/main.js` — imports `openGuide` from `learning_guide.js`; wires "? Guide" button click handler
+- `static/js/modules/model_config.js` — imports `runDecisionTree`; adds collapsible guide section after model type selection
+- `static/css/main.css` — learning guide modal styles (`.lg-*`), model guide toggle styles (`.model-guide-*`)
+- `config/settings.py` — VERSION → `"3.0.0"`
 
 ---
 

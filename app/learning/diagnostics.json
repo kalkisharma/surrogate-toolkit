@@ -1,1 +1,32 @@
-{}
+{
+  "sections": [
+    {
+      "title": "R² — How Much Variance Is Explained?",
+      "body": "R² measures the fraction of output variance that your model explains. A value of 1.0 means perfect predictions; 0.0 means the model does no better than predicting the training mean; negative values mean it is actively worse than the mean. For engineering surrogates, target R² ≥ 0.95 on the test set before using the model for design decisions. Values of 0.85–0.95 are acceptable for exploratory work; below 0.70 the model should not be trusted for predictions."
+    },
+    {
+      "title": "RMSE — How Large Are the Errors?",
+      "body": "Root Mean Squared Error is in the same physical units as your output. It answers: on average, how far off are the predictions? RMSE penalises large individual errors more heavily than MAE — one prediction that is 10 units off contributes 100 to the squared error, while ten predictions that are 1 unit off contribute 10. Use RMSE when large errors are disproportionately costly. Compare RMSE between models on the same output column; never compare RMSE across outputs with different scales."
+    },
+    {
+      "title": "MAE — The Typical Error",
+      "body": "Mean Absolute Error is the average magnitude of prediction errors, in the same units as the output. Unlike RMSE, it treats all errors equally regardless of size. MAE is more interpretable for communicating model accuracy to non-statisticians: 'on average, the surrogate predicts drag within ±0.002 counts.' Use MAE as your primary accuracy metric when large errors are no worse than proportionally smaller ones."
+    },
+    {
+      "title": "Reading the Parity Plot",
+      "body": "The parity plot (actual vs. predicted) is the most informative single diagnostic. A perfect model places every point on the 45° diagonal. Look for: (1) Systematic offset above or below the diagonal — indicates bias; the model consistently over- or under-predicts. (2) Fan shape widening at higher values — variance grows with the output (heteroscedasticity); consider log-transforming the output. (3) S-curve shape — the model is missing a non-linearity; try GPR or RF instead of Linear. (4) Points clustered on the diagonal with a few far outliers — the model is accurate on most points but fails on rare conditions; inspect those outliers."
+    },
+    {
+      "title": "Reading the Residual Plot",
+      "body": "The residual plot (actual vs. prediction error) should be a random cloud centred on zero. Patterns to flag: (1) Curved band — systematic non-linearity the model cannot capture; switch to a more flexible model type. (2) Horizontal band that does not cross zero — global bias; the model needs more training data or a different kernel. (3) Points with very large positive or negative residuals — outliers in the test set or failure modes not represented in training. (4) Residuals that grow with the output — see heteroscedasticity note in parity plot section."
+    },
+    {
+      "title": "Cross-Validation Metrics vs. Test Metrics",
+      "body": "CV metrics are computed on the training set and estimate generalisation performance without touching the test set. Test metrics are computed on the held-out test set after training is complete. CV R² is typically slightly optimistic (it uses training data). Test R² is the most honest estimate of real-world accuracy. If CV R² is high but test R² is low, the model is overfitting. If both are low, the model is underfitting. If CV R² is low but test R² is high, the CV estimate may be unreliable due to a small number of folds."
+    },
+    {
+      "title": "GPR Error Bars",
+      "body": "When GPR or Kriging is trained, the parity plot shows ±1.96σ error bars (95% confidence interval) on each test point. The error bar height reflects the model's posterior uncertainty at that input location. Points with very narrow error bars are well-constrained by nearby training data. Points with wide error bars are far from training points or in regions of high variance — predictions there should be treated with caution. Narrow error bars with large residuals indicate model mis-specification (wrong kernel or insufficient training data)."
+    }
+  ]
+}

@@ -1,1 +1,32 @@
-{}
+{
+  "sections": [
+    {
+      "title": "What is Global Sensitivity Analysis?",
+      "body": "Global sensitivity analysis (GSA) asks: which inputs are actually responsible for the variation in my output? Unlike local sensitivity (derivatives at one point), GSA samples the full input space and measures each variable's contribution to output variance. This is essential for high-dimensional models where not all inputs are equally important — GSA tells you which inputs you can simplify or fix without losing predictive accuracy."
+    },
+    {
+      "title": "Sobol Indices — Variance Decomposition",
+      "body": "Sobol analysis decomposes the total output variance V(Y) into contributions from each input and their interactions: V(Y) = Σ Vᵢ + Σ Vᵢⱼ + ... The first-order index S₁ᵢ = Vᵢ / V(Y) measures variance explained by input i alone. The total-order index STᵢ includes all higher-order interactions involving i: it is the fraction of output variance that would disappear if you knew the exact value of input i. STᵢ ≥ S₁ᵢ always. When STᵢ − S₁ᵢ is large, the input is important mainly through interactions with other variables."
+    },
+    {
+      "title": "Interpreting S₁ vs. Sₜ",
+      "body": "S₁ = 0.6 means 60% of the output variance is explained by that input acting alone — it is independently important. Sₜ = 0.6 with S₁ = 0.05 means the input explains almost nothing alone but drives 60% of variance through interactions — fixing other inputs first would amplify its effect. Sₜ ≈ 0 for all inputs means the model is nearly constant (flat), which may indicate the surrogate has poor fit or the output genuinely has low variation. All STᵢ sum to more than 1 when interactions exist; all S₁ᵢ sum to at most 1."
+    },
+    {
+      "title": "Saltelli Sampling",
+      "body": "Computing Sobol indices requires a specific sampling strategy — random sampling is inefficient. Saltelli sampling builds two base matrices A and B of N rows each, then generates N×(2d+2) total samples by recombining columns. The toolkit uses N=512 by default, giving 512×(2×d+2) model evaluations. For 12 inputs that is 13,312 predictions, which takes 1–5 seconds for most model types. N=512 gives stable S₁ estimates; N=1024 is recommended for ST when interactions are strong."
+    },
+    {
+      "title": "One-at-a-Time (OAT) Analysis",
+      "body": "OAT analysis varies each input from its minimum to its maximum while holding all other inputs at their training set median. The resulting curve shows the main effect of that input without interactions. OAT is cheaper than Sobol (n×50 evaluations vs. N×(2d+2)) and more interpretable: you see the shape of the response, not just a single number. The limitation is that OAT does not account for interactions — an input that appears flat in OAT may still have a high ST index because it only matters in combination with another variable."
+    },
+    {
+      "title": "Reading the Tornado Chart",
+      "body": "The tornado chart displays sensitivity indices as horizontal bars sorted by Sₜ (total-order, dark) descending. The lighter bars show S₁ (first-order) overlaid on the same axis. Inputs with long Sₜ bars and short S₁ bars are interaction-driven — they matter, but only in combination with others. Inputs with both bars nearly equal contribute independently. Inputs at the bottom with very short bars can often be fixed at their nominal value without significantly affecting the output — useful for design space simplification."
+    },
+    {
+      "title": "Sensitivity and Model Accuracy",
+      "body": "Sobol indices are computed from the trained surrogate, not from the real simulation. If the surrogate has poor accuracy (R² < 0.85), the sensitivity indices inherit that error — an inaccurate surrogate may misattribute variance to the wrong inputs. Always check the diagnostics metrics before interpreting sensitivity results. As a rule: trust sensitivity rankings from models with R² ≥ 0.90; treat results from lower-accuracy models as indicative only. For models with very high ST on many inputs, increasing training data coverage may sharpen the rankings."
+    }
+  ]
+}

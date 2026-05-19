@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 1.6.0
+// Version: 3.0.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 14 lazy-init panels).
@@ -26,6 +26,7 @@ import { initOptimization } from "./modules/optimization.js";
 import { initComparison } from "./modules/comparison.js";
 import { initExport } from "./modules/export.js";
 import { el, clearEl, escHtml } from "./utils.js";
+import { openGuide } from "./modules/learning_guide.js";
 
 // ── Experience level ──────────────────────────────────────────────────────────
 
@@ -870,6 +871,11 @@ function _initGlobalHeader() {
     await put("/api/state/session", { experience_level: levelSel.value });
     await refreshState();
   });
+
+  const guideBtn = document.getElementById("guide-btn");
+  if (guideBtn) {
+    guideBtn.addEventListener("click", () => openGuide("glossary"));
+  }
 
   const stateViewerBtn = document.getElementById("state-viewer-btn");
   if (stateViewerBtn) {

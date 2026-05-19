@@ -1,1 +1,141 @@
-{}
+{
+  "nodes": [
+    {
+      "id": "start",
+      "type": "question",
+      "text": "How many training rows do you have?",
+      "hint": "Count of rows in your dataset after cleaning (shown in the Preview panel header).",
+      "choices": [
+        { "label": "Fewer than 30", "next": "very_small" },
+        { "label": "30 – 2,000",    "next": "medium" },
+        { "label": "More than 2,000", "next": "large" }
+      ]
+    },
+    {
+      "id": "very_small",
+      "type": "question",
+      "text": "Is the response expected to be smooth (no sharp jumps or discontinuities)?",
+      "hint": "Physical intuition: does the output change gradually as inputs change, or are there sudden transitions (e.g. flow separation onset, buckling)?",
+      "choices": [
+        { "label": "Yes — smooth",    "next": "very_small_smooth" },
+        { "label": "No — or unsure",  "next": "very_small_rough" }
+      ]
+    },
+    {
+      "id": "very_small_smooth",
+      "type": "recommendation",
+      "model": "gpr",
+      "text": "Gaussian Process Regression (GPR)",
+      "reason": "With fewer than 30 rows and a smooth response, GPR is the best choice. It uses all data efficiently, provides uncertainty estimates, and fits exactly through training points. Use Leave-One-Out CV to evaluate performance on this small dataset."
+    },
+    {
+      "id": "very_small_rough",
+      "type": "recommendation",
+      "model": "kriging",
+      "text": "Kriging (Matérn GPR)",
+      "reason": "Kriging with a Matérn 5/2 kernel handles moderate roughness better than RBF GPR on small datasets. If the response has sharp discontinuities, consider collecting more data — fewer than 30 points is insufficient to characterise a rough response reliably."
+    },
+    {
+      "id": "medium",
+      "type": "question",
+      "text": "How many input variables do you have?",
+      "choices": [
+        { "label": "1 – 8 inputs",    "next": "medium_low_dim" },
+        { "label": "9 – 15 inputs",   "next": "medium_mid_dim" },
+        { "label": "More than 15",    "next": "high_dim" }
+      ]
+    },
+    {
+      "id": "medium_low_dim",
+      "type": "question",
+      "text": "Do you need uncertainty estimates alongside predictions?",
+      "choices": [
+        { "label": "Yes — required",   "next": "medium_low_gpr" },
+        { "label": "No — not needed",  "next": "medium_low_choice" }
+      ]
+    },
+    {
+      "id": "medium_low_gpr",
+      "type": "recommendation",
+      "model": "gpr",
+      "text": "Gaussian Process Regression (GPR)",
+      "reason": "GPR is the standard choice for low-dimensional smooth responses in this size range. It provides native posterior uncertainty estimates (shown as error bars on the parity plot). Default to the RBF kernel; switch to Kriging/Matérn if the initial fit is poor."
+    },
+    {
+      "id": "medium_low_choice",
+      "type": "question",
+      "text": "Is the response smooth, or does it have non-linearities and sharp features?",
+      "choices": [
+        { "label": "Smooth — continuous gradients", "next": "medium_low_smooth" },
+        { "label": "Non-smooth or complex",          "next": "medium_low_rf" }
+      ]
+    },
+    {
+      "id": "medium_low_smooth",
+      "type": "recommendation",
+      "model": "gpr",
+      "text": "GPR or Kriging",
+      "reason": "For smooth low-dimensional responses, GPR (RBF kernel) or Kriging (Matérn) are both excellent. If exact sensitivity analysis is also required, consider PCE as a fast alternative that produces Sobol indices analytically."
+    },
+    {
+      "id": "medium_low_rf",
+      "type": "recommendation",
+      "model": "rf",
+      "text": "Random Forest (RF)",
+      "reason": "Random Forest handles non-smooth, discontinuous responses naturally and is robust to outliers. It will not be as accurate as GPR on a smooth response with the same data, but it degrades gracefully when the response has complex structure GPR cannot capture."
+    },
+    {
+      "id": "medium_mid_dim",
+      "type": "question",
+      "text": "Is the response smooth and well-behaved?",
+      "choices": [
+        { "label": "Yes",   "next": "medium_mid_gpr" },
+        { "label": "No",    "next": "medium_mid_rf" }
+      ]
+    },
+    {
+      "id": "medium_mid_gpr",
+      "type": "recommendation",
+      "model": "gpr",
+      "text": "GPR or Kriging",
+      "reason": "GPR remains viable up to ~15 inputs if the response is smooth. Performance degrades above 10 inputs because the kernel length-scale optimisation becomes harder. If R² < 0.90 with GPR, try RF as an alternative."
+    },
+    {
+      "id": "medium_mid_rf",
+      "type": "recommendation",
+      "model": "rf",
+      "text": "Random Forest (RF)",
+      "reason": "For 9–15 inputs with non-smooth behaviour, RF is the safer choice. It is robust to irrelevant inputs (they are rarely selected as split candidates), so high dimensionality hurts it less than GPR."
+    },
+    {
+      "id": "high_dim",
+      "type": "recommendation",
+      "model": "rf",
+      "text": "Random Forest (RF)",
+      "reason": "Above 15 inputs, GPR kernel optimisation becomes unreliable (curse of dimensionality) and training time grows. RF handles high-dimensional inputs robustly due to random feature subsampling and is the recommended default. If interpretability is critical, try Linear as a baseline first."
+    },
+    {
+      "id": "large",
+      "type": "question",
+      "text": "Is the response smooth?",
+      "choices": [
+        { "label": "Yes — smooth", "next": "large_smooth" },
+        { "label": "No / unsure",  "next": "large_rf" }
+      ]
+    },
+    {
+      "id": "large_smooth",
+      "type": "recommendation",
+      "model": "rf",
+      "text": "Random Forest (RF) — GPR not recommended above 2,000 rows",
+      "reason": "GPR training scales as O(n³) — with 2,000+ rows it becomes impractically slow (minutes to hours). RF trains in seconds even on 100,000 rows. If a smooth interpolant is essential, consider downsampling to 1,500 representative points and training GPR on the reduced set."
+    },
+    {
+      "id": "large_rf",
+      "type": "recommendation",
+      "model": "rf",
+      "text": "Random Forest (RF)",
+      "reason": "Large datasets with non-smooth responses are RF's strongest use case. Scales efficiently, handles non-linearity naturally, and provides a useful uncertainty proxy via tree variance spread."
+    }
+  ]
+}

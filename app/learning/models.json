@@ -1,1 +1,128 @@
-{}
+{
+  "models": [
+    {
+      "type": "gpr",
+      "name": "Gaussian Process Regression (GPR)",
+      "description": "A probabilistic surrogate that models the output as a sample from a Gaussian Process. Provides a full posterior distribution — not just a point prediction but also a confidence interval around it. The RBF (default) kernel assumes infinitely smooth responses; Matérn kernels handle rougher surfaces.",
+      "strengths": [
+        "Native uncertainty estimates (posterior std) at every prediction point",
+        "Flexible kernel choice adapts to response smoothness",
+        "Exact interpolation through training points (alpha ≈ 0)",
+        "Well-calibrated confidence intervals when model assumptions hold"
+      ],
+      "weaknesses": [
+        "Scales as O(n³) in training time — impractical beyond ~2,000 points",
+        "Struggles with high-dimensional inputs (> 10–15 variables)",
+        "Poor extrapolation — reverts to prior mean outside training range"
+      ],
+      "best_for": "Smooth, low-dimensional responses (< 15 inputs) with < 2,000 training points where uncertainty quantification is required.",
+      "avoid_when": "Dataset has > 2,000 rows, > 15 inputs, or the response is non-smooth (discontinuities, sharp gradients)."
+    },
+    {
+      "type": "kriging",
+      "name": "Kriging (Matérn GPR)",
+      "description": "Mathematically equivalent to GPR but defaults to Matérn kernels (ν=2.5 default, ν=1.5 available). Matérn kernels are less smooth than RBF and fit better when the response has sharp curvature or moderate roughness. Widely used in aerospace CFD surrogate modelling.",
+      "strengths": [
+        "Matérn kernels handle rougher responses than RBF",
+        "Same native uncertainty as GPR",
+        "Well-established in aerospace DoE literature"
+      ],
+      "weaknesses": [
+        "Same O(n³) scaling as GPR",
+        "Rational Quadratic kernel (Intermediate/Expert mode) adds a length-scale mixture — more flexible but harder to interpret"
+      ],
+      "best_for": "Aerodynamic or structural responses with moderate roughness. Good default when GPR with RBF kernel gives poor R².",
+      "avoid_when": "Same constraints as GPR — large datasets or high-dimensional inputs."
+    },
+    {
+      "type": "rf",
+      "name": "Random Forest (RF)",
+      "description": "An ensemble of decision trees, each fitted on a bootstrap sample of the data using a random subset of features. Predictions are averaged across all trees. Extremely robust — handles non-linear, non-smooth responses, categorical features, and high-dimensional inputs without normalisation.",
+      "strengths": [
+        "Handles non-smooth, discontinuous responses naturally",
+        "Scales to large datasets (100,000+ rows) efficiently",
+        "Robust to irrelevant inputs — unimportant features are rarely selected",
+        "Free uncertainty estimate via tree variance (percentile spread across trees)"
+      ],
+      "weaknesses": [
+        "Does not interpolate exactly — predictions are step-like near training points",
+        "Extrapolates poorly — predicts a constant (the mean of nearby leaves) outside training range",
+        "Slower to evaluate than linear models for very large forests"
+      ],
+      "best_for": "Non-smooth responses, large datasets, high-dimensional inputs, or when robustness is more important than smoothness.",
+      "avoid_when": "The response is known to be smooth and small dataset size makes GPR tractable — GPR will usually be more accurate in that case."
+    },
+    {
+      "type": "rbf",
+      "name": "Radial Basis Function (RBF)",
+      "description": "Constructs the surrogate as a weighted sum of radial basis functions centred at each training point. Thin-plate spline (default) and multiquadric kernels are supported. Always passes exactly through training points (exact interpolation). No probabilistic interpretation.",
+      "strengths": [
+        "Fast evaluation — closed-form analytical prediction",
+        "Exact interpolation through all training points",
+        "No hyperparameters to tune (thin-plate spline has none)",
+        "Works well for low-dimensional smooth responses"
+      ],
+      "weaknesses": [
+        "No uncertainty estimates",
+        "Can produce wild oscillations between training points (Runge phenomenon) in high dimensions",
+        "Ill-conditioned for large datasets or clustered points"
+      ],
+      "best_for": "Small, well-distributed datasets with smooth responses where exact interpolation is desired and speed is a priority.",
+      "avoid_when": "Large datasets, clustered samples, high-dimensional inputs, or when uncertainty estimates are needed."
+    },
+    {
+      "type": "pce",
+      "name": "Polynomial Chaos Expansion (PCE)",
+      "description": "Represents the surrogate as a multivariate polynomial in the input variables using orthogonal basis functions (Legendre polynomials for uniform inputs). The coefficients encode all information about the response. First-order Sobol sensitivity indices are free byproducts — no separate analysis needed.",
+      "strengths": [
+        "Sobol sensitivity indices computed analytically from coefficients — zero extra cost",
+        "Algebraically interpretable — each coefficient has physical meaning",
+        "Fast evaluation — purely polynomial arithmetic",
+        "Very accurate for smooth, well-behaved responses"
+      ],
+      "weaknesses": [
+        "Order 3 expansion has (n+3 choose 3) terms — blows up in high dimensions",
+        "Fails completely on non-smooth or discontinuous responses",
+        "Assumes inputs are uniformly distributed (or can be mapped to uniform)"
+      ],
+      "best_for": "Smooth, low-dimensional (< 8 inputs) responses where analytical sensitivity is desired alongside the surrogate.",
+      "avoid_when": "Non-smooth responses, > 10 inputs (curse of dimensionality), or input distributions far from uniform."
+    },
+    {
+      "type": "linear",
+      "name": "Linear Model (Ridge Regression)",
+      "description": "Fits a linear combination of input variables to the output using Ridge regularisation (L2 penalty) to prevent overfitting. The simplest possible surrogate — linear in every input. Fast, interpretable, and a useful baseline to beat before using more complex models.",
+      "strengths": [
+        "Fastest possible training and prediction",
+        "Fully interpretable — each coefficient is a sensitivity",
+        "Stable on small datasets due to Ridge regularisation",
+        "Useful baseline: if a non-linear model barely beats it, the response may be approximately linear"
+      ],
+      "weaknesses": [
+        "Cannot model non-linear relationships at all",
+        "No uncertainty estimates",
+        "Poor on interactions between inputs (would need feature engineering)"
+      ],
+      "best_for": "Approximately linear responses, or as a fast baseline model before investing in GPR or RF.",
+      "avoid_when": "The response is known to be non-linear — this model will systematically underfit."
+    },
+    {
+      "type": "ensemble",
+      "name": "Ensemble Surrogate",
+      "description": "Combines two or more individual surrogate models into a single weighted prediction. Three weighting strategies: equal (1/n), CV-performance (weights proportional to cross-validation R²), and stacking (a Ridge meta-model learns weights from held-out predictions). More robust than any individual model on complex response surfaces.",
+      "strengths": [
+        "More robust than any single model — errors from different models tend to cancel",
+        "Gracefully degrades if one component fails — failed components are excluded",
+        "Stacking strategy adapts weights to the data rather than assuming equal performance",
+        "Free uncertainty proxy — variance across component predictions"
+      ],
+      "weaknesses": [
+        "Training time = sum of all component training times",
+        "Harder to interpret than any single model",
+        "May not outperform the best single model if one component is clearly dominant"
+      ],
+      "best_for": "Complex, multi-modal response surfaces where no single model type dominates. Production surrogates where robustness matters more than interpretability.",
+      "avoid_when": "One model type is clearly the best choice and training time is a constraint."
+    }
+  ]
+}

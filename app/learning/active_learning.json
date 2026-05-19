@@ -1,1 +1,28 @@
-{}
+{
+  "sections": [
+    {
+      "title": "Why Active Learning?",
+      "body": "If you have a budget for 50 simulations, running them all at once on a fixed grid wastes many runs in regions where the model is already accurate. Active learning instead places initial runs to cover the space, trains a surrogate, then iteratively recommends the single most informative next point to simulate. This concentrates the simulation budget where it is most needed — near complex nonlinearities, in regions of high uncertainty, or near a predicted optimum — typically achieving better accuracy with fewer total runs."
+    },
+    {
+      "title": "Space-Filling vs. Goal-Directed Sampling",
+      "body": "Coverage mode (space-filling) spreads new points as evenly as possible across the input space, maximising the minimum distance to any existing point. This builds a globally accurate surrogate. Objective mode (exploitation) concentrates points near the predicted minimum or maximum of the output, converging faster to the optimum but building an accurate surrogate only in that region. Use coverage mode when you need a surrogate valid across the full design space; use objective mode when you only care about finding the best design."
+    },
+    {
+      "title": "Latin Hypercube Sampling (LHS)",
+      "body": "LHS is the standard method for generating an initial space-filling design. It divides each input dimension into n equal intervals and places exactly one point per interval in each dimension. The result guarantees that no two points share the same interval in any single dimension — much better coverage than pure random sampling for the same number of points. The toolkit uses optimised LHS (maximising minimum point-to-point distance) for initial designs. For n inputs and n_points samples, LHS requires no additional model evaluations beyond the n_points you request."
+    },
+    {
+      "title": "Expected Improvement (EI) Acquisition",
+      "body": "EI is the acquisition function used in objective mode (Bayesian optimisation). At each candidate point x, EI measures how much improvement over the current best prediction we can expect, accounting for both the predicted mean and the uncertainty: EI(x) = E[max(f_best − μ(x), 0)]. Points with low predicted mean (good) or high uncertainty (unexplored) both have high EI. This naturally balances exploitation (refining near the current best) and exploration (sampling uncertain regions). The next recommended point is the one with maximum EI over the candidate space."
+    },
+    {
+      "title": "Upper Confidence Bound (UCB) Acquisition",
+      "body": "UCB is an alternative acquisition function: UCB(x) = −μ(x) + κ·σ(x), where κ controls the exploration–exploitation balance. High κ (default 2.0) favours exploration of uncertain regions; low κ favours exploitation near the current best. UCB is simpler to tune than EI and less prone to collapse when the surrogate is miscalibrated. The toolkit uses κ=2.0 by default in objective mode — this corresponds to a 95% upper confidence bound on the prediction."
+    },
+    {
+      "title": "When Active Learning Cannot Help",
+      "body": "Active learning requires a model that provides uncertainty estimates — only GPR and Kriging qualify in the toolkit. Random Forest uncertainty (tree variance) is too coarse for acquisition function optimisation. Active learning also assumes that adding more simulation runs is possible — if your dataset is fixed and complete, use cross-validation and sensitivity analysis instead. Finally, if the surrogate already has R² ≥ 0.98 uniformly across the test set, additional sampling yields diminishing returns and the budget is better spent on validation runs."
+    }
+  ]
+}

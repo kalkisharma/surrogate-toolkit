@@ -1,1 +1,28 @@
-{}
+{
+  "sections": [
+    {
+      "title": "Why Clean Data Before Training?",
+      "body": "Surrogate models learn from the data you give them — if that data contains errors, inconsistencies, or structural issues, the model learns those too. A single erroneous row with Cd = 2500 instead of 0.025 can destroy a GPR fit. Missing values cause training failures. Duplicate rows inflate confidence in certain regions and bias CV metrics. Skewed distributions make distance-based models like GPR treat one end of the range as much more important than the other. Cleaning is not optional — it is the foundation that determines whether the trained surrogate is trustworthy."
+    },
+    {
+      "title": "Handling Missing Values",
+      "body": "The toolkit offers three missing-value strategies. Drop rows removes any row with at least one missing value — safe but may discard useful data if missing values are sparse. Mean imputation replaces missing values with the column mean — reasonable when data is missing at random and the variable is numeric. Median imputation replaces with the column median — more robust than mean when the column is skewed or has outliers, because the median is not pulled by extreme values. For engineering data, prefer median imputation; use drop rows only when missingness is concentrated in a few rows that are not representative of the design space."
+    },
+    {
+      "title": "Outlier Detection — IQR Method",
+      "body": "The toolkit flags outliers using the IQR (interquartile range) criterion: a point is an outlier if it falls below Q1 − k×IQR or above Q3 + k×IQR, where k=1.5 by default. Smaller k (e.g. 1.0) catches more outliers but may flag valid extreme conditions. Larger k (e.g. 3.0) only catches the most extreme points. Before removing outliers, inspect them — in aerodynamic data, a point with very high drag at extreme angle of attack is physically correct and should not be removed. The toolkit's explore panel shows individual rows when you click an outlier marker, letting you verify before deciding."
+    },
+    {
+      "title": "Log-Transformation",
+      "body": "Many physical quantities have skewed distributions — drag coefficients, eigenfrequencies, stress concentrations can span orders of magnitude. If a column has |skewness| > 1, the toolkit flags it as a log-transform candidate. Applying log(1+x) compresses the long tail: a range of [0.001, 1000] becomes roughly [0, 7]. This makes the distribution more symmetric, reduces the influence of extreme values on distance calculations, and often improves GPR and RBF performance. Note: log-transform is applied before training and inverted after prediction, so the model still outputs values in the original units."
+    },
+    {
+      "title": "Removing Duplicate Rows",
+      "body": "Duplicate rows — identical input values with identical or slightly different outputs — are a sign of repeated simulation runs or data merging errors. They inflate the apparent density of the design space in certain regions, causing CV metrics to be overoptimistic (the model 'validates' on points it effectively trained on). The toolkit detects exact duplicates across all input columns. If duplicates have different output values (repeated runs with stochastic noise), keeping them may be intentional — inspect before removing."
+    },
+    {
+      "title": "Correlation and Redundant Inputs",
+      "body": "Highly correlated inputs (|Pearson r| ≥ 0.90) carry nearly identical information. Including both in a GPR model inflates the effective dimensionality without adding information, and can cause the kernel length-scale optimisation to produce degenerate solutions. The toolkit flags highly correlated pairs in the Explore panel. If two inputs are correlated by design (e.g. dynamic pressure = 0.5·ρ·V²), one is usually derivable from the other and can be dropped. If correlation is coincidental (sampling artefact), keep both but be aware the sensitivity analysis may split variance between them."
+    }
+  ]
+}

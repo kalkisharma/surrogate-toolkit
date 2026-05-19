@@ -1,1 +1,78 @@
-{}
+{
+  "nodes": [
+    {
+      "id": "start",
+      "type": "question",
+      "text": "How many training rows will your model use?",
+      "hint": "Training rows = total rows × (1 − test split fraction). With 100 rows and 20% test split, training rows = 80.",
+      "choices": [
+        { "label": "Fewer than 30",   "next": "small" },
+        { "label": "30 – 100",        "next": "medium_small" },
+        { "label": "More than 100",   "next": "large" }
+      ]
+    },
+    {
+      "id": "small",
+      "type": "recommendation",
+      "text": "Leave-One-Out CV (LOO-CV)",
+      "reason": "With fewer than 30 training points, k-fold would create folds of only 4–6 rows, making each evaluation very noisy. LOO holds out exactly one point at a time — giving the least-biased estimate of generalisation performance. It requires n model fits (e.g. 25 fits for 25 training rows), which is acceptable for most model types. For GPR with very large kernel optimisation, LOO can be slow — but it is the most reliable choice at this scale."
+    },
+    {
+      "id": "medium_small",
+      "type": "question",
+      "text": "Which model type are you using?",
+      "choices": [
+        { "label": "GPR or Kriging",    "next": "medium_small_gpr" },
+        { "label": "RF, Linear, or RBF", "next": "medium_small_other" }
+      ]
+    },
+    {
+      "id": "medium_small_gpr",
+      "type": "recommendation",
+      "text": "5-Fold CV (GPR default)",
+      "reason": "The toolkit caps GPR auto-tune CV at 5 folds to keep tuning tractable. With 30–100 rows, 5-fold gives 5 fits on ~80–96% of training data — a good balance between reliability and cost. LOO is available if you want the lowest-bias estimate and have time to wait (n fits vs 5 fits)."
+    },
+    {
+      "id": "medium_small_other",
+      "type": "recommendation",
+      "text": "5-Fold CV",
+      "reason": "5-fold CV is the standard choice for 30–100 rows with fast models (RF, Linear, RBF). Each fold trains on 80% of training data and validates on 20%. The 5-fold mean CV R² is stable enough to guide hyperparameter selection in this range."
+    },
+    {
+      "id": "large",
+      "type": "question",
+      "text": "Which model type are you using?",
+      "choices": [
+        { "label": "GPR or Kriging",    "next": "large_gpr" },
+        { "label": "RF or Linear",      "next": "large_other" }
+      ]
+    },
+    {
+      "id": "large_gpr",
+      "type": "recommendation",
+      "text": "5-Fold CV",
+      "reason": "For GPR with 100+ training rows, 5-fold CV is the practical limit. Each fold trains on 80% of your data — with 500 rows, that is 400-row GPR fits (O(n³) ~ 64M operations each). 10-fold would only marginally improve the CV estimate while doubling cost. The toolkit defaults to and caps at 5 folds for GPR."
+    },
+    {
+      "id": "large_other",
+      "type": "question",
+      "text": "Are you running auto-tune (GridSearchCV) over many hyperparameter combinations?",
+      "choices": [
+        { "label": "Yes — auto-tuning",   "next": "large_autotune" },
+        { "label": "No — manual config",  "next": "large_manual" }
+      ]
+    },
+    {
+      "id": "large_autotune",
+      "type": "recommendation",
+      "text": "5-Fold CV",
+      "reason": "Auto-tune multiplies the number of model fits by the grid size. With a 10×10 hyperparameter grid and 10-fold CV, that is 1,000 model fits. 5-fold reduces this to 500 while keeping the CV estimate reliable for model comparison. The ranking of hyperparameter combinations is stable at 5 folds."
+    },
+    {
+      "id": "large_manual",
+      "type": "recommendation",
+      "text": "5-Fold or 10-Fold CV",
+      "reason": "With 100+ rows and no auto-tune, both 5-fold and 10-fold are feasible. 10-fold trains on 90% of data per fold (lower bias) and gives a slightly more stable estimate, at the cost of 2× the model fits. Use 10-fold when you need a precise CV estimate for comparing two specific models; use 5-fold otherwise."
+    }
+  ]
+}
