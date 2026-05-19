@@ -8,8 +8,8 @@ FUTURE EXTENSIONS: Polynomial features, Lasso variant
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CLASSIFICATION: Not program-specific
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 1.0.1
+LAST MODIFIED: 2026-05-19
+VERSION: 1.0.2
 ================================================================================
 """
 
@@ -33,7 +33,7 @@ class LinearModel(BaseSurrogateModel):
 
     def __init__(self, alpha: float = 1.0):
         super().__init__("linear")
-        self._model = Ridge(alpha=float(alpha) if alpha is not None else 1.0)
+        self._model = Ridge(alpha=float(alpha) if alpha is not None else 1.0, solver="lsqr")
 
     def fit(
         self,
