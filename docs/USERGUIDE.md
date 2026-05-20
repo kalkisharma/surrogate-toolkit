@@ -1,6 +1,6 @@
 # User Guide
 
-**Version:** v1.6.0 | **Last updated:** 2026-05-15
+**Version:** v3.0.0 | **Last updated:** 2026-05-20
 
 A step-by-step walkthrough of the 14-step surrogate modeling workflow.
 

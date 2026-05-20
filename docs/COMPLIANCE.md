@@ -1,6 +1,6 @@
 # Compliance Guide
 
-**Version:** v1.6.0 | **Last updated:** 2026-05-15
+**Version:** v3.0.0 | **Last updated:** 2026-05-20
 
 Documents the classification, watermarking, and audit trail features implemented in Phase 11.
 

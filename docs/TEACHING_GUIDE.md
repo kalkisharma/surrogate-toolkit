@@ -1,8 +1,8 @@
 # Teaching Guide
 
-**Version:** v1.6.0 | **Last updated:** 2026-05-15
+**Version:** v3.0.0 | **Last updated:** 2026-05-20
 
-Documents the learning mode system — how it works, how to add new content, and how it will evolve in Milestone 3.
+Documents the learning mode system — how it works, how to add new content, and what was delivered in Milestone 3 (Phase 12 experience levels, Phase 13A learning guide). Phase 13B (guided exercises) is deferred to M4.
 
 ---
 

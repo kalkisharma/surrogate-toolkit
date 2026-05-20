@@ -1,6 +1,6 @@
 # STATE Schema Reference
 
-**Version:** v1.6.0 | **Last updated:** 2026-05-15
+**Version:** v3.0.0 | **Last updated:** 2026-05-20
 
 The `STATE` dict is the single source of truth for all session data. It lives in `app/state/schema.py` and is stored in `app.config['STATE']`.
 

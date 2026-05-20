@@ -217,8 +217,8 @@ The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full ph
 | Milestone | Version | Phases | Theme | Status |
 |---|---|---|---|---|
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
-| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete (v1.6.0) |
-| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | 🔲 Not started |
+| **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
+| **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
 | **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
 
 ### Phase → version map
@@ -236,11 +236,11 @@ The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full ph
 | Phase 9 | Active Learning | v1.3.0 | ✅ Complete |
 | Phase 10 | Multi-Dataset Comparison | v1.6.0 | ✅ Complete |
 | Phase 11 | Export & Compliance | v1.4.0 | ✅ Complete |
-| Phase 12 | Experience Levels | v2.1.x | 🔲 Not started |
-| Phase 13 | Guided Learning & Exercises | v2.2.x | 🔲 Not started |
-| Phase 14 | Advanced Surrogate Models | v2.3.x | 🔲 Not started |
-| Phase 15 | Multi-Fidelity Modeling | v2.4.x | 🔲 Not started |
-| Phase 16 | Ensemble Surrogates | v2.5.x | 🔲 Not started |
+| Phase 12 | Experience Levels | v2.4.0 | ✅ Complete |
+| Phase 13 | Guided Learning & Reference Content | v3.0.0 | ✅ Complete (Phase 13A); 13B deferred to M4 |
+| Phase 14 | Advanced Surrogate Models | v2.1.0 | ✅ Complete |
+| Phase 15 | Multi-Fidelity Modeling | v2.3.0 | ✅ Complete |
+| Phase 16 | Ensemble Surrogates | v2.2.0 | ✅ Complete |
 
 ### Files to update on every version bump
 
