@@ -1,5 +1,7 @@
 # Developer Guide
 
+> **New to the codebase?** Start with [`docs/CODEBASE_TOUR.md`](CODEBASE_TOUR.md) — a guided reading path with data flow diagrams (~90 min).
+
 ## Setup
 
 ### Prerequisites
