@@ -346,8 +346,8 @@ function _buildExerciseCard(ex, listContainer) {
 async function _startExercise(exerciseId, listContainer) {
   // Confirm if session has data
   const stateResp = await get("/api/state/");
-  const hasData = stateResp?.datasets?.primary?.metadata?.filename;
-  if (hasData && hasData !== _getExerciseDataset(exerciseId)) {
+  const hasData = stateResp?.state?.datasets?.primary?.metadata?.filename;
+  if (hasData) {
     const confirmed = window.confirm(
       "Starting this exercise will replace your current dataset. Any unsaved model results will be lost. Continue?"
     );
@@ -379,8 +379,10 @@ async function _startExercise(exerciseId, listContainer) {
   _showExerciseOverlay();
   showSuccess(`Exercise started — dataset '${startResp.metadata.filename}' loaded.`);
 
-  // Trigger panel navigation for step 0
-  _navigateToStep(_activeExercise.steps[0]);
+  // Rebuild the workflow UI with the injected dataset and refresh the dataset switcher.
+  // The exercise:navigate event fired by _showExerciseOverlay will reach activatePanel
+  // once _renderExploration sets _activatePanelFn.
+  document.dispatchEvent(new CustomEvent("exercise:loaded", { detail: { result: startResp } }));
 }
 
 function _getExerciseDataset(exerciseId) {

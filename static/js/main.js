@@ -28,6 +28,22 @@ import { initExport } from "./modules/export.js";
 import { el, clearEl, escHtml } from "./utils.js";
 import { openGuide } from "./modules/learning_guide.js";
 
+// ── Exercise integration ──────────────────────────────────────────────────────
+// Mutable reference to the current activatePanel closure — updated every time
+// _renderExploration initialises a new panel set. This lets module-level event
+// listeners reach the panel router without needing to be inside _renderExploration.
+let _activatePanelFn = null;
+
+document.addEventListener("exercise:navigate", (e) => {
+  const { panel } = e.detail;
+  if (_activatePanelFn && panel) _activatePanelFn(panel);
+});
+
+document.addEventListener("exercise:loaded", async (e) => {
+  await _renderExploration(e.detail.result);
+  await _refreshDatasetSwitcher();
+});
+
 // ── Experience level ──────────────────────────────────────────────────────────
 
 /**
@@ -398,6 +414,9 @@ async function _renderExploration(uploadResponse) {
   }
 
   // ── Panel activation ──────────────────────────────────────────────────────
+  // Expose to module-level exercise:navigate listener
+  _activatePanelFn = null;   // reset before redefining so the old closure is not reused mid-rebuild
+
   async function activatePanel(key) {
     if (!stepUnlocked[key]) return;
     _activeKey = key;
@@ -413,6 +432,9 @@ async function _renderExploration(uploadResponse) {
       if (splom) Plotly.Plots.resize(splom);
     }
   }
+
+  // Register with module-level exercise:navigate listener
+  _activatePanelFn = activatePanel;
 
   // ── Per-panel subtitle ────────────────────────────────────────────────────
   // Writes to the stable _panelSubEl[key] div — outside the content div that
@@ -877,11 +899,6 @@ function _initGlobalHeader() {
     guideBtn.addEventListener("click", () => openGuide("glossary"));
   }
 
-  // Exercise overlay navigation — exercise runner dispatches this to advance the panel router
-  document.addEventListener("exercise:navigate", (e) => {
-    const { panel } = e.detail;
-    if (panel && stepUnlocked[panel] !== false) activatePanel(panel);
-  });
 
   const stateViewerBtn = document.getElementById("state-viewer-btn");
   if (stateViewerBtn) {
