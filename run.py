@@ -35,11 +35,14 @@ if __name__ == "__main__":
     port  = int(os.getenv("PORT", "5000"))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
-    border = "═" * 42
-    print(f"\n{border}")
-    print(f"  Surrogate Toolkit  v{VERSION}")
-    print(f"  http://{host}:{port}")
-    print(f"  Debug: {'on' if debug else 'off'}")
-    print(f"{border}\n")
+    border = "-" * 42
+    import sys
+    def _print(s=""):
+        sys.stdout.buffer.write((s + "\n").encode("utf-8"))
+    _print(f"\n{border}")
+    _print(f"  Surrogate Toolkit  v{VERSION}")
+    _print(f"  http://{host}:{port}")
+    _print(f"  Debug: {'on' if debug else 'off'}")
+    _print(f"{border}\n")
 
     app.run(host=host, port=port, debug=debug)

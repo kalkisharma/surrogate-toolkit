@@ -291,9 +291,23 @@ def start_exercise(exercise_id: str):
     })
 
     return jsonify({
-        "success":  True,
-        "message":  f"Exercise dataset '{dataset_name}' loaded.",
-        "metadata": ds_meta,
+        "success":     True,
+        "message":     f"Exercise dataset '{dataset_name}' loaded. "
+                       f"{meta['n_rows_original']:,} rows × {meta['n_cols']} columns.",
+        "dataset_key": dataset_name,
+        "metadata": {
+            "filename":             meta["filename"],
+            "n_rows":               meta["n_rows_original"],
+            "n_cols":               meta["n_cols"],
+            "columns":              meta["columns"],
+            "dtypes":               meta["dtypes"],
+            "null_counts":          meta["null_counts"],
+            "coercion_warnings":    meta["coercion_warnings"],
+            "upload_timestamp":     meta["upload_timestamp"],
+            "input_columns":        [],
+            "output_columns":       [],
+            "normalization_method": None,
+        },
         "preview": {
             "columns":    meta["columns"],
             "rows":       ds_meta["preview_rows"],
