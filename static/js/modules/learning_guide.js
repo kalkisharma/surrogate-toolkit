@@ -11,7 +11,7 @@
 
 import { get, post } from "../api.js";
 import { el, clearEl, escHtml } from "../utils.js";
-import { showToast } from "../notifications.js";
+import { showSuccess, showError } from "../notifications.js";
 
 // ── Module state ──────────────────────────────────────────────────────────────
 
@@ -357,14 +357,14 @@ async function _startExercise(exerciseId, listContainer) {
   // Inject dataset
   const startResp = await post(`/api/learning/exercises/${exerciseId}/start`, {});
   if (!startResp.success) {
-    showToast("error", `Could not load exercise dataset: ${startResp.message || "Unknown error"}`);
+    showError(`Could not load exercise dataset: ${startResp.message || "Unknown error"}`);
     return;
   }
 
   // Load full exercise definition
   const exResp = await get(`/api/learning/exercises/${exerciseId}`);
   if (!exResp.success) {
-    showToast("error", "Could not load exercise steps.");
+    showError("Could not load exercise steps.");
     return;
   }
 
@@ -377,7 +377,7 @@ async function _startExercise(exerciseId, listContainer) {
 
   closeGuide();
   _showExerciseOverlay();
-  showToast("success", `Exercise started — dataset '${startResp.metadata.filename}' loaded.`);
+  showSuccess(`Exercise started — dataset '${startResp.metadata.filename}' loaded.`);
 
   // Trigger panel navigation for step 0
   _navigateToStep(_activeExercise.steps[0]);
@@ -521,7 +521,7 @@ async function _markStepAndFinish(stepNum) {
   const resp = await get(`/api/learning/exercises/${_activeExercise.id}`);
   if (resp.success) _activeExercise.progress = resp.progress;
   _removeExerciseOverlay();
-  showToast("success", "Exercise complete!");
+  showSuccess("Exercise complete!");
   _activeExercise = null;
 }
 
