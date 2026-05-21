@@ -1,0 +1,102 @@
+{
+  "id": "ex_05_active_learning",
+  "title": "Active Learning — Where to Sample Next",
+  "difficulty": "intermediate",
+  "estimated_minutes": 20,
+  "description": "This dataset has only 50 rows — sparse for a 4-input problem. Active learning recommends where to run next experiments. You will compare Coverage mode (fill gaps in the space) with Objective mode (find the maximum) and understand the trade-off.",
+  "dataset": "sparse_4d.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has 4 inputs (x1–x4) and 1 output (y). Only 50 rows — typical of early-stage engineering experiments where each run is expensive.",
+      "quiz": {
+        "question": "Why is 50 rows considered sparse for a 4-input surrogate?",
+        "options": [
+          "Surrogates require at least 1000 rows",
+          "With 4 inputs, the design space is 4-dimensional — 50 points provide sparse coverage compared to the volume of the space",
+          "50 rows is too few for any numerical computation",
+          "The toolkit only supports datasets larger than 100 rows"
+        ],
+        "correct_index": 1,
+        "explanation": "Coverage degrades exponentially with dimensionality — the curse of dimensionality. 50 points that fill a 1-D line leave gaps every 1/50 unit. Those same 50 points in 4-D leave most of the hypercube empty. Active learning helps identify where gaps are largest."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "designate",
+      "instruction": "Designate x1, x2, x3, x4 as inputs and y as the output.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to all inputs.",
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "configure",
+      "instruction": "Configure a GPR model with test split 0.15 and 5 CV folds. Train it. GPR is preferred for active learning because its prediction variance directly quantifies uncertainty.",
+      "quiz": {
+        "question": "Why is GPR's uncertainty estimate particularly useful for active learning?",
+        "options": [
+          "GPR trains faster than Random Forest",
+          "GPR's posterior variance is highest where data is sparse — directly indicating where new experiments would reduce uncertainty the most",
+          "GPR cannot overfit, so its uncertainty is always accurate",
+          "GPR is the only model supported by the active learning module"
+        ],
+        "correct_index": 1,
+        "explanation": "In GPR, the posterior variance (σ²) is a principled measure of how uncertain the model is at each point. Points far from training data have high σ². Coverage mode in active learning samples where σ² is highest — the most informative locations."
+      }
+    },
+    {
+      "step_num": 5,
+      "target_panel": "active",
+      "instruction": "Open Step 10 — Active Learning. Run Coverage mode first. This recommends 10 new experiment points that would most reduce overall uncertainty.",
+      "quiz": {
+        "question": "Coverage mode recommends points in sparse, high-uncertainty regions. When is this the right choice?",
+        "options": [
+          "When you want to find the global maximum of the response",
+          "When your goal is to build a globally accurate surrogate across the full design space",
+          "When you already have a dense dataset",
+          "Coverage mode is always better than Objective mode"
+        ],
+        "correct_index": 1,
+        "explanation": "Coverage (also called pure exploration) is optimal when you need the surrogate to be accurate everywhere — e.g., for safety analysis or design space mapping. Objective mode (exploitation) is better when you specifically want to find an optimum and do not need global accuracy."
+      }
+    },
+    {
+      "step_num": 6,
+      "target_panel": "active",
+      "instruction": "Now run Objective mode. Set the output y as the objective and select Maximize. This uses Expected Improvement (EI) to balance exploring uncertain regions with exploiting areas already known to be near the maximum.",
+      "quiz": {
+        "question": "Expected Improvement (EI) balances exploration and exploitation. What is 'exploitation' in this context?",
+        "options": [
+          "Removing outliers from the dataset",
+          "Recommending new points near the current best observed output, where small improvements are likely",
+          "Training the model on additional data",
+          "Reducing the number of recommended points"
+        ],
+        "correct_index": 1,
+        "explanation": "Exploitation means focusing on regions you already know are good — near the current maximum. Exploration means sampling uncertain regions. EI combines both: it is high near the current best AND in uncertain regions. Pure exploitation converges quickly but may miss the global optimum; pure exploration finds the global structure but converges slowly."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "active",
+      "instruction": "Compare the two recommendation sets. Coverage points are spread across the space; Objective points cluster near the suspected maximum (around x1≈2.5, x2≈2.5). Neither is 'right' — the choice depends on your goal.",
+      "quiz": {
+        "question": "You have budget for 10 more experiments. Your goal is to certify that the maximum output stays below a safety threshold across the full design space. Which mode should you use?",
+        "options": [
+          "Objective mode — find the maximum directly",
+          "Coverage mode — fill gaps so the surrogate is accurate everywhere, giving confident safety bounds",
+          "Train more models and average their recommendations",
+          "Run 5 of each mode"
+        ],
+        "correct_index": 1,
+        "explanation": "A safety certification requires the surrogate to be trustworthy everywhere, not just near the suspected worst-case point. Coverage mode reduces global uncertainty, tightening the confidence interval on the maximum. Objective mode would be appropriate if you were optimizing for performance rather than bounding risk."
+      }
+    }
+  ]
+}

@@ -243,7 +243,7 @@ The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full ph
 | Phase 14 | Advanced Surrogate Models | v2.1.0 | ✅ Complete |
 | Phase 15 | Multi-Fidelity Modeling | v2.3.0 | ✅ Complete |
 | Phase 16 | Ensemble Surrogates | v2.2.0 | ✅ Complete |
-| Phase 17 | Guided Exercises | v3.1.0 | 🔲 Not started |
+| Phase 17 | Guided Exercises | v3.1.0 | ✅ Complete |
 | Phase 18 | Authentication | v3.2.0 | 🔲 Not started |
 | Phase 19 | Surrogate Export & Sharing | v3.3.0 | 🔲 Not started |
 | Phase 20 | HPC Integration | v4.0.0 | 🔲 Not started |

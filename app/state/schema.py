@@ -6,8 +6,8 @@ PURPOSE: Defines the canonical STATE dict shape and helpers to reset, read, and
          serialize it. STATE is the single source of truth for all session data.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.7.0
+LAST MODIFIED: 2026-05-21
+VERSION: 3.1.0
 ================================================================================
 """
 
@@ -48,6 +48,8 @@ _CANONICAL_STATE = {
         "experience_level": DEFAULT_EXPERIENCE_LEVEL,
         "data_type": None,
         "warnings": [],
+        # Phase 17: keyed by exercise id; each entry: {steps_completed, quiz_answers, started_at, completed_at}
+        "exercise_progress": {},
     },
     "datasets": {
         "primary": {

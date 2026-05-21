@@ -665,7 +665,7 @@
 ---
 
 ### Phase 17 — Guided Exercises
-**Status:** 🔲 Not started | **Version:** v3.1.0
+**Status:** ✅ Complete | **Version:** v3.1.0
 
 **Purpose:** Complete the teaching platform mandate (Phase 13B deferred from M3) with a structured exercise system — guided workflow scripts that auto-load synthetic datasets, walk engineers step-by-step through the 14-panel workflow, and reinforce decisions with advisory quiz questions.
 

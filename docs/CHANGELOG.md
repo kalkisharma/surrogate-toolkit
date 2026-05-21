@@ -13,9 +13,55 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete — Phases 12 & 13 delivered; 14, 15, 16 complete |
-| **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
+| **M4** | v4.0.0 | 17–20 | Team deployment, auth, HPC integration | 🔲 In progress — Phase 17 complete |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.1.0] — 2026-05-21
+
+### Phase 17 — Guided Exercises (M4 Phase 1)
+
+#### Added
+
+- **5 synthetic datasets** in `app/learning/datasets/` — analytically generated with NumPy, no real program data:
+  - `simple_quadratic.csv` — 100 rows, 2 inputs, smooth quadratic response (beginner exercise)
+  - `nonlinear_response.csv` — 150 rows, 3 inputs, sin/cos nonlinearity (model selection exercise)
+  - `dirty_data.csv` — 120 rows with 8 nulls, 3 outliers, skewed column (cleaning exercise)
+  - `ishigami_5d.csv` — 200 rows, 5 inputs (3 active + 2 noise), classic Sobol benchmark (sensitivity exercise)
+  - `sparse_4d.csv` — 50 rows, 4 inputs, Gaussian bump response (active learning exercise)
+
+- **5 exercise JSON files** in `app/learning/exercises/` — step-by-step guided workflows with advisory quiz questions:
+  - `ex_01_basic_gpr.json` — "Your First GPR Surrogate" — 8 steps, beginner, ~15 min
+  - `ex_02_model_selection.json` — "Choosing the Right Model" — 7 steps, intermediate, ~20 min
+  - `ex_03_data_cleaning.json` — "Cleaning a Messy Dataset" — 7 steps, beginner, ~15 min
+  - `ex_04_sensitivity.json` — "Sensitivity Analysis — Ishigami Function" — 8 steps, intermediate, ~25 min
+  - `ex_05_active_learning.json` — "Active Learning — Where to Sample Next" — 7 steps, intermediate, ~20 min
+
+- **4 new API endpoints** in `app/api/learning_api.py`:
+  - `GET /api/learning/exercises` — list exercises with metadata and per-session progress
+  - `GET /api/learning/exercises/<id>` — full exercise definition (steps + quizzes)
+  - `POST /api/learning/exercises/<id>/start` — auto-inject synthetic dataset via normal ingestion pipeline
+  - `POST /api/learning/exercises/progress` — record step completion and quiz answer in STATE
+
+- **Exercises tab** in Learning Guide modal (`static/js/modules/learning_guide.js`) — exercise cards with difficulty badge, estimated time, step progress, and status (not started / in progress / complete)
+
+- **Exercise runner overlay** — floating card anchored bottom-right above the workflow. Shows step instruction, quiz card, navigation buttons, and step-progress dots. Dispatches `exercise:navigate` events to advance the panel router.
+
+- **Advisory quiz component** — non-blocking: answer selection reveals correct/incorrect colour + explanation, "Next" button always available
+
+- **`exercise_progress` key** in `STATE['session']` (`app/state/schema.py`) — dict keyed by exercise id, each entry stores `steps_completed`, `quiz_answers`, `started_at`, `completed_at`. Persists via Phase 7 save/load.
+
+- **Exercise CSS** — `.ex-card`, `.ex-badge`, `.ex-overlay`, `.ex-quiz`, `.ex-dot` rules appended to `static/css/main.css`
+
+- **`exercise:navigate` event listener** in `main.js` — advances the panel router when the exercise overlay requests a panel transition
+
+#### Changed
+
+- `app/state/schema.py` — added `exercise_progress: {}` to `_CANONICAL_STATE['session']`
+- `app/api/learning_api.py` — added exercise endpoints; added `numpy`, `werkzeug`, `flask.current_app`, `request` imports; added serialisation helpers
+- `static/js/modules/learning_guide.js` — fourth "Exercises" tab added; `post` import added; module-level `_activeExercise` state added
 
 ---
 

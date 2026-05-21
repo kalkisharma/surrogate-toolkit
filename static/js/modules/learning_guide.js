@@ -2,18 +2,21 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/learning_guide.js
-// Version: 1.0.0
-// Description: Learning Guide modal — three tabs: Glossary, Model Guide,
-//              Topics. Opens via the "? Guide" header button. All data fetched
-//              from /api/learning/*. No STATE mutation.
+// Version: 3.1.0
+// Description: Learning Guide modal — four tabs: Glossary, Model Guide,
+//              Topics, Exercises. Opens via the "? Guide" header button.
+//              Exercises tab auto-injects datasets and shows step-by-step
+//              guidance with advisory quiz cards.
 // =============================================================================
 
-import { get } from "../api.js";
+import { get, post } from "../api.js";
 import { el, clearEl, escHtml } from "../utils.js";
+import { showToast } from "../notifications.js";
 
 // ── Module state ──────────────────────────────────────────────────────────────
 
-let _cache = {};   // keyed by endpoint string
+let _cache = {};           // keyed by endpoint string
+let _activeExercise = null; // { id, steps[], currentStep, progress{} }
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -58,8 +61,8 @@ function _buildOverlay(initialTab) {
   modal.appendChild(header);
 
   // Tabs
-  const tabs = ["glossary", "models", "topics"];
-  const tabLabels = { glossary: "Glossary", models: "Model Guide", topics: "Topics" };
+  const tabs = ["glossary", "models", "topics", "exercises"];
+  const tabLabels = { glossary: "Glossary", models: "Model Guide", topics: "Topics", exercises: "Exercises" };
 
   const tabBar = el("div", { cls: "lg-tab-bar", role: "tablist" });
   const tabBtns = {};
@@ -103,9 +106,10 @@ async function _loadTab(container, tab) {
   clearEl(container);
   container.innerHTML = `<div class="lg-spinner">Loading…</div>`;
 
-  if (tab === "glossary") await _renderGlossary(container);
-  else if (tab === "models") await _renderModelGuide(container);
-  else if (tab === "topics") await _renderTopics(container);
+  if (tab === "glossary")   await _renderGlossary(container);
+  else if (tab === "models")    await _renderModelGuide(container);
+  else if (tab === "topics")    await _renderTopics(container);
+  else if (tab === "exercises") await _renderExercises(container);
 }
 
 // ── Glossary ──────────────────────────────────────────────────────────────────
@@ -277,6 +281,269 @@ async function _showGuide(contentArea, guide, nav, activeBtn) {
   const treeEl = el("div", { cls: "lg-tree" });
   contentArea.appendChild(treeEl);
   _renderTreeAt(treeEl, resp.nodes, "start");
+}
+
+// ── Exercises ─────────────────────────────────────────────────────────────────
+
+const _DIFFICULTY_LABELS = { beginner: "Beginner", intermediate: "Intermediate", expert: "Expert" };
+
+async function _renderExercises(container) {
+  clearEl(container);
+  container.innerHTML = `<div class="lg-spinner">Loading…</div>`;
+
+  const resp = await get("/api/learning/exercises");
+  clearEl(container);
+  if (!resp.success) {
+    container.innerHTML = `<p class="lg-error">Could not load exercises.</p>`;
+    return;
+  }
+
+  const intro = el("p", { cls: "lg-section-intro",
+    text: "Guided exercises auto-load a synthetic dataset and walk you through the full workflow step by step. Quiz questions are advisory — you can always continue regardless of your answer." });
+  container.appendChild(intro);
+
+  for (const ex of resp.exercises) {
+    container.appendChild(_buildExerciseCard(ex, container));
+  }
+}
+
+function _buildExerciseCard(ex, listContainer) {
+  const statusClass = {
+    not_started:  "ex-card__status--todo",
+    in_progress:  "ex-card__status--progress",
+    complete:     "ex-card__status--done",
+  }[ex.status] || "ex-card__status--todo";
+
+  const statusLabel = { not_started: "Not started", in_progress: "In progress", complete: "Complete" }[ex.status] || "";
+  const diffClass = ex.difficulty === "beginner" ? "ex-badge--beginner"
+                  : ex.difficulty === "expert"   ? "ex-badge--expert"
+                  : "ex-badge--intermediate";
+
+  const card = el("div", { cls: "ex-card" });
+  card.innerHTML = `
+    <div class="ex-card__header">
+      <span class="ex-card__title">${escHtml(ex.title)}</span>
+      <span class="ex-badge ${diffClass}">${escHtml(_DIFFICULTY_LABELS[ex.difficulty] || ex.difficulty)}</span>
+    </div>
+    <p class="ex-card__desc">${escHtml(ex.description)}</p>
+    <div class="ex-card__meta">
+      <span class="ex-card__time">~${ex.estimated_minutes} min</span>
+      <span class="ex-card__progress">${ex.steps_completed}/${ex.steps_total} steps</span>
+      <span class="ex-card__status ${statusClass}">${statusLabel}</span>
+    </div>`;
+
+  const startBtn = el("button", { cls: "btn btn-primary ex-card__btn",
+    text: ex.status === "complete" ? "Replay" : ex.status === "in_progress" ? "Continue" : "Start Exercise" });
+  card.appendChild(startBtn);
+
+  startBtn.addEventListener("click", async () => {
+    await _startExercise(ex.id, listContainer);
+  });
+
+  return card;
+}
+
+async function _startExercise(exerciseId, listContainer) {
+  // Confirm if session has data
+  const stateResp = await get("/api/state/");
+  const hasData = stateResp?.datasets?.primary?.metadata?.filename;
+  if (hasData && hasData !== _getExerciseDataset(exerciseId)) {
+    const confirmed = window.confirm(
+      "Starting this exercise will replace your current dataset. Any unsaved model results will be lost. Continue?"
+    );
+    if (!confirmed) return;
+  }
+
+  // Inject dataset
+  const startResp = await post(`/api/learning/exercises/${exerciseId}/start`, {});
+  if (!startResp.success) {
+    showToast("error", `Could not load exercise dataset: ${startResp.message || "Unknown error"}`);
+    return;
+  }
+
+  // Load full exercise definition
+  const exResp = await get(`/api/learning/exercises/${exerciseId}`);
+  if (!exResp.success) {
+    showToast("error", "Could not load exercise steps.");
+    return;
+  }
+
+  _activeExercise = {
+    id:           exerciseId,
+    steps:        exResp.exercise.steps,
+    currentStep:  0,
+    progress:     exResp.progress,
+  };
+
+  closeGuide();
+  _showExerciseOverlay();
+  showToast("success", `Exercise started — dataset '${startResp.metadata.filename}' loaded.`);
+
+  // Trigger panel navigation for step 0
+  _navigateToStep(_activeExercise.steps[0]);
+}
+
+function _getExerciseDataset(exerciseId) {
+  // Sync lookup — returns undefined if not cached; acceptable since we only use it for comparison
+  const cached = _cache[`/api/learning/exercises/${exerciseId}`];
+  return cached?.exercise?.dataset;
+}
+
+// ── Exercise overlay (floating card shown above the workflow) ─────────────────
+
+function _showExerciseOverlay() {
+  _removeExerciseOverlay();
+  if (!_activeExercise) return;
+
+  const ex    = _activeExercise;
+  const step  = ex.steps[ex.currentStep];
+  const total = ex.steps.length;
+
+  const panel = el("div", { cls: "ex-overlay", id: "ex-overlay" });
+
+  // Step progress dots
+  const dots = ex.steps.map((s, i) => {
+    const done = ex.progress?.steps_completed?.includes(s.step_num);
+    const cur  = i === ex.currentStep;
+    return `<span class="ex-dot${cur ? " ex-dot--current" : ""}${done ? " ex-dot--done" : ""}"></span>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="ex-overlay__header">
+      <span class="ex-overlay__title">Step ${step.step_num} of ${total}</span>
+      <div class="ex-dots">${dots}</div>
+      <button class="ex-overlay__close" aria-label="Close exercise">✕</button>
+    </div>
+    <div class="ex-overlay__instruction">${escHtml(step.instruction)}</div>`;
+
+  // Quiz card (if present)
+  if (step.quiz) {
+    panel.appendChild(_buildQuizCard(step, ex));
+  }
+
+  // Nav buttons
+  const nav = el("div", { cls: "ex-overlay__nav" });
+  if (ex.currentStep > 0) {
+    const prevBtn = el("button", { cls: "btn btn-secondary ex-nav-btn", text: "← Prev" });
+    prevBtn.addEventListener("click", () => _goToStep(ex.currentStep - 1));
+    nav.appendChild(prevBtn);
+  }
+  if (ex.currentStep < total - 1) {
+    const nextBtn = el("button", { cls: "btn btn-primary ex-nav-btn", text: "Next →" });
+    nextBtn.addEventListener("click", () => _markStepAndAdvance(step.step_num, ex.currentStep + 1));
+    nav.appendChild(nextBtn);
+  } else {
+    const doneBtn = el("button", { cls: "btn btn-primary ex-nav-btn", text: "Finish Exercise" });
+    doneBtn.addEventListener("click", () => _markStepAndFinish(step.step_num));
+    nav.appendChild(doneBtn);
+  }
+  panel.appendChild(nav);
+
+  panel.querySelector(".ex-overlay__close").addEventListener("click", () => {
+    _markStep(step.step_num);
+    _removeExerciseOverlay();
+  });
+
+  document.body.appendChild(panel);
+}
+
+function _buildQuizCard(step, ex) {
+  const quiz  = step.quiz;
+  const saved = ex.progress?.quiz_answers?.[String(step.step_num)];
+
+  const card = el("div", { cls: "ex-quiz" });
+  card.innerHTML = `<p class="ex-quiz__q">${escHtml(quiz.question)}</p>`;
+
+  const opts = el("div", { cls: "ex-quiz__opts" });
+  quiz.options.forEach((opt, i) => {
+    const btn = el("button", { cls: "ex-quiz__opt", text: opt });
+    if (saved !== undefined) {
+      btn.disabled = true;
+      if (i === quiz.correct_index) btn.classList.add("ex-quiz__opt--correct");
+      else if (i === saved)          btn.classList.add("ex-quiz__opt--wrong");
+    }
+    btn.addEventListener("click", () => _answerQuiz(card, quiz, i, step, ex));
+    opts.appendChild(btn);
+  });
+  card.appendChild(opts);
+
+  if (saved !== undefined) {
+    _appendExplanation(card, quiz, saved);
+  }
+
+  return card;
+}
+
+function _answerQuiz(card, quiz, chosenIdx, step, ex) {
+  // Disable all buttons and colour correct/wrong
+  card.querySelectorAll(".ex-quiz__opt").forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === quiz.correct_index) btn.classList.add("ex-quiz__opt--correct");
+    else if (i === chosenIdx)      btn.classList.add("ex-quiz__opt--wrong");
+  });
+  _appendExplanation(card, quiz, chosenIdx);
+
+  // Persist answer
+  post("/api/learning/exercises/progress", {
+    exercise_id: ex.id,
+    step_num:    step.step_num,
+    quiz_answer: chosenIdx,
+  }).then(resp => {
+    if (resp.success) ex.progress = resp.progress;
+  });
+}
+
+function _appendExplanation(card, quiz, chosenIdx) {
+  const existing = card.querySelector(".ex-quiz__explain");
+  if (existing) existing.remove();
+  const correct = chosenIdx === quiz.correct_index;
+  const explain = el("div", { cls: `ex-quiz__explain${correct ? " ex-quiz__explain--correct" : " ex-quiz__explain--wrong"}` });
+  explain.innerHTML = `<strong>${correct ? "Correct." : "Not quite."}</strong> ${escHtml(quiz.explanation)}`;
+  card.appendChild(explain);
+}
+
+function _goToStep(stepIdx) {
+  if (!_activeExercise) return;
+  _activeExercise.currentStep = stepIdx;
+  _showExerciseOverlay();
+  _navigateToStep(_activeExercise.steps[stepIdx]);
+}
+
+async function _markStepAndAdvance(stepNum, nextIdx) {
+  if (!_activeExercise) return;
+  await _markStep(stepNum);
+  _goToStep(nextIdx);
+}
+
+async function _markStepAndFinish(stepNum) {
+  if (!_activeExercise) return;
+  await _markStep(stepNum);
+  const resp = await get(`/api/learning/exercises/${_activeExercise.id}`);
+  if (resp.success) _activeExercise.progress = resp.progress;
+  _removeExerciseOverlay();
+  showToast("success", "Exercise complete!");
+  _activeExercise = null;
+}
+
+async function _markStep(stepNum) {
+  if (!_activeExercise) return;
+  const resp = await post("/api/learning/exercises/progress", {
+    exercise_id: _activeExercise.id,
+    step_num:    stepNum,
+  });
+  if (resp.success) _activeExercise.progress = resp.progress;
+}
+
+function _navigateToStep(step) {
+  // Fire a custom event that main.js listens for to navigate the panel router
+  const panel = step.target_panel;
+  if (panel) {
+    document.dispatchEvent(new CustomEvent("exercise:navigate", { detail: { panel } }));
+  }
+}
+
+function _removeExerciseOverlay() {
+  document.getElementById("ex-overlay")?.remove();
 }
 
 // ── Decision-tree renderer ────────────────────────────────────────────────────

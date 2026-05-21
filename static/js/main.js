@@ -877,6 +877,12 @@ function _initGlobalHeader() {
     guideBtn.addEventListener("click", () => openGuide("glossary"));
   }
 
+  // Exercise overlay navigation — exercise runner dispatches this to advance the panel router
+  document.addEventListener("exercise:navigate", (e) => {
+    const { panel } = e.detail;
+    if (panel && stepUnlocked[panel] !== false) activatePanel(panel);
+  });
+
   const stateViewerBtn = document.getElementById("state-viewer-btn");
   if (stateViewerBtn) {
     stateViewerBtn.addEventListener("click", async () => {

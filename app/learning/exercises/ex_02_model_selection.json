@@ -1,0 +1,82 @@
+{
+  "id": "ex_02_model_selection",
+  "title": "Choosing the Right Model",
+  "difficulty": "intermediate",
+  "estimated_minutes": 20,
+  "description": "Train three different surrogates on the same 3-input nonlinear dataset and compare their cross-validation scores. You will see why model choice matters and when GPR outperforms Random Forest and Linear models.",
+  "dataset": "nonlinear_response.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has 3 inputs (x1, x2, x3) and 1 output (y). Notice the input ranges: x1 and x2 span roughly −π to +π, x3 spans 0 to 5.",
+      "quiz": null
+    },
+    {
+      "step_num": 2,
+      "target_panel": "explore",
+      "instruction": "Open the scatter matrix. Look at the x1 vs y plot — you should see a sinusoidal pattern. Look at x3 vs y — that should look more linear.",
+      "quiz": {
+        "question": "Given a mix of nonlinear (sinusoidal) and linear relationships in the same dataset, which model type would you expect to struggle most?",
+        "options": [
+          "GPR",
+          "Random Forest",
+          "Linear model",
+          "All models perform equally"
+        ],
+        "correct_index": 2,
+        "explanation": "A linear model assumes all inputs relate to the output through a straight line. It cannot capture the sin(x1)·cos(x2) term here without feature engineering. GPR and RF can fit nonlinear patterns directly."
+      }
+    },
+    {
+      "step_num": 3,
+      "target_panel": "designate",
+      "instruction": "Designate x1, x2, x3 as inputs and y as the output.",
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to all three inputs.",
+      "quiz": null
+    },
+    {
+      "step_num": 5,
+      "target_panel": "configure",
+      "instruction": "First run: configure as Linear model, test split 0.2, 5-fold CV. Train and note the R² score.",
+      "quiz": {
+        "question": "Cross-validation R² measures model fit on the training data (k-fold held-out folds). Why is CV R² more informative than the training R²?",
+        "options": [
+          "Training R² is always 1.0 so it is useless",
+          "CV R² estimates how well the model generalises to unseen data, not just how well it memorised the training set",
+          "CV R² uses more data points",
+          "Training R² only measures speed"
+        ],
+        "correct_index": 1,
+        "explanation": "A model can achieve R²=1.0 on training data simply by memorising every point (overfitting). CV holds out a different fold each iteration and measures accuracy on data the model never saw — a much better proxy for real-world performance."
+      }
+    },
+    {
+      "step_num": 6,
+      "target_panel": "results",
+      "instruction": "Note the test R² for Linear. Now go back to Configure, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
+      "quiz": {
+        "question": "For this 150-row, 3-input, nonlinear dataset, what is the most likely ranking of models by test R²?",
+        "options": [
+          "Linear > RF > GPR",
+          "GPR ≈ RF > Linear",
+          "RF > Linear > GPR",
+          "All three are equivalent"
+        ],
+        "correct_index": 1,
+        "explanation": "GPR and RF both capture nonlinearity. GPR typically wins on smooth, small datasets where its kernel perfectly models correlation structure. RF wins on noisy, high-dimensional, or irregular data. Both soundly outperform Linear on sinusoidal responses."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "predict",
+      "instruction": "Use the best-performing model to predict y at x1=0, x2=0, x3=2.5. The true value is sin(0)·cos(0) + 0.3×2.5 = 0.75.",
+      "quiz": null
+    }
+  ]
+}

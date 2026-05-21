@@ -1,0 +1,98 @@
+{
+  "id": "ex_04_sensitivity",
+  "title": "Sensitivity Analysis — Ishigami Function",
+  "difficulty": "intermediate",
+  "estimated_minutes": 25,
+  "description": "The Ishigami function is a classic benchmark for sensitivity analysis. It has 5 inputs: x1, x2, x3 drive the output (with x1 dominant), and x4, x5 are pure noise. You will train a GPR and use Sobol sensitivity analysis to identify which inputs matter.",
+  "dataset": "ishigami_5d.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has 5 inputs (x1–x5) and 1 output (y). The true function is y = sin(x1) + 7·sin²(x2) + 0.1·x3⁴·sin(x1). Inputs x4 and x5 were added as pure noise — they have zero true sensitivity.",
+      "quiz": {
+        "question": "Before running any analysis, which inputs do you expect Sobol analysis to flag as important based on the true function?",
+        "options": [
+          "x1 and x2 (strongest; x3 has a weak interaction term)",
+          "x4 and x5 (they have more data points by chance)",
+          "All inputs equally",
+          "x3 only (highest-order term)"
+        ],
+        "correct_index": 0,
+        "explanation": "x1 appears in the sin() term and the interaction term. x2 has a large coefficient (7). x3 contributes via an interaction with x1. x4 and x5 are decorrelated noise — their true S₁ and Sₜ are both zero."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "designate",
+      "instruction": "Designate x1 through x5 as inputs and y as the output.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to all 5 inputs.",
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "configure",
+      "instruction": "Configure a GPR model with test split 0.2 and 5 CV folds. Train it.",
+      "quiz": null
+    },
+    {
+      "step_num": 5,
+      "target_panel": "results",
+      "instruction": "Check the R² score. For a 200-row 5-input dataset with a nonlinear-but-smooth response, R² > 0.90 is achievable with GPR.",
+      "quiz": null
+    },
+    {
+      "step_num": 6,
+      "target_panel": "interpret",
+      "instruction": "Open Step 9 — Interpret (if it is unlocked after training). Click 'Analyze →' to run Sobol sensitivity analysis. Wait for the tornado chart to appear.",
+      "quiz": {
+        "question": "In the Sobol tornado chart, what does a large gap between Sₜ and S₁ for an input indicate?",
+        "options": [
+          "The input is unimportant",
+          "The input interacts strongly with at least one other input — its influence depends on the values of those other inputs",
+          "The confidence intervals are too wide to trust",
+          "The model underfit that input"
+        ],
+        "correct_index": 1,
+        "explanation": "S₁ measures first-order (independent) sensitivity; Sₜ measures total sensitivity including all interactions. Sₜ − S₁ is the interaction contribution. For x3 in the Ishigami function, S₁ ≈ 0 but Sₜ > 0 precisely because x3 only matters through its interaction with x1 (the x3⁴·sin(x1) term)."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "interpret",
+      "instruction": "Look at the OAT (one-at-a-time) curves for x4 and x5. They should be nearly flat — confirming these are noise inputs.",
+      "quiz": {
+        "question": "An OAT curve for an input is completely flat. What does this tell you?",
+        "options": [
+          "The model failed to train on that input",
+          "Varying that input while holding all others at their median has no effect on the output — the input is insensitive (at least in isolation)",
+          "The input is collinear with another input",
+          "The normalization was not applied"
+        ],
+        "correct_index": 1,
+        "explanation": "A flat OAT curve means the model output does not change as you sweep that input from min to max. Combined with a near-zero Sobol S₁ and Sₜ, this is strong evidence the input does not drive the output. In a real project this would justify removing it."
+      }
+    },
+    {
+      "step_num": 8,
+      "target_panel": "interpret",
+      "instruction": "Based on your Sobol results, which inputs would you consider removing from a follow-up experiment to reduce cost?",
+      "quiz": {
+        "question": "If Sₜ(x4) ≈ 0.02 and Sₜ(x5) ≈ 0.03 (near zero, within confidence bounds), what is the appropriate action?",
+        "options": [
+          "Remove x4 and x5 from future experiments to reduce cost and dimensionality",
+          "Keep all inputs — small sensitivity values can still be important",
+          "Re-run analysis with more samples first, then decide",
+          "A and C are both valid approaches"
+        ],
+        "correct_index": 3,
+        "explanation": "Both removing low-Sₜ inputs and verifying with more samples are valid. The decision depends on the cost of running extra experiments vs. the risk of discarding a marginally important variable. In practice, re-run with 1024+ samples first to tighten confidence intervals, then remove if Sₜ stays near zero."
+      }
+    }
+  ]
+}

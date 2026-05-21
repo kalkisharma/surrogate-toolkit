@@ -1,0 +1,102 @@
+{
+  "id": "ex_03_data_cleaning",
+  "title": "Cleaning a Messy Dataset",
+  "difficulty": "beginner",
+  "estimated_minutes": 15,
+  "description": "This dataset has deliberate problems: 8 missing values in x1, three extreme outliers in x2, and a log-normally distributed (right-skewed) x2 column. Practice identifying and fixing each issue before training.",
+  "dataset": "dirty_data.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has been loaded. Look at the preview — you may notice some blank cells in the x1 column. These are missing values.",
+      "quiz": {
+        "question": "What is the risk of training a surrogate on data that contains missing values?",
+        "options": [
+          "No risk — most models handle missing values automatically",
+          "Missing values may be dropped silently, reducing your dataset size without warning, or bias the model toward certain regions",
+          "Training will always fail with an error",
+          "Missing values only matter for classification, not regression"
+        ],
+        "correct_index": 1,
+        "explanation": "Different tools handle missing values differently. Some drop rows, others impute, some crash. Knowing what your tool does and why — and making that choice deliberately — is part of responsible data preparation."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "explore",
+      "instruction": "Open the scatter matrix. Look at the x2 distribution (x2 vs any other variable). You should see a few extreme data points far from the main cluster.",
+      "quiz": {
+        "question": "The x2 column has a long right tail (log-normal distribution). Why does skewness matter for surrogate modeling?",
+        "options": [
+          "It doesn't matter — surrogates are distribution-agnostic",
+          "Highly skewed inputs concentrate training data in a small part of the space, leaving large regions sparsely sampled",
+          "Skewed data always indicates measurement error",
+          "Skewness only affects linear models"
+        ],
+        "correct_index": 1,
+        "explanation": "If 90% of your x2 values cluster below 5 but a few reach 80+, the model gets very little information about behavior at high x2. A log transform compresses the tail and distributes coverage more evenly, improving the surrogate in that region."
+      }
+    },
+    {
+      "step_num": 3,
+      "target_panel": "clean",
+      "instruction": "Open Step 3 — Clean. First, handle the missing values in x1: use median imputation (fills each missing value with the column median). The toolkit highlights columns with nulls.",
+      "quiz": {
+        "question": "When would you choose 'drop rows' over 'median impute' for missing values?",
+        "options": [
+          "Always — dropping is safer than guessing",
+          "When you have plenty of rows and the missing values are not concentrated in any particular region of the design space",
+          "When fewer than 1% of values are missing",
+          "Never — imputation is always better"
+        ],
+        "correct_index": 1,
+        "explanation": "Dropping rows is safe when data is abundant and the missingness is random (not concentrated in, say, high-x1 rows). Imputation is preferred when data is scarce — but the imputed values introduce a small bias. Neither is universally better."
+      }
+    },
+    {
+      "step_num": 4,
+      "target_panel": "clean",
+      "instruction": "Now handle the outliers. The toolkit will show you how many rows would be removed. Choose 'Drop rows' to remove the three extreme outlier rows.",
+      "quiz": {
+        "question": "What does the IQR outlier rule detect?",
+        "options": [
+          "Values more than 2 standard deviations from the mean",
+          "Values below Q1 − 1.5×IQR or above Q3 + 1.5×IQR, where Q1/Q3 are the 25th/75th percentiles",
+          "Any value that appears only once",
+          "Values that are physically impossible (e.g., negative pressure)"
+        ],
+        "correct_index": 1,
+        "explanation": "The IQR rule flags statistical outliers. It is resistant to extreme values (unlike std-based rules) because Q1 and Q3 are not affected by the outliers themselves. Note: it cannot detect physically impossible values — that requires domain knowledge."
+      }
+    },
+    {
+      "step_num": 5,
+      "target_panel": "clean",
+      "instruction": "Finally, apply a log(1+x) transform to x2 to reduce its skewness. The toolkit flags columns with |skew| > 1.0 as transform candidates.",
+      "quiz": null
+    },
+    {
+      "step_num": 6,
+      "target_panel": "designate",
+      "instruction": "Designate x1, x2, x3 as inputs and y as the output. Then normalize.",
+      "quiz": null
+    },
+    {
+      "step_num": 7,
+      "target_panel": "configure",
+      "instruction": "Train a GPR model and check the R² score. Compare it to what you would get on the raw dirty data — cleaning should improve accuracy by 5–15%.",
+      "quiz": {
+        "question": "Why does removing outliers typically improve R²?",
+        "options": [
+          "Fewer rows means faster computation, which allows a better fit",
+          "Outliers pull the model away from the main data pattern — removing them lets the model focus on the true underlying relationship",
+          "R² always improves when rows are removed",
+          "Outliers only affect the training split, not the test split"
+        ],
+        "correct_index": 1,
+        "explanation": "A surrogate tries to fit all points including outliers. Extreme points drag the model (especially linear and GPR) toward them, degrading fit on the bulk of the data. Removing confirmed outliers tightens the fit to the true response."
+      }
+    }
+  ]
+}

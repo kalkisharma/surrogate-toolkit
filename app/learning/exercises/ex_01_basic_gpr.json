@@ -1,0 +1,113 @@
+{
+  "id": "ex_01_basic_gpr",
+  "title": "Your First GPR Surrogate",
+  "difficulty": "beginner",
+  "estimated_minutes": 15,
+  "description": "Walk through the full upload → clean → train → predict workflow on a smooth 2-input quadratic function. By the end you will have a trained GPR and understand what each step does.",
+  "dataset": "simple_quadratic.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has been loaded. Review the 10-row preview. Notice the column names — x1 and x2 are your two input variables, y is the output you want to predict.",
+      "quiz": null
+    },
+    {
+      "step_num": 2,
+      "target_panel": "explore",
+      "instruction": "Open the scatter matrix (Step 2). Look at the x1 vs y and x2 vs y plots.",
+      "quiz": {
+        "question": "What kind of relationship does the x1 vs y scatter suggest?",
+        "options": ["Linear (straight line)", "Quadratic (curved)", "No relationship", "Exponential"],
+        "correct_index": 1,
+        "explanation": "The curved shape in the scatter indicates a nonlinear (quadratic) relationship. A linear model would underfit this data, making GPR a better choice here."
+      }
+    },
+    {
+      "step_num": 3,
+      "target_panel": "clean",
+      "instruction": "Open Step 3 — Clean. The dataset is already clean (no nulls, no outliers). You can skip to the next step. In real projects this step is where you handle missing values and outliers.",
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "designate",
+      "instruction": "Open Step 4 — Designate. Set x1 and x2 as Input columns and y as the Output column.",
+      "quiz": {
+        "question": "Why must you designate columns before training?",
+        "options": [
+          "To rename the columns",
+          "So the model knows which variables are predictors and which is the target",
+          "To remove unused columns from memory",
+          "It is not required — the model detects inputs automatically"
+        ],
+        "correct_index": 1,
+        "explanation": "The surrogate learns a function from inputs to outputs. Without telling the tool which columns play which role, it cannot construct the training matrix X and target vector y."
+      }
+    },
+    {
+      "step_num": 5,
+      "target_panel": "normalize",
+      "instruction": "Open Step 5 — Normalize. Apply Min-Max normalization to x1 and x2. This scales inputs to [0, 1] so that no variable dominates due to magnitude differences.",
+      "quiz": {
+        "question": "What happens if you skip normalization for GPR?",
+        "options": [
+          "Nothing — GPR is scale-invariant",
+          "The kernel may treat inputs with larger ranges as more important, biasing the length-scale parameters",
+          "The model will throw an error",
+          "Training will be faster"
+        ],
+        "correct_index": 1,
+        "explanation": "GPR uses a kernel (e.g., RBF) that computes distances between points. If x1 ranges 0–10 and x2 ranges 0–0.01, the kernel sees x1 as dominating every distance calculation. Normalizing first gives each input an equal starting weight."
+      }
+    },
+    {
+      "step_num": 6,
+      "target_panel": "configure",
+      "instruction": "Open Step 6 — Configure. Select GPR as the model type. Leave the test split at 0.2 and CV folds at 5.",
+      "quiz": {
+        "question": "Why is GPR a good choice for this 100-row, 2-input, smooth dataset?",
+        "options": [
+          "GPR is the fastest model",
+          "GPR provides uncertainty estimates and fits smooth responses well with small datasets",
+          "GPR requires the fewest hyperparameters",
+          "GPR is the only model that supports 2 inputs"
+        ],
+        "correct_index": 1,
+        "explanation": "GPR excels on small, smooth datasets because its kernel captures correlations between nearby points. The posterior variance also gives you a free confidence interval on every prediction — invaluable for engineering decisions."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "results",
+      "instruction": "Train the model (Step 7). After training, review the R² score and the parity plot. A well-fit model should have R² > 0.95 on this clean dataset.",
+      "quiz": {
+        "question": "On the parity plot, what does it mean if points cluster tightly along the diagonal?",
+        "options": [
+          "The model has overfit the training data",
+          "Predicted values closely match true values — the model is accurate",
+          "The model is underfitting",
+          "The test split was too small"
+        ],
+        "correct_index": 1,
+        "explanation": "The parity plot compares y_predicted vs y_true on the held-out test set. Points on the diagonal mean prediction = truth. Scatter around the diagonal indicates error; systematic curves indicate the model is missing a nonlinear pattern."
+      }
+    },
+    {
+      "step_num": 8,
+      "target_panel": "predict",
+      "instruction": "Open Step 8 — Predict. Try a single prediction: set x1 = 1.5, x2 = -2.0. The expected output is approximately 1.5² + 0.5×(-2.0)² = 4.25.",
+      "quiz": {
+        "question": "What does an extrapolation warning mean?",
+        "options": [
+          "The model crashed",
+          "Your input value is outside the range the model was trained on — treat the prediction with caution",
+          "The prediction is wrong",
+          "You need to retrain the model"
+        ],
+        "correct_index": 1,
+        "explanation": "Surrogates interpolate within the training data envelope. When you request a prediction outside that envelope, the model is extrapolating — it has no data to support the prediction there, so uncertainty is higher."
+      }
+    }
+  ]
+}
