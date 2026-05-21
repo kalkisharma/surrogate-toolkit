@@ -215,6 +215,7 @@ const _GUIDES = [
 ];
 
 async function _renderTopics(container) {
+  clearEl(container);
   const nav = el("div", { cls: "lg-topics-nav" });
   const contentArea = el("div", { cls: "lg-topics-content" });
 

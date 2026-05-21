@@ -42,18 +42,31 @@
       <span class="global-header__name">Surrogate Toolkit</span>
       <span class="global-header__version">v3.0.0</span>
     </div>
-    <nav class="global-header__controls" aria-label="Session settings">
+    <nav class="global-header__controls" aria-label="Session controls">
+
+      <!-- Level selector — inline, always visible -->
+      <select id="level-select" class="global-header__select" aria-label="Experience level" title="Experience level">
+        <option value="beginner" selected>Beginner</option>
+        <option value="intermediate">Intermediate</option>
+        <option value="expert">Expert</option>
+      </select>
+
+      <div class="global-header__sep" aria-hidden="true"></div>
+
+      <!-- File operations -->
+      <input type="file" id="header-add-file-input" accept=".csv" style="display:none" aria-label="Load additional CSV">
+      <button id="header-load-file-btn" class="global-header__btn hidden" aria-label="Load another CSV file" title="Load another CSV file">+ Load</button>
+      <input type="file" id="header-open-project-input" accept=".surrogate" style="display:none" aria-label="Open project file">
+      <button id="header-open-project-btn" class="global-header__btn" aria-label="Open project" title="Open a saved .surrogate file">📂 Open</button>
+      <button id="header-save-project-btn" class="global-header__btn" aria-label="Save project" title="Save session to .surrogate file">💾 Save</button>
+
+      <div class="global-header__sep" aria-hidden="true"></div>
+
+      <!-- Utility -->
+      <button id="theme-toggle" class="global-header__btn global-header__btn--icon" aria-label="Switch to dark mode" title="Switch to dark mode">🌙</button>
       <div class="global-header__settings-wrap">
-        <button id="settings-toggle" class="global-header__btn" aria-expanded="false" title="Session settings">⚙ Settings</button>
+        <button id="settings-toggle" class="global-header__btn global-header__btn--icon" aria-expanded="false" title="Settings">⚙</button>
         <div id="settings-dropdown" class="global-header__dropdown hidden" role="dialog" aria-label="Session settings">
-          <div class="global-header__control-group">
-            <span class="global-header__control-label">Level</span>
-            <select id="level-select" class="global-header__select" aria-label="Experience level">
-              <option value="beginner" selected>Beginner</option>
-              <option value="intermediate">Intermediate</option>
-              <option value="expert">Expert</option>
-            </select>
-          </div>
           <div class="global-header__control-group">
             <span class="global-header__control-label">Class</span>
             <select id="classification-select" class="global-header__select" aria-label="Data classification">
@@ -68,18 +81,23 @@
             <input id="cores-input" type="number" class="global-header__input"
                    min="1" value="1" aria-label="Processor count">
           </div>
+          <div class="global-header__control-group level-expert-only">
+            <button id="state-viewer-btn" class="global-header__btn global-header__btn--full"
+                    aria-label="View raw session STATE" title="View raw session STATE">{ } View STATE</button>
+          </div>
+          <div class="global-header__dropdown-sep"></div>
+          <button id="clear-session-btn"
+                  class="global-header__btn global-header__btn--danger global-header__btn--full"
+                  aria-label="Clear session" title="Clear all loaded datasets and return to upload screen">✕ Clear Session</button>
         </div>
       </div>
-      <input type="file" id="header-add-file-input" accept=".csv" style="display:none" aria-label="Load additional CSV">
-      <button id="header-load-file-btn" class="global-header__btn hidden" aria-label="Load another CSV file" title="Load another CSV file">+ Load File</button>
-      <input type="file" id="header-open-project-input" accept=".surrogate" style="display:none" aria-label="Open project file">
-      <button id="header-save-project-btn" class="global-header__btn" aria-label="Save project" title="Save session to .surrogate file">💾 Save</button>
-      <button id="header-open-project-btn" class="global-header__btn" aria-label="Open project" title="Open a saved .surrogate file">📂 Open</button>
-      <button id="clear-session-btn" class="global-header__btn" aria-label="Clear session" title="Clear all loaded datasets and return to upload screen">✕ Clear</button>
-      <button id="theme-toggle" class="global-header__btn" aria-label="Switch to dark mode" title="Switch to dark mode">🌙</button>
-      <button id="state-viewer-btn" class="global-header__btn level-expert-only" aria-label="View raw session STATE" title="View raw session STATE (Expert)">{ }</button>
+
+      <div class="global-header__sep" aria-hidden="true"></div>
+
+      <!-- Learning tools -->
       <button id="guide-btn" class="global-header__btn" aria-label="Open learning guide" title="Open learning guide">? Guide</button>
       <button id="learning-toggle" class="global-header__btn global-header__btn--learning" aria-label="Toggle learning mode" aria-pressed="false">📚 Learning</button>
+
     </nav>
   </header>
 
