@@ -221,7 +221,7 @@ The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full ph
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | TBD | Team deployment, auth, HPC integration | 🔲 Not defined |
+| **M4** | v4.0.0 | 17–20 | Team deployment, auth, HPC integration | 🔲 In progress |
 
 ### Phase → version map
 
@@ -243,6 +243,10 @@ The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full ph
 | Phase 14 | Advanced Surrogate Models | v2.1.0 | ✅ Complete |
 | Phase 15 | Multi-Fidelity Modeling | v2.3.0 | ✅ Complete |
 | Phase 16 | Ensemble Surrogates | v2.2.0 | ✅ Complete |
+| Phase 17 | Guided Exercises | v3.1.0 | 🔲 Not started |
+| Phase 18 | Authentication | v3.2.0 | 🔲 Not started |
+| Phase 19 | Surrogate Export & Sharing | v3.3.0 | 🔲 Not started |
+| Phase 20 | HPC Integration | v4.0.0 | 🔲 Not started |
 
 ### Files to update on every version bump
 
