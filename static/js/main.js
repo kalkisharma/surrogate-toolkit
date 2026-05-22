@@ -321,6 +321,7 @@ async function _renderExploration(uploadResponse) {
   let _currentInputCols  = meta.input_columns  || [];
   let _currentOutputCols = meta.output_columns || [];
   let _currentNorm       = meta.normalization_method || null;
+  let _currentModelType  = null;   // set after training; drives Results sidebar badge
 
   // ── Layout skeleton ───────────────────────────────────────────────────────
   const layout    = el("div", { cls: "workflow-layout" });
@@ -406,6 +407,11 @@ async function _renderExploration(uploadResponse) {
 
       item.appendChild(numEl);
       item.appendChild(lblEl);
+      if (key === "results" && _currentModelType) {
+        const badgeEl = el("span", { cls: "step-item__model-badge",
+          text: _currentModelType.toUpperCase() });
+        item.appendChild(badgeEl);
+      }
       item.appendChild(icnEl);
       sidebarEl.appendChild(item);
 
@@ -576,6 +582,8 @@ async function _renderExploration(uploadResponse) {
     _subtitle(key);
     const hasResults = await initResults(container);
     if (hasResults) {
+      const rr = await get("/api/model/results");
+      _currentModelType = rr.success ? (rr.results?.model_type || null) : null;
       stepCompleted["results"]   = true;
       stepUnlocked["predict"]    = true;
       stepUnlocked["optimize"]   = true;
@@ -630,6 +638,7 @@ async function _renderExploration(uploadResponse) {
   // ── Check for existing trained model ─────────────────────────────────────
   const resultsCheck = await get("/api/model/results");
   if (resultsCheck.success && resultsCheck.results) {
+    _currentModelType          = resultsCheck.results.model_type || null;
     stepUnlocked["results"]    = true;
     stepUnlocked["predict"]    = true;
     stepUnlocked["optimize"]   = true;

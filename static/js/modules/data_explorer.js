@@ -239,19 +239,13 @@ export async function initExploration(containerEl, uploadResponse) {
 
   // ── Initial render ────────────────────────────────────────────────────────
   // Set height synchronously so the stats section below is positioned correctly.
-  // Then defer rendering one frame so the browser commits the height to layout
-  // before Plotly reads clientHeight (prevents the initial-squish on first load).
+  // Defer one frame so the browser commits layout before Plotly reads clientHeight.
+  // Use _rerender() — it never calls Plotly.Plots.resize, which avoids a sizing
+  // loop where Plotly reads the padded parent clientHeight instead of the element's
+  // inline height and produces the wrong initial vertical size.
   chartInner.style.height = autoHeight + "px";
   _applyWidth();
-  requestAnimationFrame(() => {
-    renderScatterMatrix(chartInner, _currentColumns, plotRows, {
-      outlierIndices: _showOutliers ? _outlierIndices : new Set(),
-      ..._chartSettings,
-      markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
-      height:     _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
-    });
-    requestAnimationFrame(() => Plotly.Plots.resize(chartInner));
-  });
+  requestAnimationFrame(() => _rerender());
 
   // ── Event wiring ──────────────────────────────────────────────────────────
   outlierCheckbox.addEventListener("change", () => {

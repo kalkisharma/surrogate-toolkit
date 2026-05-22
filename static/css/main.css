@@ -2126,13 +2126,27 @@ body,
 }
 .step-item--complete .step-item__label { color: var(--color-text-primary); }
 
+.step-item__model-badge {
+  font-size: 10px;
+  font-weight: var(--font-semi);
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  flex-shrink: 0;
+  margin-right: var(--space-1);
+  letter-spacing: 0.03em;
+}
+
 /* Collapsed sidebar — hide labels and icons, centre number */
 .workflow-sidebar--collapsed .step-item {
   justify-content: center;
   padding: var(--space-2);
 }
 .workflow-sidebar--collapsed .step-item__label,
-.workflow-sidebar--collapsed .step-item__icon { display: none; }
+.workflow-sidebar--collapsed .step-item__icon,
+.workflow-sidebar--collapsed .step-item__model-badge { display: none; }
 .workflow-sidebar--collapsed .sidebar-collapse-btn { justify-content: center; }
 
 /* Per-panel file metadata subtitle */
