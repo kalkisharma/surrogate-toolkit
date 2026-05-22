@@ -530,7 +530,7 @@ def datasets():
             "columns":              m.get("columns", []),
             "dtypes":               m.get("dtypes", {}),
             "null_counts":          m.get("null_counts", {}),
-            "preview_rows":         m.get("preview_rows", []),
+            "preview_rows":         _numpy_to_python(m.get("preview_rows", [])),
             "input_columns":        m.get("input_columns", []),
             "output_columns":       m.get("output_columns", []),
             "normalization_method": m.get("normalization_method"),
@@ -1409,6 +1409,8 @@ def _to_python(val):
         return None if np.isnan(val) else float(val)
     if isinstance(val, (np.bool_,)):
         return bool(val)
+    if isinstance(val, float) and (val != val):   # catches Python native float('nan')
+        return None
     return val
 
 

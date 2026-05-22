@@ -767,11 +767,18 @@ async function _refreshDatasetSwitcher() {
   }
 
   select.addEventListener("change", async () => {
-    await put("/api/state/session", { active_dataset_key: select.value });
+    const targetKey = select.value;
+    await put("/api/state/session", { active_dataset_key: targetKey });
     await refreshState();
     const dsResp = await get("/api/data/datasets");
-    const active = dsResp.datasets?.find((d) => d.key === select.value);
+    if (!dsResp.success) {
+      showError("Could not load dataset list. Please try again.");
+      return;
+    }
+    const active = dsResp.datasets?.find((d) => d.key === targetKey);
     if (active) {
+      // Dismiss any active exercise overlay — it belongs to the previous dataset
+      document.getElementById("ex-overlay")?.remove();
       const uploadMeta = {
         metadata: {
           filename:             active.filename,
@@ -792,10 +799,10 @@ async function _refreshDatasetSwitcher() {
           total_rows: active.n_rows,
         },
       };
-      _renderExploration(uploadMeta);
+      await _renderExploration(uploadMeta);
       showSuccess(`Switched to "${active.filename}"`);
     }
-    _refreshDatasetSwitcher();
+    await _refreshDatasetSwitcher();
   });
 
   switcher.appendChild(label);

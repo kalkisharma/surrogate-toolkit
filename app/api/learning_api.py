@@ -367,7 +367,7 @@ def update_progress():
 # ─── SERIALISATION HELPERS ────────────────────────────────────────────────────
 
 def _numpy_to_python(obj):
-    """Recursively convert NumPy scalars to Python native types."""
+    """Recursively convert NumPy scalars / native NaN to JSON-safe Python types."""
     if isinstance(obj, list):
         return [_numpy_to_python(i) for i in obj]
     if isinstance(obj, dict):
@@ -376,6 +376,8 @@ def _numpy_to_python(obj):
         return int(obj)
     if isinstance(obj, (np.floating,)):
         return None if np.isnan(obj) else float(obj)
+    if isinstance(obj, float) and (obj != obj):   # catches Python native float('nan')
+        return None
     return obj
 
 
@@ -386,6 +388,8 @@ def _to_python(val):
         return int(val)
     if isinstance(val, (np.floating,)):
         return None if np.isnan(val) else float(val)
+    if isinstance(val, float) and (val != val):   # catches Python native float('nan')
+        return None
     return val
 
 
