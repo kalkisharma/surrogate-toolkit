@@ -535,6 +535,96 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
 }
 
 /**
+ * Render a Pearson |r| correlation heatmap for input screening.
+ * Cells that meet or exceed `threshold` are shown with a red border annotation.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {string[]}    labels      - Input column names (x and y axes)
+ * @param {object}      matrix      - dict[col][col] → |r| value (−1 to 1)
+ * @param {number}      [threshold=0.9] - Flag threshold; highlighted in annotations
+ * @param {object}      [options={}]
+ */
+export function renderCorrelationHeatmap(containerEl, labels, matrix, threshold = 0.9, options = {}) {
+  const isDark     = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontColor  = options.fontColor ?? (isDark ? "#8b94b3" : "#4b5478");
+  const fontSize   = options.fontSize  ?? 11;
+  const showAnnot  = options.showAnnotations ?? (labels.length <= 12);
+  const height     = options.height ?? Math.max(280, labels.length * 44 + 100);
+  const annotSize  = Math.max(7, fontSize - Math.max(0, labels.length - 6));
+
+  // Build z matrix from absolute values for display
+  const z     = labels.map(r => labels.map(c => Math.abs(matrix[r]?.[c] ?? 0)));
+  const zText = z.map(row => row.map(v => v.toFixed(2)));
+
+  const colorscale = [
+    [0,   isDark ? "#1e2333" : "#f5f7fb"],
+    [0.5, "rgba(245,158,11,0.55)"],
+    [1,   "rgba(239,68,68,0.9)"],
+  ];
+
+  const trace = {
+    type:          "heatmap",
+    x:             labels,
+    y:             labels,
+    z,
+    colorscale,
+    zmin:          0,
+    zmax:          1,
+    hovertemplate: "%{y} vs %{x}: |r| = %{z:.3f}<extra></extra>",
+    showscale:     true,
+    colorbar: {
+      title:     { text: "|r|", font: { size: fontSize, color: fontColor } },
+      thickness: 14,
+      len:       0.8,
+      tickfont:  { size: Math.max(8, fontSize - 1), color: fontColor },
+      tickvals:  [0, 0.5, 1],
+      ticktext:  ["0", "0.5", "1"],
+    },
+  };
+
+  const annotations = showAnnot
+    ? zText.flatMap((row, ri) =>
+        row.map((val, ci) => {
+          const v     = parseFloat(val);
+          const above = v >= threshold;
+          return {
+            x:         labels[ci],
+            y:         labels[ri],
+            text:      val,
+            showarrow: false,
+            font:      { size: annotSize, color: above ? "#ffffff" : fontColor,
+                         weight: above ? 700 : 400 },
+          };
+        })
+      )
+    : [];
+
+  const layout = {
+    paper_bgcolor: "rgba(0,0,0,0)",
+    plot_bgcolor:  "rgba(0,0,0,0)",
+    height,
+    margin:      { t: 20, b: 100, l: 100, r: 70 },
+    font:        { color: fontColor, family: "Inter, system-ui, sans-serif", size: fontSize },
+    xaxis:       { tickangle: -40, tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
+    yaxis:       { tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
+    annotations,
+    shapes: labels.flatMap((r, ri) =>
+      labels.map((c, ci) => {
+        const v = Math.abs(matrix[r]?.[c] ?? 0);
+        return v >= threshold && ri !== ci
+          ? { type: "rect", xref: "x", yref: "y",
+              x0: ci - 0.5, x1: ci + 0.5, y0: ri - 0.5, y1: ri + 0.5,
+              line: { color: "rgba(239,68,68,0.8)", width: 2 }, fillcolor: "rgba(0,0,0,0)" }
+          : null;
+      }).filter(Boolean)
+    ),
+  };
+
+  Plotly.react(containerEl, [trace], layout,
+    { responsive: true, displayModeBar: false, staticPlot: false });
+}
+
+/**
  * Render before/after box plots for each normalized input column.
  * One small Plotly chart per column (two box plots side by side), tiled in a grid.
  *

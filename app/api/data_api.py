@@ -1398,6 +1398,179 @@ def clean_transform():
     }), 200
 
 
+# ─── INPUT SCREENING ─────────────────────────────────────────────────────────
+
+
+@bp.route("/screen", methods=["POST"])
+def screen_inputs():
+    """
+    Compute Pearson correlation matrix + flagged pairs + low-variance flags
+    for all designated input columns.
+
+    Body JSON (optional):
+        threshold    (float, default 0.9)  — |r| threshold for flagging correlated pairs
+        cv_threshold (float, default 0.01) — coefficient of variation threshold for low-variance flag
+    """
+    data         = request.get_json(silent=True) or {}
+    threshold    = float(data.get("threshold",    0.9))
+    cv_threshold = float(data.get("cv_threshold", 0.01))
+
+    state      = current_app.config["STATE"]
+    primary    = state["datasets"]["primary"]
+    meta       = primary["metadata"]
+    input_cols = meta.get("input_columns", [])
+
+    if not input_cols:
+        return jsonify({
+            "success":    False,
+            "error_code": "NO_INPUT_COLUMNS",
+            "message":    "No input columns designated. Complete Step 5 — Assign first.",
+        }), 400
+
+    df = primary.get("normalized") or primary.get("clean")
+    X  = df[input_cols]
+
+    # Pearson correlation matrix
+    corr = X.corr(method="pearson")
+
+    # Flagged pairs — upper triangle only, sorted by |r| descending
+    flagged_pairs = []
+    for i, col_a in enumerate(input_cols):
+        for j, col_b in enumerate(input_cols):
+            if j <= i:
+                continue
+            r = float(corr.loc[col_a, col_b])
+            if abs(r) >= threshold:
+                flagged_pairs.append({
+                    "col_a": col_a,
+                    "col_b": col_b,
+                    "r":     round(r, 4),
+                    "abs_r": round(abs(r), 4),
+                })
+    flagged_pairs.sort(key=lambda x: x["abs_r"], reverse=True)
+
+    # Low-variance flags — coefficient of variation = |std / mean|
+    low_variance = []
+    for col in input_cols:
+        series = X[col].dropna()
+        if len(series) == 0:
+            continue
+        mean = float(series.mean())
+        std  = float(series.std()) if len(series) > 1 else 0.0
+        # Use std directly when mean ≈ 0 to avoid division by near-zero
+        cv = abs(std / mean) if abs(mean) > 1e-10 else std
+        if cv < cv_threshold:
+            low_variance.append({
+                "col":  col,
+                "cv":   round(cv, 6),
+                "std":  round(std, 6),
+                "mean": round(mean, 6),
+            })
+
+    # Correlation matrix as dict[col][col] → float
+    corr_dict = {
+        col: {other: round(float(corr.loc[col, other]), 4) for other in input_cols}
+        for col in input_cols
+    }
+
+    return jsonify({
+        "success":            True,
+        "input_columns":      input_cols,
+        "threshold":          threshold,
+        "cv_threshold":       cv_threshold,
+        "correlation_matrix": corr_dict,
+        "flagged_pairs":      flagged_pairs,
+        "low_variance":       low_variance,
+    }), 200
+
+
+@bp.route("/screen/apply", methods=["PUT"])
+def screen_apply():
+    """
+    Apply a screened input column subset to STATE.
+    Clears the surrogate session — retraining required after input space changes.
+
+    Body JSON:
+        input_columns (list[str], required) — subset of designated input columns to keep
+    """
+    data           = request.get_json(silent=True) or {}
+    new_input_cols = list(data.get("input_columns", []))
+
+    state      = current_app.config["STATE"]
+    primary    = state["datasets"]["primary"]
+    meta       = primary["metadata"]
+    all_inputs = meta.get("input_columns", [])
+
+    if not all_inputs:
+        return jsonify({
+            "success":    False,
+            "error_code": "NO_INPUT_COLUMNS",
+            "message":    "No input columns designated.",
+        }), 400
+
+    if len(new_input_cols) < 1:
+        return jsonify({
+            "success":    False,
+            "error_code": "TOO_FEW_INPUTS",
+            "message":    "At least one input column must be selected.",
+        }), 400
+
+    invalid = [c for c in new_input_cols if c not in all_inputs]
+    if invalid:
+        return jsonify({
+            "success":    False,
+            "error_code": "INVALID_COLUMNS",
+            "message":    f"Columns not in designated inputs: {invalid}",
+        }), 400
+
+    # Update input_columns in primary metadata
+    meta["input_columns"] = new_input_cols
+    meta["n_inputs"]      = len(new_input_cols)
+
+    # Mirror to the active dataset entry
+    active_key = state["datasets"].get("active_dataset_key")
+    if active_key and active_key in state["datasets"]["_datasets"]:
+        ds_meta = state["datasets"]["_datasets"][active_key]["metadata"]
+        ds_meta["input_columns"] = new_input_cols
+        ds_meta["n_inputs"]      = len(new_input_cols)
+
+    # Clear surrogate session — input space changed; retraining required
+    state["surrogate_sessions"]["primary"]["models"] = {}
+    state["surrogate_sessions"]["primary"]["config"] = {
+        "model_type":  None,
+        "test_split":  DEFAULT_TEST_SPLIT,
+        "cv_folds":    DEFAULT_CV_FOLDS,
+        "hyperparams": {},
+    }
+    if active_key and active_key in state["datasets"]["_datasets"]:
+        state["datasets"]["_datasets"][active_key]["surrogate_session"] = {
+            "models": {},
+            "config": {
+                "model_type": None,
+                "test_split": DEFAULT_TEST_SPLIT,
+                "cv_folds":   DEFAULT_CV_FOLDS,
+            },
+        }
+
+    n_dropped = len(all_inputs) - len(new_input_cols)
+    append_audit_event(state, "inputs_screened", {
+        "original_inputs": all_inputs,
+        "selected_inputs": new_input_cols,
+        "n_dropped":       n_dropped,
+    })
+
+    return jsonify({
+        "success":       True,
+        "input_columns": new_input_cols,
+        "n_selected":    len(new_input_cols),
+        "n_dropped":     n_dropped,
+        "message":       (
+            f"{len(new_input_cols)} input{'s' if len(new_input_cols) != 1 else ''} selected"
+            + (f", {n_dropped} removed." if n_dropped else ".")
+        ),
+    }), 200
+
+
 # ─── SERIALISATION HELPERS ────────────────────────────────────────────────────
 
 

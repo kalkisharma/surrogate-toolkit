@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.1.1
+// Version: 3.2.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 14 lazy-init panels).
@@ -21,6 +21,7 @@ import { initModelConfig } from "./modules/model_config.js";
 import { initResults } from "./modules/results.js";
 import { initPrediction } from "./modules/prediction.js";
 import { initInterpretation } from "./modules/interpretation.js";
+import { initScreening } from "./modules/input_screening.js";
 import { initActiveLearning } from "./modules/active_learning.js";
 import { initOptimization } from "./modules/optimization.js";
 import { initComparison } from "./modules/comparison.js";
@@ -333,14 +334,14 @@ async function _renderExploration(uploadResponse) {
   app.appendChild(layout);
 
   // ── Panel containers ──────────────────────────────────────────────────────
-  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "optimize", "interpret", "active", "compare", "export"];
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "screen", "configure", "results", "predict", "optimize", "interpret", "active", "compare", "export"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
-                        designate: "Assign", normalize: "Normalize", configure: "Model",
+                        designate: "Assign", normalize: "Normalize", screen: "Screen", configure: "Model",
                         results: "Results", predict: "Predict", optimize: "Optimize",
                         interpret: "Interpret", active: "Sample", compare: "Compare", export: "Export" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
-                        designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, optimize: 10,
-                        interpret: 11, active: 12, compare: 13, export: 14 };
+                        designate: 5, normalize: 6, screen: 7, configure: 8, results: 9, predict: 10,
+                        optimize: 11, interpret: 12, active: 13, compare: 14, export: 15 };
 
   const panelEls      = {};   // outer panel div — used only for .hidden toggling
   const _panelContent = {};   // inner content div — passed to modules; clearable
@@ -363,12 +364,14 @@ async function _renderExploration(uploadResponse) {
   const hasDesignation = _currentInputCols.length > 0;
   const stepUnlocked = {
     upload: true, preview: true, explore: true, clean: true, designate: true,
-    normalize: hasDesignation, configure: hasDesignation, results: false, predict: false, optimize: false,
+    normalize: hasDesignation, screen: hasDesignation, configure: hasDesignation,
+    results: false, predict: false, optimize: false,
     interpret: false, active: false, compare: false, export: hasDesignation,
   };
   const stepCompleted = {
     upload: true, preview: false, explore: false, clean: false,
-    designate: hasDesignation, normalize: false, configure: false, results: false, predict: false, optimize: false,
+    designate: hasDesignation, normalize: false, screen: false, configure: false,
+    results: false, predict: false, optimize: false,
     interpret: false, active: false, compare: false, export: false,
   };
 
@@ -473,9 +476,10 @@ async function _renderExploration(uploadResponse) {
       case "preview":   _initPreviewPanel(container, key);        break;
       case "explore":   await _initExplorePanel(container, key);  break;
       case "clean":     await _initCleanPanel(container, key);    break;
-      case "designate": _initDesignatePanel(container, key);      break;
-      case "normalize": _initNormalizePanel(container, key);      break;
-      case "configure": _initConfigurePanel(container, key);      break;
+      case "designate": _initDesignatePanel(container, key);         break;
+      case "normalize": _initNormalizePanel(container, key);         break;
+      case "screen":    await _initScreenPanel(container, key);      break;
+      case "configure": _initConfigurePanel(container, key);         break;
       case "results":    await _initResultsPanel(container, key);    break;
       case "predict":    await _initPredictPanel(container, key);    break;
       case "optimize":   await _initOptimizePanel(container, key);         break;
@@ -576,7 +580,28 @@ async function _renderExploration(uploadResponse) {
     initNormalization(container, _currentNorm, _currentInputCols.length);
   }
 
-  // ── Step 7 — Configure + Train ────────────────────────────────────────────
+  // ── Step 7 — Screen Inputs ────────────────────────────────────────────────
+  async function _initScreenPanel(container, key) {
+    clearEl(container);
+    _subtitle(key);
+    await initScreening(container, _currentInputCols);
+    // Listen for Apply — refresh input cols and mark step complete
+    container.addEventListener("screen:applied", (e) => {
+      _currentInputCols = e.detail.input_columns;
+      stepCompleted["screen"] = true;
+      // Clear results state — surrogate session was reset on server
+      stepUnlocked["results"] = false;
+      stepCompleted["results"] = false;
+      _currentModelType = null;
+      panelDone["results"] = false;
+      panelDone["configure"] = false;
+      clearEl(_panelContent["results"]);
+      clearEl(_panelContent["configure"]);
+      buildSidebar();
+    }, { once: false });
+  }
+
+  // ── Step 8 — Configure + Train ────────────────────────────────────────────
   function _initConfigurePanel(container, key) {
     clearEl(container);
     _subtitle(key);
