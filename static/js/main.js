@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.0.0
+// Version: 3.1.1
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 14 lazy-init panels).
@@ -335,9 +335,9 @@ async function _renderExploration(uploadResponse) {
   // ── Panel containers ──────────────────────────────────────────────────────
   const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "configure", "results", "predict", "optimize", "interpret", "active", "compare", "export"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
-                        designate: "Designate", normalize: "Normalize", configure: "Configure",
+                        designate: "Assign", normalize: "Normalize", configure: "Model",
                         results: "Results", predict: "Predict", optimize: "Optimize",
-                        interpret: "Interpret", active: "Active", compare: "Compare", export: "Export" };
+                        interpret: "Interpret", active: "Sample", compare: "Compare", export: "Export" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
                         designate: 5, normalize: 6, configure: 7, results: 8, predict: 9, optimize: 10,
                         interpret: 11, active: 12, compare: 13, export: 14 };
@@ -404,6 +404,12 @@ async function _renderExploration(uploadResponse) {
       const lblEl = el("span", { cls: "step-item__label", text: STEP_LABELS[key] });
       const icnEl = el("span", { cls: "step-item__icon",
         text: isLocked ? "🔒" : isComplete ? "✓" : "" });
+
+      if (key === "predict") {
+        const divider = el("div", { cls: "sidebar-group-divider" });
+        divider.innerHTML = `<span class="sidebar-group-label">Tools</span>`;
+        sidebarEl.appendChild(divider);
+      }
 
       item.appendChild(numEl);
       item.appendChild(lblEl);

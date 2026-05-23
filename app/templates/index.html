@@ -11,7 +11,7 @@
        start clean rather than inheriting a stale dark preference. -->
   <script>
     (function () {
-      var currentVer = "3.1.0";
+      var currentVer = "3.1.1";
       if (localStorage.getItem("app_version") !== currentVer) {
         localStorage.removeItem("theme");
         localStorage.setItem("app_version", currentVer);
@@ -28,11 +28,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <!-- Stylesheets — ?v= busts browser cache on version bumps -->
-  <link rel="stylesheet" href="/static/css/variables.css?v=3.1.0">
-  <link rel="stylesheet" href="/static/css/main.css?v=3.1.0">
-  <link rel="stylesheet" href="/static/css/notifications.css?v=3.1.0">
-  <link rel="stylesheet" href="/static/css/loading.css?v=3.1.0">
-  <link rel="stylesheet" href="/static/css/learning_mode.css?v=3.1.0">
+  <link rel="stylesheet" href="/static/css/variables.css?v=3.1.1">
+  <link rel="stylesheet" href="/static/css/main.css?v=3.1.1">
+  <link rel="stylesheet" href="/static/css/notifications.css?v=3.1.1">
+  <link rel="stylesheet" href="/static/css/loading.css?v=3.1.1">
+  <link rel="stylesheet" href="/static/css/learning_mode.css?v=3.1.1">
 </head>
 <body>
 
@@ -40,7 +40,7 @@
   <header id="global-header" role="banner" aria-label="Application header">
     <div class="global-header__brand">
       <span class="global-header__name">Surrogate Toolkit</span>
-      <span class="global-header__version">v3.1.0</span>
+      <span class="global-header__version">v3.1.1</span>
     </div>
     <nav class="global-header__controls" aria-label="Session controls">
 
@@ -57,8 +57,8 @@
       <input type="file" id="header-add-file-input" accept=".csv" style="display:none" aria-label="Load additional CSV">
       <button id="header-load-file-btn" class="global-header__btn hidden" aria-label="Load another CSV file" title="Load another CSV file">+ Load</button>
       <input type="file" id="header-open-project-input" accept=".surrogate" style="display:none" aria-label="Open project file">
-      <button id="header-open-project-btn" class="global-header__btn" aria-label="Open project" title="Open a saved .surrogate file">📂 Open</button>
-      <button id="header-save-project-btn" class="global-header__btn" aria-label="Save project" title="Save session to .surrogate file">💾 Save</button>
+      <button id="header-open-project-btn" class="global-header__btn" aria-label="Open project" title="Open a saved .surrogate file">Open</button>
+      <button id="header-save-project-btn" class="global-header__btn" aria-label="Save project" title="Save session to .surrogate file">Save</button>
 
       <div class="global-header__sep" aria-hidden="true"></div>
 
@@ -95,8 +95,8 @@
       <div class="global-header__sep" aria-hidden="true"></div>
 
       <!-- Learning tools -->
-      <button id="guide-btn" class="global-header__btn" aria-label="Open learning guide" title="Open learning guide">? Guide</button>
-      <button id="learning-toggle" class="global-header__btn global-header__btn--learning" aria-label="Toggle learning mode" aria-pressed="false">📚 Learning</button>
+      <button id="guide-btn" class="global-header__btn" aria-label="Open learning guide" title="Open learning guide">Guide</button>
+      <button id="learning-toggle" class="global-header__btn global-header__btn--learning" aria-label="Toggle learning mode" aria-pressed="false">Learning</button>
 
     </nav>
   </header>
@@ -111,7 +111,7 @@
   <script src="/static/vendor/plotly.min.js"></script>
 
   <!-- App entry point — ?v= busts browser cache on version bumps -->
-  <script type="module" src="/static/js/main.js?v=3.1.0"></script>
+  <script type="module" src="/static/js/main.js?v=3.1.1"></script>
 
 </body>
 </html>
