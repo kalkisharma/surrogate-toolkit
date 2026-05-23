@@ -1,7 +1,7 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-20
-**Total phases:** 20 across 4 milestones
+**Last updated:** 2026-05-23
+**Total phases:** 21 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
 ---
@@ -13,7 +13,7 @@
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–20 | Team deployment, auth, HPC integration | 🔲 In definition |
+| **M4** | v4.0.0 | 17–21 | Team deployment, auth, HPC integration | 🔲 In definition |
 
 ---
 
@@ -761,24 +761,74 @@
 
 ---
 
-### Phase 18 — Authentication
-**Status:** 🔲 Not started | **Version:** v3.2.0
+### Phase 18 — Input Screening
+**Status:** 🔲 In definition | **Version:** v3.2.0
+
+**Purpose:** Give engineers a structured, interactive step to identify and remove redundant or uninformative input columns before training — reducing surrogate dimensionality and improving model accuracy without requiring statistical expertise.
+
+**User story:** An engineer has 8 input columns from a trade study. Two are nearly identical (highly correlated); one is a constant that was accidentally included. Phase 18 flags both issues, shows a correlation heatmap, and lets the engineer decide which columns to drop before clicking Train.
+
+**Workflow change:** Inserts new **Step 7 — Screen** between Normalize (Step 6) and Model (Step 8). All downstream steps renumber +1 (Model→8, Results→9, Predict→10, Optimize→11, Interpret→12, Sample→13, Compare→14, Export→15). The step is optional — users can skip from Normalize directly to Model.
+
+**Scope (MVP — agreed):**
+
+- **Correlation heatmap** — Plotly heatmap of Pearson |r| matrix across all designated input columns; threshold slider (default 0.9) highlights flagged cells
+- **Flagged pairs table** — lists correlated pairs: `Input A | Input B | |r|`; user selects which of each pair to retain (tool never auto-removes)
+- **Low-variance flags** — inputs where coefficient of variation (std ÷ mean) is below threshold listed as candidates to drop
+- **Input toggle checkboxes** — full input list with checkboxes; flagged inputs pre-unchecked but user freely overrides
+- **Apply button** — writes selected input set back to `input_columns` in STATE; navigates to Step 8 Model
+- **Skip-friendly** — no action required; users may proceed to Model without visiting Screen
+- Audit event: `inputs_screened`
+- Learning mode primer explaining correlation redundancy and low-variance inputs
+
+**Deferred (future enhancements):**
+
+- **VIF (Variance Inflation Factor)** — more rigorous multicollinearity check than pairwise |r|; catches three-way collinearity missed by pairwise correlation. Deferred: adds complexity with no MVP benefit over pairwise |r|.
+- **PCA (Principal Component Analysis)** — transform inputs to uncorrelated principal components; reduces dimensionality while preserving variance. Deferred: separate feature; trades physical variable interpretability for dimensionality reduction — separate scoping discussion required.
+- **Sobol integration** — if Phase 8 Interpret results exist, show ST sensitivity indices alongside correlation flags as a third screening criterion (low-ST inputs are candidates to drop). Deferred: can be added as Phase 8 enhancement after Screen ships.
+- **Auto-selection** — algorithm-driven column removal (e.g., select subset that maximizes cross-validated R²). Deferred: tool suggests, engineer decides; auto-removal conflicts with engineering accountability requirements.
+
+**Backend:**
+- `POST /api/data/screen` — compute Pearson correlation matrix + flagged pairs + low-variance list from `primary["clean"]` restricted to `input_columns`; return JSON (numpy only, no new packages)
+- `PUT /api/data/screen/apply` — write updated `input_columns` to STATE; clear surrogate session (retraining required after input change)
+- `app/api/data_api.py` — add both endpoints (~50 lines)
+
+**Frontend:**
+- New module: `static/js/modules/input_screening.js` (~200 lines)
+- `static/js/charts.js` — `renderCorrelationHeatmap(containerEl, matrix, labels, options)`
+- `static/js/main.js` — insert `"screen"` into STEP_KEYS between `"normalize"` and `"configure"`; update STEP_LABELS, STEP_NUMS (+1 for configure through export); add `_initScreenPanel()`; unlock logic (unlocks after normalization completes)
+
+**Dependencies:** Phase 3 (column designation — input_columns must be set before screening). No new pip packages.
+
+**Definition of done:**
+- Correlation heatmap renders correctly for a 6-input dataset with one known correlated pair
+- Flagged pairs table shows pair with |r| ≥ threshold; threshold slider updates heatmap in real time
+- Low-variance flag correctly identifies a near-constant column
+- User deselects two inputs → Apply → Model step trains only on remaining inputs
+- Skipping Screen → Model trains on full designated input set (no regression)
+- Sobol analysis (Phase 8) reflects reduced input set after Apply
+- All existing tests pass; new unit tests for `/api/data/screen` endpoint
+
+---
+
+### Phase 19 — Authentication
+**Status:** 🔲 Not started | **Version:** v3.3.0
 
 *(Scope TBD — defined in next team review)*
 
 ---
 
-### Phase 19 — Surrogate Export & Sharing
-**Status:** 🔲 Not started | **Version:** v3.3.0
+### Phase 20 — Surrogate Export & Sharing
+**Status:** 🔲 Not started | **Version:** v3.4.0
 
-*(Scope TBD — requires Phase 18)*
+*(Scope TBD — requires Phase 19)*
 
 ---
 
-### Phase 20 — HPC Integration
+### Phase 21 — HPC Integration
 **Status:** 🔲 Not started | **Version:** v4.0.0
 
-*(Scope TBD — requires Phase 18; earns major version bump for async architecture change)*
+*(Scope TBD — requires Phase 19; earns major version bump for async architecture change)*
 
 ---
 
@@ -802,9 +852,10 @@
 | Phase 15 | Phase 4, Phase 10, Phase 14 |
 | Phase 16 | Phase 4 (Phase 14 recommended) |
 | Phase 17 | Phase 13A (Guide modal); Phase 7 (progress persistence) |
-| Phase 18 | None (standalone auth layer) |
-| Phase 19 | Phase 18 |
-| Phase 20 | Phase 18 |
+| Phase 18 | Phase 3 (column designation — input_columns set before screening) |
+| Phase 19 | None (standalone auth layer) |
+| Phase 20 | Phase 19 |
+| Phase 21 | Phase 19 |
 
 ---
 
@@ -817,5 +868,6 @@
 | Phase 11 | `weasyprint` | HTML-to-PDF report rendering |
 | Phase 14 | `chaospy` | Polynomial Chaos Expansion |
 | Phase 17 | None | Exercises use existing Flask + NumPy |
-| Phase 18 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
-| Phase 20 | `celery`, `redis` | Async job queue for HPC submission |
+| Phase 18 | None | Input screening uses existing NumPy/Pandas |
+| Phase 19 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
+| Phase 21 | `celery`, `redis` | Async job queue for HPC submission |

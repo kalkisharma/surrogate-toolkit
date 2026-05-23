@@ -46,16 +46,8 @@ export async function initComparison(containerEl) {
   const datasets   = statusResp.datasets || [];
   const withModels = datasets.filter(d => d.has_model);
 
-  if (datasets.length < 2) {
-    _renderNoDataGate(containerEl, datasets.length === 0
-      ? "No datasets loaded. Upload at least two datasets to compare."
-      : "Only one dataset loaded. Load a second dataset via + Load File in the header.");
-    return;
-  }
-
-  if (withModels.length < 2) {
-    _renderNoDataGate(containerEl,
-      "At least two datasets must have trained models. Complete Step 7 — Configure Training for each dataset first.");
+  if (datasets.length < 2 || withModels.length < 2) {
+    _renderPrereqChecklist(containerEl, datasets);
     return;
   }
 
@@ -418,13 +410,29 @@ function _renderErrorModel(container, resp) {
 
 // ── Gate ──────────────────────────────────────────────────────────────────────
 
-function _renderNoDataGate(containerEl, msg = null) {
+function _renderPrereqChecklist(containerEl, datasets) {
+  const hasTwo   = datasets.length >= 2;
+  const modelled = datasets.filter(d => d.has_model);
+
+  const row = (done, label) => `
+    <div class="compare-prereq-row">
+      <span class="compare-prereq-icon ${done ? "compare-prereq-icon--done" : ""}">${done ? "✓" : "✗"}</span>
+      <span class="compare-prereq-label ${done ? "" : "compare-prereq-label--pending"}">${label}</span>
+    </div>`;
+
+  const datasetRows = hasTwo
+    ? datasets.map(d => row(d.has_model,
+        `<strong>${escHtml(d.filename)}</strong> — ${d.has_model ? "model trained" : "no trained model yet"}`
+      )).join("")
+    : row(false, "Load a second dataset via <strong>+ Load</strong> in the header");
+
   containerEl.innerHTML = `
     <div class="section-header">
       <h2 class="section-title">Step 13 — Multi-Dataset Comparison</h2>
     </div>
-    <p class="section-desc" style="color:var(--color-text-muted); padding:var(--space-4) 0;">
-      ${msg || "Load at least two datasets and train a model on each to enable comparison."}
-    </p>
-  `;
+    <div class="compare-prereq-card">
+      <p class="compare-prereq-title">Complete these steps to enable comparison:</p>
+      ${row(hasTwo, "Two datasets loaded")}
+      ${datasetRows}
+    </div>`;
 }

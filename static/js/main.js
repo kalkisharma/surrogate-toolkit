@@ -364,7 +364,7 @@ async function _renderExploration(uploadResponse) {
   const stepUnlocked = {
     upload: true, preview: true, explore: true, clean: true, designate: true,
     normalize: hasDesignation, configure: hasDesignation, results: false, predict: false, optimize: false,
-    interpret: false, active: false, compare: hasDesignation, export: hasDesignation,
+    interpret: false, active: false, compare: false, export: hasDesignation,
   };
   const stepCompleted = {
     upload: true, preview: false, explore: false, clean: false,
@@ -447,6 +447,14 @@ async function _renderExploration(uploadResponse) {
 
   // Register with module-level exercise:navigate listener
   _activatePanelFn = activatePanel;
+
+  // Unlock Compare once we know 2+ datasets are loaded (fire-and-forget)
+  get("/api/data/datasets").then(resp => {
+    if (resp.success && resp.count >= 2 && !stepUnlocked["compare"]) {
+      stepUnlocked["compare"] = true;
+      buildSidebar();
+    }
+  });
 
   // ── Per-panel subtitle ────────────────────────────────────────────────────
   // Writes to the stable _panelSubEl[key] div — outside the content div that
