@@ -1404,12 +1404,12 @@ def clean_transform():
 @bp.route("/screen", methods=["POST"])
 def screen_inputs():
     """
-    Compute Pearson correlation matrix + flagged pairs + low-variance flags
-    for all designated input columns.
+    Compute Pearson |r| matrix, VIF, flagged pairs, low-variance flags, and
+    (if available) Sobol ST rankings for all designated input columns.
 
     Body JSON (optional):
-        threshold    (float, default 0.9)  — |r| threshold for flagging correlated pairs
-        cv_threshold (float, default 0.01) — coefficient of variation threshold for low-variance flag
+        threshold    (float, default 0.9)  — |r| threshold for correlated-pair flag
+        cv_threshold (float, default 0.01) — CV threshold for low-variance flag
     """
     data         = request.get_json(silent=True) or {}
     threshold    = float(data.get("threshold",    0.9))
@@ -1457,8 +1457,7 @@ def screen_inputs():
             continue
         mean = float(series.mean())
         std  = float(series.std()) if len(series) > 1 else 0.0
-        # Use std directly when mean ≈ 0 to avoid division by near-zero
-        cv = abs(std / mean) if abs(mean) > 1e-10 else std
+        cv   = abs(std / mean) if abs(mean) > 1e-10 else std
         if cv < cv_threshold:
             low_variance.append({
                 "col":  col,
@@ -1466,6 +1465,40 @@ def screen_inputs():
                 "std":  round(std, 6),
                 "mean": round(mean, 6),
             })
+
+    # VIF — diagonal of the inverse of the correlation matrix.
+    # Falls back to per-column OLS if the matrix is singular.
+    vif = {}
+    try:
+        corr_arr  = corr.values.astype(float)
+        vif_diag  = np.diag(np.linalg.inv(corr_arr))
+        vif       = {col: round(float(v), 2) for col, v in zip(input_cols, vif_diag)}
+    except np.linalg.LinAlgError:
+        X_arr = X.values.astype(float)
+        for i, col in enumerate(input_cols):
+            others = np.delete(X_arr, i, axis=1)
+            A      = np.column_stack([np.ones(len(others)), others])
+            y      = X_arr[:, i]
+            coeffs, _, _, _ = np.linalg.lstsq(A, y, rcond=None)
+            y_hat  = A @ coeffs
+            ss_res = float(np.sum((y - y_hat) ** 2))
+            ss_tot = float(np.sum((y - y.mean()) ** 2))
+            r2     = 1.0 - ss_res / ss_tot if ss_tot > 1e-10 else 0.0
+            vif[col] = round(1.0 / (1.0 - r2) if r2 < 0.9999 else 999.0, 2)
+
+    # Sobol ST — mean across all cached interpretation outputs (if available)
+    sobol_st = None
+    interp_cache = state["surrogate_sessions"]["primary"]["models"].get("interpretation", {})
+    if interp_cache:
+        st_sum   = {col: 0.0 for col in input_cols}
+        n_cached = 0
+        for interp in interp_cache.values():
+            st_vals = (interp.get("sensitivity") or {}).get("ST", {})
+            for col in input_cols:
+                st_sum[col] += float(st_vals.get(col, 0.0))
+            n_cached += 1
+        if n_cached > 0:
+            sobol_st = {col: round(st_sum[col] / n_cached, 4) for col in input_cols}
 
     # Correlation matrix as dict[col][col] → float
     corr_dict = {
@@ -1481,20 +1514,98 @@ def screen_inputs():
         "correlation_matrix": corr_dict,
         "flagged_pairs":      flagged_pairs,
         "low_variance":       low_variance,
+        "vif":                vif,
+        "sobol_st":           sobol_st,
+    }), 200
+
+
+@bp.route("/screen/pca", methods=["POST"])
+def screen_pca():
+    """
+    Compute PCA on current designated input columns.
+    Returns explained variance per component, cumulative variance, and
+    top-3 input loadings per component — used to preview before applying.
+
+    Body JSON (optional):
+        n_components (int) — number of components to preview; None = auto (≥95% variance)
+    """
+    from sklearn.decomposition import PCA as _PCA
+
+    data         = request.get_json(silent=True) or {}
+    n_components = data.get("n_components", None)
+
+    state      = current_app.config["STATE"]
+    primary    = state["datasets"]["primary"]
+    meta       = primary["metadata"]
+    input_cols = meta.get("input_columns", [])
+
+    if not input_cols:
+        return jsonify({
+            "success":    False,
+            "error_code": "NO_INPUT_COLUMNS",
+            "message":    "No input columns designated.",
+        }), 400
+
+    df   = primary.get("normalized") or primary.get("clean")
+    X    = df[input_cols].values.astype(float)
+    max_comp = len(input_cols)
+
+    pca_full = _PCA(n_components=max_comp)
+    pca_full.fit(X)
+
+    ev         = pca_full.explained_variance_ratio_
+    cumulative = np.cumsum(ev)
+
+    # Auto n_components: fewest components reaching ≥ 95% cumulative variance
+    auto_n = int(np.searchsorted(cumulative, 0.95) + 1)
+    auto_n = min(auto_n, max_comp)
+
+    if n_components is None:
+        n_components = auto_n
+    n_components = max(1, min(int(n_components), max_comp))
+
+    # Loadings: top-3 original inputs per component (by absolute loading weight)
+    loadings = []
+    for i in range(n_components):
+        component = pca_full.components_[i]
+        top_idx   = np.argsort(np.abs(component))[::-1][:3]
+        loadings.append({
+            "component":      f"PC{i + 1}",
+            "variance_ratio": round(float(ev[i]), 4),
+            "top_inputs":     [
+                {"col": input_cols[j], "loading": round(float(component[j]), 4)}
+                for j in top_idx
+            ],
+        })
+
+    return jsonify({
+        "success":                 True,
+        "input_columns":           input_cols,
+        "n_components_selected":   n_components,
+        "n_components_auto":       auto_n,
+        "n_components_max":        max_comp,
+        "explained_variance_ratio": [round(float(v), 4) for v in ev],
+        "cumulative_variance":      [round(float(v), 4) for v in cumulative],
+        "loadings":                loadings,
     }), 200
 
 
 @bp.route("/screen/apply", methods=["PUT"])
 def screen_apply():
     """
-    Apply a screened input column subset to STATE.
-    Clears the surrogate session — retraining required after input space changes.
+    Apply a filtered input column subset (mode="columns") or PCA transform
+    (mode="pca") to STATE. Clears the surrogate session in both cases.
 
     Body JSON:
-        input_columns (list[str], required) — subset of designated input columns to keep
+        mode          ("columns" | "pca", default "columns")
+        input_columns (list[str]) — for mode="columns"
+        n_components  (int)       — for mode="pca"
     """
-    data           = request.get_json(silent=True) or {}
-    new_input_cols = list(data.get("input_columns", []))
+    from sklearn.decomposition import PCA as _PCA
+    import pandas as pd
+
+    data       = request.get_json(silent=True) or {}
+    mode       = data.get("mode", "columns")
 
     state      = current_app.config["STATE"]
     primary    = state["datasets"]["primary"]
@@ -1508,56 +1619,135 @@ def screen_apply():
             "message":    "No input columns designated.",
         }), 400
 
-    if len(new_input_cols) < 1:
+    def _clear_surrogate():
+        active_key = state["datasets"].get("active_dataset_key")
+        state["surrogate_sessions"]["primary"]["models"] = {}
+        state["surrogate_sessions"]["primary"]["config"] = {
+            "model_type":  None,
+            "test_split":  DEFAULT_TEST_SPLIT,
+            "cv_folds":    DEFAULT_CV_FOLDS,
+            "hyperparams": {},
+        }
+        if active_key and active_key in state["datasets"]["_datasets"]:
+            state["datasets"]["_datasets"][active_key]["surrogate_session"] = {
+                "models": {},
+                "config": {
+                    "model_type": None,
+                    "test_split": DEFAULT_TEST_SPLIT,
+                    "cv_folds":   DEFAULT_CV_FOLDS,
+                },
+            }
+        return active_key
+
+    # ── Mode: column subset ───────────────────────────────────────────────────
+    if mode == "columns":
+        new_input_cols = list(data.get("input_columns", []))
+
+        if len(new_input_cols) < 1:
+            return jsonify({
+                "success": False, "error_code": "TOO_FEW_INPUTS",
+                "message": "At least one input column must be selected.",
+            }), 400
+
+        invalid = [c for c in new_input_cols if c not in all_inputs]
+        if invalid:
+            return jsonify({
+                "success": False, "error_code": "INVALID_COLUMNS",
+                "message": f"Columns not in designated inputs: {invalid}",
+            }), 400
+
+        meta["input_columns"] = new_input_cols
+        meta["n_inputs"]      = len(new_input_cols)
+        meta["pca_applied"]   = False
+
+        active_key = _clear_surrogate()
+        if active_key and active_key in state["datasets"]["_datasets"]:
+            ds_meta = state["datasets"]["_datasets"][active_key]["metadata"]
+            ds_meta["input_columns"] = new_input_cols
+            ds_meta["n_inputs"]      = len(new_input_cols)
+
+        n_dropped = len(all_inputs) - len(new_input_cols)
+        append_audit_event(state, "inputs_filtered", {
+            "mode":            "columns",
+            "original_inputs": all_inputs,
+            "selected_inputs": new_input_cols,
+            "n_dropped":       n_dropped,
+        })
+
         return jsonify({
-            "success":    False,
-            "error_code": "TOO_FEW_INPUTS",
-            "message":    "At least one input column must be selected.",
-        }), 400
+            "success":       True,
+            "mode":          "columns",
+            "input_columns": new_input_cols,
+            "n_selected":    len(new_input_cols),
+            "n_dropped":     n_dropped,
+            "message": (
+                f"{len(new_input_cols)} input{'s' if len(new_input_cols) != 1 else ''} selected"
+                + (f", {n_dropped} removed." if n_dropped else ".")
+            ),
+        }), 200
 
-    invalid = [c for c in new_input_cols if c not in all_inputs]
-    if invalid:
-        return jsonify({
-            "success":    False,
-            "error_code": "INVALID_COLUMNS",
-            "message":    f"Columns not in designated inputs: {invalid}",
-        }), 400
+    # ── Mode: PCA ─────────────────────────────────────────────────────────────
+    if mode == "pca":
+        n_components = max(1, min(int(data.get("n_components", 2)), len(all_inputs)))
 
-    # Update input_columns in primary metadata
-    meta["input_columns"] = new_input_cols
-    meta["n_inputs"]      = len(new_input_cols)
+        df   = primary.get("normalized") or primary.get("clean")
+        X    = df[all_inputs].values.astype(float)
+        pca  = _PCA(n_components=n_components)
+        X_pca = pca.fit_transform(X)
+        pc_names = [f"PC{i + 1}" for i in range(n_components)]
 
-    # Mirror to the active dataset entry
-    active_key = state["datasets"].get("active_dataset_key")
-    if active_key and active_key in state["datasets"]["_datasets"]:
-        ds_meta = state["datasets"]["_datasets"][active_key]["metadata"]
-        ds_meta["input_columns"] = new_input_cols
-        ds_meta["n_inputs"]      = len(new_input_cols)
-
-    # Clear surrogate session — input space changed; retraining required
-    state["surrogate_sessions"]["primary"]["models"] = {}
-    state["surrogate_sessions"]["primary"]["config"] = {
-        "model_type":  None,
-        "test_split":  DEFAULT_TEST_SPLIT,
-        "cv_folds":    DEFAULT_CV_FOLDS,
-        "hyperparams": {},
-    }
-    if active_key and active_key in state["datasets"]["_datasets"]:
-        state["datasets"]["_datasets"][active_key]["surrogate_session"] = {
-            "models": {},
-            "config": {
-                "model_type": None,
-                "test_split": DEFAULT_TEST_SPLIT,
-                "cv_folds":   DEFAULT_CV_FOLDS,
-            },
+        # Store fitted PCA for use in prediction pipeline
+        state["surrogate_sessions"]["primary"]["pca"] = {
+            "model":            pca,
+            "original_inputs":  all_inputs,
+            "pc_names":         pc_names,
+            "n_components":     n_components,
+            "explained_variance_ratio": pca.explained_variance_ratio_.tolist(),
         }
 
-    n_dropped = len(all_inputs) - len(new_input_cols)
-    append_audit_event(state, "inputs_screened", {
-        "original_inputs": all_inputs,
-        "selected_inputs": new_input_cols,
-        "n_dropped":       n_dropped,
-    })
+        # Inject PC columns into a copy of the normalized/clean DataFrame
+        base_df = (primary.get("normalized") or primary.get("clean")).copy()
+        for i, name in enumerate(pc_names):
+            base_df[name] = X_pca[:, i]
+        primary["normalized"] = base_df
+
+        # Replace input_columns with PC names
+        meta["input_columns"] = pc_names
+        meta["n_inputs"]      = n_components
+        meta["pca_applied"]   = True
+
+        active_key = _clear_surrogate()
+        if active_key and active_key in state["datasets"]["_datasets"]:
+            ds_meta = state["datasets"]["_datasets"][active_key]["metadata"]
+            ds_meta["input_columns"] = pc_names
+            ds_meta["n_inputs"]      = n_components
+
+        ev_pct = round(100 * float(sum(pca.explained_variance_ratio_)), 1)
+        append_audit_event(state, "inputs_filtered", {
+            "mode":             "pca",
+            "original_inputs":  all_inputs,
+            "pc_names":         pc_names,
+            "n_components":     n_components,
+            "explained_variance": pca.explained_variance_ratio_.tolist(),
+        })
+
+        return jsonify({
+            "success":                  True,
+            "mode":                     "pca",
+            "input_columns":            pc_names,
+            "n_selected":               n_components,
+            "n_dropped":                len(all_inputs) - n_components,
+            "explained_variance_ratio": pca.explained_variance_ratio_.tolist(),
+            "message": (
+                f"PCA applied: {n_components} component{'s' if n_components != 1 else ''} "
+                f"explain {ev_pct}% of input variance."
+            ),
+        }), 200
+
+    return jsonify({
+        "success": False, "error_code": "UNKNOWN_MODE",
+        "message": f"Unknown mode '{mode}'. Use 'columns' or 'pca'.",
+    }), 400
 
     return jsonify({
         "success":       True,

@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.2.0
+// Version: 3.3.0
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 14 lazy-init panels).
@@ -336,7 +336,7 @@ async function _renderExploration(uploadResponse) {
   // ── Panel containers ──────────────────────────────────────────────────────
   const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "screen", "configure", "results", "predict", "optimize", "interpret", "active", "compare", "export"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
-                        designate: "Assign", normalize: "Normalize", screen: "Screen", configure: "Model",
+                        designate: "Assign", normalize: "Normalize", screen: "Filter", configure: "Model",
                         results: "Results", predict: "Predict", optimize: "Optimize",
                         interpret: "Interpret", active: "Sample", compare: "Compare", export: "Export" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,

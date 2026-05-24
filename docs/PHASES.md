@@ -761,53 +761,54 @@
 
 ---
 
-### Phase 18 — Input Screening
-**Status:** 🔲 In definition | **Version:** v3.2.0
+### Phase 18 — Input Filtering
+**Status:** ✅ Complete | **Version:** v3.2.0 → v3.3.0
 
 **Purpose:** Give engineers a structured, interactive step to identify and remove redundant or uninformative input columns before training — reducing surrogate dimensionality and improving model accuracy without requiring statistical expertise.
 
-**User story:** An engineer has 8 input columns from a trade study. Two are nearly identical (highly correlated); one is a constant that was accidentally included. Phase 18 flags both issues, shows a correlation heatmap, and lets the engineer decide which columns to drop before clicking Train.
+**User story:** An engineer has 8 input columns from a trade study. Two are nearly identical (highly correlated); one is nearly predictable from the others (high VIF); one is near-constant. Phase 18 flags all three issues, shows a correlation heatmap and VIF table, and lets the engineer decide which columns to drop before clicking Train. As an alternative to manual selection, PCA can project all inputs into uncorrelated components automatically.
 
-**Workflow change:** Inserts new **Step 7 — Screen** between Normalize (Step 6) and Model (Step 8). All downstream steps renumber +1 (Model→8, Results→9, Predict→10, Optimize→11, Interpret→12, Sample→13, Compare→14, Export→15). The step is optional — users can skip from Normalize directly to Model.
+**Workflow change:** Inserts new **Step 7 — Filter** between Normalize (Step 6) and Model (Step 8). All downstream steps renumber +1 (Model→8, Results→9, Predict→10, Optimize→11, Interpret→12, Sample→13, Compare→14, Export→15). The step is optional — users can skip from Normalize directly to Model.
 
-**Scope (MVP — agreed):**
+**Scope (implemented):**
 
 - **Correlation heatmap** — Plotly heatmap of Pearson |r| matrix across all designated input columns; threshold slider (default 0.9) highlights flagged cells
 - **Flagged pairs table** — lists correlated pairs: `Input A | Input B | |r|`; user selects which of each pair to retain (tool never auto-removes)
+- **VIF table** — Variance Inflation Factor computed for each input (diagonal of inverse correlation matrix; OLS fallback for singular matrices). Three-tier coloring: ✓ < 5 (OK) · ⚠ 5–10 (moderate) · ✗ ≥ 10 (high — pre-unchecked). Optional Sobol Sₜ column when Phase 12 Interpret cache is present. Sorted by VIF descending.
+- **Sobol ST integration** — if Phase 12 (Interpret) results are cached, the mean Sₜ across all outputs is shown alongside each input's VIF. Gives a second, model-derived screening criterion (low-Sₜ inputs are insensitive to the output).
 - **Low-variance flags** — inputs where coefficient of variation (std ÷ mean) is below threshold listed as candidates to drop
-- **Input toggle checkboxes** — full input list with checkboxes; flagged inputs pre-unchecked but user freely overrides
-- **Apply button** — writes selected input set back to `input_columns` in STATE; navigates to Step 8 Model
-- **Skip-friendly** — no action required; users may proceed to Model without visiting Screen
-- Audit event: `inputs_screened`
-- Learning mode primer explaining correlation redundancy and low-variance inputs
+- **Input toggle checkboxes** — full input list with checkboxes; corr-, low-var-, and VIF-flagged inputs pre-unchecked but user freely overrides. Each row shows applicable flag tags (`corr`, `low-var`, `vif`)
+- **Apply button (columns mode)** — writes selected input set back to `input_columns` in STATE; clears surrogate session (retraining required)
+- **PCA sub-section (collapsible)** — optional dimensionality reduction: user picks n_components, previews explained-variance bar chart and per-component top-3 loadings table, then applies. After PCA apply, downstream model and prediction steps operate in PC coordinate space. Fitted PCA object stored in STATE for prediction pipeline.
+- **Skip-friendly** — no action required; users may proceed to Model without visiting Filter
+- Audit event: `inputs_filtered` (with `mode: "columns"` or `mode: "pca"`)
+- Learning mode primer explaining correlation redundancy, VIF, and low-variance inputs
 
-**Deferred (future enhancements):**
+**Permanently removed from scope:**
 
-- **VIF (Variance Inflation Factor)** — more rigorous multicollinearity check than pairwise |r|; catches three-way collinearity missed by pairwise correlation. Deferred: adds complexity with no MVP benefit over pairwise |r|.
-- **PCA (Principal Component Analysis)** — transform inputs to uncorrelated principal components; reduces dimensionality while preserving variance. Deferred: separate feature; trades physical variable interpretability for dimensionality reduction — separate scoping discussion required.
-- **Sobol integration** — if Phase 8 Interpret results exist, show ST sensitivity indices alongside correlation flags as a third screening criterion (low-ST inputs are candidates to drop). Deferred: can be added as Phase 8 enhancement after Screen ships.
-- **Auto-selection** — algorithm-driven column removal (e.g., select subset that maximizes cross-validated R²). Deferred: tool suggests, engineer decides; auto-removal conflicts with engineering accountability requirements.
+- **Auto-selection** — algorithm-driven column removal (e.g., select subset that maximizes cross-validated R²) was considered and rejected. LM engineers must be able to explain variable selection decisions to chief engineers and design review boards. Auto-removal removes that accountability chain. Tool suggests (via VIF / Sobol); engineer decides.
 
 **Backend:**
-- `POST /api/data/screen` — compute Pearson correlation matrix + flagged pairs + low-variance list from `primary["clean"]` restricted to `input_columns`; return JSON (numpy only, no new packages)
-- `PUT /api/data/screen/apply` — write updated `input_columns` to STATE; clear surrogate session (retraining required after input change)
-- `app/api/data_api.py` — add both endpoints (~50 lines)
+- `POST /api/data/screen` — Pearson |r| matrix + flagged pairs + VIF (inv + OLS fallback) + Sobol ST mean from interpretation cache + low-variance list
+- `POST /api/data/screen/pca` — fit full PCA on all inputs; return explained-variance ratios, cumulative variance, top-3 loadings per component, auto-suggested n_components (≥90% variance)
+- `PUT /api/data/screen/apply` — mode="columns": write selected input list to STATE; mode="pca": fit PCA with n_components, inject PC columns into normalized DataFrame, store fitted PCA in STATE, update `input_columns` to PC names
 
 **Frontend:**
-- New module: `static/js/modules/input_screening.js` (~200 lines)
-- `static/js/charts.js` — `renderCorrelationHeatmap(containerEl, matrix, labels, options)`
-- `static/js/main.js` — insert `"screen"` into STEP_KEYS between `"normalize"` and `"configure"`; update STEP_LABELS, STEP_NUMS (+1 for configure through export); add `_initScreenPanel()`; unlock logic (unlocks after normalization completes)
+- `static/js/modules/input_screening.js` (~310 lines) — full Filter panel with VIF table, PCA sub-section, pre-uncheck logic
+- `static/js/charts.js` — `renderCorrelationHeatmap()`, `renderExplainedVarianceChart()`
+- `static/js/main.js` — `"screen"` step registered as "Filter" in STEP_LABELS; `_initScreenPanel()`; screen:applied listener updates `_currentInputCols`
+- `static/css/main.css` — Filter panel + VIF tier + PCA sub-section styles
 
-**Dependencies:** Phase 3 (column designation — input_columns must be set before screening). No new pip packages.
+**Dependencies:** Phase 3 (column designation). Phase 12 (Interpret) optional — VIF table gains Sobol column when interpretation cache is present. No new pip packages.
 
 **Definition of done:**
 - Correlation heatmap renders correctly for a 6-input dataset with one known correlated pair
-- Flagged pairs table shows pair with |r| ≥ threshold; threshold slider updates heatmap in real time
-- Low-variance flag correctly identifies a near-constant column
+- VIF table sorts by VIF desc; ✓/⚠/✗ coloring correct; VIF ≥ 10 inputs pre-unchecked
+- Sobol ST column appears when Phase 12 cache present; hidden otherwise
 - User deselects two inputs → Apply → Model step trains only on remaining inputs
-- Skipping Screen → Model trains on full designated input set (no regression)
-- Sobol analysis (Phase 8) reflects reduced input set after Apply
-- All existing tests pass; new unit tests for `/api/data/screen` endpoint
+- PCA: Preview shows variance chart + loadings; Apply replaces input_columns with PC names; model trains in PC space
+- Skipping Filter → Model trains on full designated input set (no regression)
+- All existing tests pass; new unit tests for `/api/data/screen` and `/api/data/screen/pca`
 
 ---
 
@@ -868,6 +869,6 @@
 | Phase 11 | `weasyprint` | HTML-to-PDF report rendering |
 | Phase 14 | `chaospy` | Polynomial Chaos Expansion |
 | Phase 17 | None | Exercises use existing Flask + NumPy |
-| Phase 18 | None | Input screening uses existing NumPy/Pandas |
+| Phase 18 | None | Input filtering uses existing NumPy/Pandas/sklearn (PCA via sklearn.decomposition) |
 | Phase 19 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
 | Phase 21 | `celery`, `redis` | Async job queue for HPC submission |

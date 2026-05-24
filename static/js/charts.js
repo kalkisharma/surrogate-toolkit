@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.1.0
+// Version: 2.2.0
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -1259,4 +1259,65 @@ export function renderModelComparisonTable(containerEl, compResp) {
   table.appendChild(tbody);
   wrap.appendChild(table);
   containerEl.appendChild(wrap);
+}
+
+/**
+ * Bar chart (per-component explained variance) + cumulative line.
+ * Used by the PCA preview in Step 7 — Filter Inputs.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {number[]}    explainedRatio    - per-component explained variance ratios (0–1)
+ * @param {number[]}    cumulativeVariance - cumulative explained variance (0–1)
+ * @param {number}      nComponents       - number of components (for x-axis labelling)
+ */
+export function renderExplainedVarianceChart(containerEl, explainedRatio, cumulativeVariance, nComponents) {
+  const isDark  = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr = isDark ? "#8b94b3" : "#4b5478";
+  const plotBg  = isDark ? "#1e2130" : "#ffffff";
+
+  const labels = explainedRatio.map((_, i) => `PC${i + 1}`);
+  const pctArr = explainedRatio.map(v => v * 100);
+  const cumArr = cumulativeVariance.map(v => v * 100);
+
+  const traces = [
+    {
+      type: "bar", name: "Per-component",
+      x: labels, y: pctArr,
+      marker: { color: "rgba(99,102,241,0.8)" },
+    },
+    {
+      type: "scatter", mode: "lines+markers", name: "Cumulative",
+      x: labels, y: cumArr,
+      line:   { color: "rgba(245,158,11,0.9)", width: 2 },
+      marker: { size: 6 },
+    },
+    {
+      type: "scatter", mode: "lines", name: "90% threshold",
+      x: [labels[0], labels[labels.length - 1]], y: [90, 90],
+      line: { dash: "dot", color: "rgba(128,128,128,0.45)", width: 1.5 },
+    },
+  ];
+
+  const layout = {
+    height: 250,
+    margin: { t: 12, b: 44, l: 52, r: 16 },
+    xaxis: {
+      title: "Component", color: fontClr,
+      tickfont: { size: 11 }, gridcolor: "rgba(128,128,128,0.15)",
+    },
+    yaxis: {
+      title: "Variance (%)", range: [0, 106],
+      color: fontClr, tickfont: { size: 11 }, gridcolor: "rgba(128,128,128,0.15)",
+    },
+    font:          { size: 12, color: fontClr },
+    plot_bgcolor:  plotBg,
+    paper_bgcolor: plotBg,
+    showlegend:    true,
+    legend:        { x: 1, xanchor: "right", y: 1, font: { size: 11 } },
+    bargap:        0.3,
+  };
+
+  Plotly.react(containerEl, traces, layout, {
+    responsive: true, displayModeBar: false,
+  });
 }

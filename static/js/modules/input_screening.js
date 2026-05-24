@@ -2,9 +2,11 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/input_screening.js
-// Version: 1.0.0
-// Description: Step 7 — Input Screening. Correlation heatmap, flagged-pair
-//              table, low-variance flags, and input toggle checkboxes.
+// Version: 1.1.0 (app v3.3.0)
+// Description: Step 7 — Input Filtering. Correlation heatmap, VIF table with
+//              3-tier multicollinearity indicators, Sobol ST overlay (when
+//              interpretation cache is present), low-variance flags, input
+//              toggle checkboxes, and optional PCA dimensionality reduction.
 //              Writes selected input subset back to STATE via PUT /api/data/screen/apply.
 // =============================================================================
 
@@ -12,7 +14,7 @@ import { post, put } from "../api.js";
 import { registerPrimer } from "../learning_mode.js";
 import { showError, showSuccess } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
-import { renderCorrelationHeatmap } from "../charts.js";
+import { renderCorrelationHeatmap, renderExplainedVarianceChart } from "../charts.js";
 import { el, clearEl, escHtml } from "../utils.js";
 
 // ── Module state ──────────────────────────────────────────────────────────────
@@ -20,6 +22,7 @@ let _lastResp    = null;
 let _threshold   = 0.9;
 let _cvThreshold = 0.01;
 let _selected    = null;   // Set of currently selected input columns
+let _pcaResp     = null;   // Last PCA preview response
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -33,7 +36,7 @@ export async function initScreening(containerEl, inputCols = []) {
   if (inputCols.length === 0) {
     containerEl.innerHTML = `
       <div class="section-header">
-        <h2 class="section-title">Step 7 — Screen Inputs</h2>
+        <h2 class="section-title">Step 7 — Filter Inputs</h2>
       </div>
       <p style="color:var(--color-text-muted);padding:var(--space-4) 0;">
         No input columns designated. Complete Step 5 — Assign first.
@@ -44,14 +47,17 @@ export async function initScreening(containerEl, inputCols = []) {
   // Header
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 7 — Screen Inputs</h2>
+    <h2 class="section-title">Step 7 — Filter Inputs</h2>
     <p class="section-desc">Identify and remove redundant or uninformative inputs before training.</p>`;
   containerEl.appendChild(header);
 
-  registerPrimer("input_screening", header, "Why screen inputs?", `
+  registerPrimer("input_screening", header, "Why filter inputs?", `
     <p><strong>Correlated inputs</strong> carry redundant information — including both can
     destabilise some models and makes sensitivity analysis harder to interpret.
     If two inputs have |r| ≥ 0.9, keeping both adds little value.</p>
+    <p><strong>VIF (Variance Inflation Factor)</strong> quantifies multicollinearity.
+    VIF &lt; 5 is fine. VIF 5–10 warrants review. VIF ≥ 10 means the input is nearly
+    predictable from the others — a strong candidate for removal.</p>
     <p><strong>Low-variance inputs</strong> (near-constant across all runs) contribute
     almost no signal. A coefficient of variation below 1% usually means the column
     was accidentally included or wasn't varied in the design.</p>
@@ -89,7 +95,7 @@ export async function initScreening(containerEl, inputCols = []) {
 
   // Render cached results from a previous Analyze run
   if (_lastResp) {
-    _selected = _selected || new Set(_lastResp.input_columns);
+    if (!_selected) _selected = new Set(_lastResp.input_columns);
     _renderResults(resultsDiv, _lastResp, containerEl);
   }
 
@@ -109,15 +115,50 @@ export async function initScreening(containerEl, inputCols = []) {
       return;
     }
     _lastResp = resp;
+    _pcaResp  = null;
+    // Reset selection to all, then pre-uncheck flagged
     _selected = new Set(resp.input_columns);
+    _preUncheckFlagged(resp);
     _renderResults(resultsDiv, resp, containerEl);
   });
 }
 
-// ── Internal renderers ────────────────────────────────────────────────────────
+// ── Pre-uncheck logic ─────────────────────────────────────────────────────────
+
+function _preUncheckFlagged(resp) {
+  const corrFlagged = new Set(resp.flagged_pairs.map(p => p.col_b));
+  const varFlagged  = new Set(resp.low_variance.map(v => v.col));
+  const vifFlagged  = new Set(
+    resp.vif
+      ? Object.entries(resp.vif).filter(([, v]) => v >= 10).map(([k]) => k)
+      : []
+  );
+  for (const col of [...corrFlagged, ...varFlagged, ...vifFlagged]) {
+    _selected.delete(col);
+  }
+}
+
+// ── VIF helpers ───────────────────────────────────────────────────────────────
+
+function _vifTier(vif) {
+  if (vif >= 10) return { cls: "vif-tier--red",   icon: "✗", label: "High (≥10)" };
+  if (vif >= 5)  return { cls: "vif-tier--amber", icon: "⚠", label: "Moderate (5–10)" };
+  return              { cls: "vif-tier--green",  icon: "✓", label: "OK (<5)" };
+}
+
+// ── Main results renderer ─────────────────────────────────────────────────────
 
 function _renderResults(container, resp, rootEl) {
   clearEl(container);
+
+  // Compute derived flagging sets
+  const corrFlagged = new Set(resp.flagged_pairs.map(p => p.col_b));
+  const varFlagged  = new Set(resp.low_variance.map(v => v.col));
+  const vifFlagged  = new Set(
+    resp.vif
+      ? Object.entries(resp.vif).filter(([, v]) => v >= 10).map(([k]) => k)
+      : []
+  );
 
   // ── Correlation heatmap ───────────────────────────────────────────────────
   const heatSection = el("div", { cls: "screen-section" });
@@ -155,6 +196,11 @@ function _renderResults(container, resp, rootEl) {
   }
   container.appendChild(pairsSection);
 
+  // ── VIF table ─────────────────────────────────────────────────────────────
+  if (resp.vif && Object.keys(resp.vif).length > 0) {
+    _renderVifSection(container, resp);
+  }
+
   // ── Low-variance flags ────────────────────────────────────────────────────
   const varSection = el("div", { cls: "screen-section" });
   if (resp.low_variance.length === 0) {
@@ -188,31 +234,26 @@ function _renderResults(container, resp, rootEl) {
     <p class="screen-section-desc">Uncheck inputs to exclude them from model training.
       Flagged inputs are pre-unchecked — override freely.</p>`;
 
-  const flaggedByCorr = new Set(resp.flagged_pairs.map(p => p.col_b));
-  const flaggedByVar  = new Set(resp.low_variance.map(v => v.col));
-  const flaggedCols   = new Set([...flaggedByCorr, ...flaggedByVar]);
-
   const grid = el("div", { cls: "screen-checkbox-grid" });
-  const checkboxes = [];
 
   for (const col of resp.input_columns) {
-    const isFlagged = flaggedCols.has(col);
-    // On first render after Analyze, pre-uncheck flagged; preserve user choices on re-render
-    if (!_selected.has(col) && isFlagged) {
-      // already excluded — leave as-is
-    }
+    const isCorrFlagged = corrFlagged.has(col);
+    const isVarFlagged  = varFlagged.has(col);
+    const isVifFlagged  = vifFlagged.has(col);
+    const isFlagged     = isCorrFlagged || isVarFlagged || isVifFlagged;
 
-    const rowEl = el("label", { cls: `screen-checkbox-row${isFlagged ? " screen-checkbox-row--flagged" : ""}` });
-    const cb    = document.createElement("input");
-    cb.type    = "checkbox";
+    const rowEl = el("label", {
+      cls: `screen-checkbox-row${isFlagged ? " screen-checkbox-row--flagged" : ""}`,
+    });
+    const cb = document.createElement("input");
+    cb.type        = "checkbox";
     cb.dataset.col = col;
-    cb.checked = _selected.has(col);
+    cb.checked     = _selected.has(col);
     cb.addEventListener("change", () => {
       if (cb.checked) _selected.add(col);
       else            _selected.delete(col);
       _updateApplyBtn(applyBtn);
     });
-    checkboxes.push(cb);
 
     const lblSpan = el("span", { text: col });
     if (isFlagged) lblSpan.classList.add("screen-flagged-label");
@@ -221,10 +262,14 @@ function _renderResults(container, resp, rootEl) {
     rowEl.appendChild(document.createTextNode(" "));
     rowEl.appendChild(lblSpan);
 
-    if (isFlagged) {
-      const tag = el("span", { cls: "screen-flag-tag",
-        text: flaggedByCorr.has(col) ? "corr" : "low-var" });
-      rowEl.appendChild(tag);
+    if (isCorrFlagged) {
+      rowEl.appendChild(el("span", { cls: "screen-flag-tag", text: "corr" }));
+    }
+    if (isVarFlagged) {
+      rowEl.appendChild(el("span", { cls: "screen-flag-tag", text: "low-var" }));
+    }
+    if (isVifFlagged) {
+      rowEl.appendChild(el("span", { cls: "screen-flag-tag screen-flag-tag--vif", text: "vif" }));
     }
 
     grid.appendChild(rowEl);
@@ -242,12 +287,11 @@ function _renderResults(container, resp, rootEl) {
     if (cols.length < 1) { showError("Select at least one input column."); return; }
     applyBtn.disabled    = true;
     applyBtn.textContent = "Applying…";
-    const r = await put("/api/data/screen/apply", { input_columns: cols });
+    const r = await put("/api/data/screen/apply", { mode: "columns", input_columns: cols });
     applyBtn.disabled = false;
     _updateApplyBtn(applyBtn);
     if (!r.success) { showError(r.message || "Apply failed."); return; }
     showSuccess(r.message || `${cols.length} inputs selected.`);
-    // Bubble up to main.js _initScreenPanel listener
     rootEl.dispatchEvent(new CustomEvent("screen:applied", {
       detail: { input_columns: cols },
       bubbles: true,
@@ -255,18 +299,225 @@ function _renderResults(container, resp, rootEl) {
   });
 
   applyRow.appendChild(applyBtn);
-  const skipNote = el("p", { cls: "screen-skip-note",
-    text: "Or skip this step — proceed directly to Step 8 — Model." });
-  applyRow.appendChild(skipNote);
+  applyRow.appendChild(el("p", {
+    cls: "screen-skip-note",
+    text: "Or skip this step — proceed directly to Step 8 — Model.",
+  }));
   container.appendChild(applyRow);
+
+  // ── PCA sub-section ───────────────────────────────────────────────────────
+  if (resp.input_columns.length >= 2) {
+    _renderPcaSection(container, resp, rootEl);
+  }
 
   requestAnimationFrame(() => {
     container.querySelectorAll(".js-plotly-plot").forEach(p => Plotly.Plots.resize(p));
   });
 }
 
+// ── VIF section renderer ──────────────────────────────────────────────────────
+
+function _renderVifSection(container, resp) {
+  const hasSobol = resp.sobol_st && Object.keys(resp.sobol_st).length > 0;
+
+  const sortedByVif = [...resp.input_columns].sort(
+    (a, b) => (resp.vif[b] ?? 0) - (resp.vif[a] ?? 0)
+  );
+
+  const section = el("div", { cls: "screen-section" });
+  section.innerHTML = `
+    <h3 class="screen-section-title">Variance Inflation Factor (VIF)</h3>
+    <p class="screen-section-desc">
+      Measures multicollinearity across all inputs.
+      <span class="vif-tier vif-tier--green">✓</span> &lt; 5 (OK) ·
+      <span class="vif-tier vif-tier--amber">⚠</span> 5–10 (moderate) ·
+      <span class="vif-tier vif-tier--red">✗</span> ≥ 10 (high — pre-unchecked).
+      ${hasSobol ? "Sobol Sₜ from cached interpretation results." : ""}
+    </p>`;
+
+  const table = el("table", { cls: "results-table screen-vif-table" });
+  const sobolHeader = hasSobol
+    ? `<th title="Sobol total-order sensitivity (mean across all outputs)">Sobol Sₜ</th>`
+    : "";
+  table.innerHTML = `
+    <thead><tr>
+      <th>Input</th><th>VIF</th><th></th>${sobolHeader}
+    </tr></thead>
+    <tbody>
+      ${sortedByVif.map(col => {
+        const vif  = resp.vif[col] ?? 0;
+        const tier = _vifTier(vif);
+        const sobolCell = hasSobol
+          ? `<td class="metric-secondary">${
+              resp.sobol_st[col] != null ? resp.sobol_st[col].toFixed(3) : "—"
+            }</td>`
+          : "";
+        return `<tr>
+          <td>${escHtml(col)}</td>
+          <td><strong>${vif.toFixed(2)}</strong></td>
+          <td><span class="vif-tier ${tier.cls}" title="${tier.label}">${tier.icon}</span></td>
+          ${sobolCell}
+        </tr>`;
+      }).join("")}
+    </tbody>`;
+  section.appendChild(table);
+  container.appendChild(section);
+}
+
+// ── PCA sub-section ───────────────────────────────────────────────────────────
+
+function _renderPcaSection(container, resp, rootEl) {
+  const nInputs = resp.input_columns.length;
+
+  const details = document.createElement("details");
+  details.className = "screen-pca-wrap";
+
+  const summary = document.createElement("summary");
+  summary.className = "screen-pca-toggle";
+  summary.textContent = "PCA Dimensionality Reduction (optional)";
+  details.appendChild(summary);
+
+  const body = el("div", { cls: "screen-pca-body" });
+  body.innerHTML = `
+    <p class="screen-section-desc">
+      Principal Component Analysis projects your inputs into uncorrelated components, eliminating
+      all multicollinearity at once. Use this when many inputs are correlated and individual
+      filtering is insufficient.
+      <strong>After applying PCA, the model and prediction steps operate in PC coordinates.</strong>
+    </p>`;
+
+  // n_components control
+  const nRow = el("div", { cls: "screen-pca-control-row" });
+  const nLbl = el("label", { cls: "hyperparam-label" });
+  nLbl.setAttribute("for", "pca-n-components");
+  nLbl.textContent = "Components";
+  nRow.appendChild(nLbl);
+
+  const nInput = document.createElement("input");
+  nInput.type      = "number";
+  nInput.id        = "pca-n-components";
+  nInput.className = "global-header__input";
+  nInput.min       = "1";
+  nInput.max       = String(nInputs);
+  nInput.value     = String(Math.min(nInputs, 3));
+  nRow.appendChild(nInput);
+
+  const previewBtn = el("button", { cls: "btn btn-secondary", text: "Preview PCA →" });
+  nRow.appendChild(previewBtn);
+  body.appendChild(nRow);
+
+  const pcaResultsDiv = el("div", { cls: "screen-pca-results" });
+  body.appendChild(pcaResultsDiv);
+
+  const applyPcaBtn = el("button", {
+    cls: "btn btn-primary screen-pca-apply-btn hidden",
+    text: "Apply PCA →",
+  });
+  body.appendChild(applyPcaBtn);
+
+  // Restore previous preview if available
+  if (_pcaResp) {
+    nInput.value = String(_pcaResp.n_components_selected);
+    _renderPcaResults(pcaResultsDiv, _pcaResp, applyPcaBtn);
+    details.open = true;
+  }
+
+  previewBtn.addEventListener("click", async () => {
+    const n = parseInt(nInput.value, 10);
+    if (isNaN(n) || n < 1 || n > nInputs) {
+      showError(`Components must be between 1 and ${nInputs}.`);
+      return;
+    }
+    previewBtn.disabled    = true;
+    previewBtn.textContent = "Computing…";
+    showSpinner(previewBtn);
+    const r = await post("/api/data/screen/pca", { n_components: n });
+    hideSpinner(previewBtn);
+    previewBtn.disabled    = false;
+    previewBtn.textContent = "Preview PCA →";
+    if (!r.success) { showError(r.message || "PCA preview failed."); return; }
+    _pcaResp = r;
+    _renderPcaResults(pcaResultsDiv, r, applyPcaBtn);
+    requestAnimationFrame(() => {
+      pcaResultsDiv.querySelectorAll(".js-plotly-plot").forEach(p => Plotly.Plots.resize(p));
+    });
+  });
+
+  applyPcaBtn.addEventListener("click", async () => {
+    if (!_pcaResp) return;
+    const n = _pcaResp.n_components_selected;
+    applyPcaBtn.disabled    = true;
+    applyPcaBtn.textContent = "Applying PCA…";
+    const r = await put("/api/data/screen/apply", { mode: "pca", n_components: n });
+    applyPcaBtn.disabled    = false;
+    applyPcaBtn.textContent = "Apply PCA →";
+    if (!r.success) { showError(r.message || "PCA apply failed."); return; }
+    showSuccess(r.message || `PCA applied — ${n} component${n !== 1 ? "s" : ""}.`);
+    rootEl.dispatchEvent(new CustomEvent("screen:applied", {
+      detail: { input_columns: r.input_columns },
+      bubbles: true,
+    }));
+  });
+
+  details.appendChild(body);
+  container.appendChild(details);
+}
+
+function _renderPcaResults(container, r, applyBtn) {
+  clearEl(container);
+
+  // Explained variance chart
+  const chartWrap = el("div", { cls: "screen-pca-chart-wrap" });
+  container.appendChild(chartWrap);
+  renderExplainedVarianceChart(
+    chartWrap,
+    r.explained_variance_ratio,
+    r.cumulative_variance,
+    r.n_components_selected
+  );
+
+  // Loadings table — one row per component, top-3 inputs shown inline
+  if (r.loadings && r.loadings.length > 0) {
+    const tblWrap = el("div", { cls: "screen-pca-loadings-wrap" });
+    tblWrap.innerHTML = `<p class="screen-section-desc">Top-3 input loadings per component (by |loading| magnitude).</p>`;
+    const table = el("table", { cls: "results-table screen-vif-table" });
+    table.innerHTML = `
+      <thead><tr>
+        <th>Component</th><th>Var %</th><th>Top Inputs</th>
+      </tr></thead>
+      <tbody>
+        ${r.loadings.map(comp => {
+          const topStr = comp.top_inputs
+            .map(t => `${escHtml(t.col)} <span class="metric-secondary">(${t.loading.toFixed(3)})</span>`)
+            .join(" · ");
+          return `<tr>
+            <td><strong>${escHtml(comp.component)}</strong></td>
+            <td>${(comp.variance_ratio * 100).toFixed(1)}%</td>
+            <td>${topStr}</td>
+          </tr>`;
+        }).join("")}
+      </tbody>`;
+    tblWrap.appendChild(table);
+    container.appendChild(tblWrap);
+  }
+
+  // Summary line
+  const cumLast = r.cumulative_variance[r.cumulative_variance.length - 1];
+  const autoNote = r.n_components_auto && r.n_components_auto !== r.n_components_selected
+    ? ` (auto-suggestion: ${r.n_components_auto} for ≥90% variance)`
+    : "";
+  const sumEl = el("p", { cls: "screen-section-desc" });
+  sumEl.innerHTML = `<strong>${r.n_components_selected}</strong> component${r.n_components_selected !== 1 ? "s" : ""} ` +
+    `explain <strong>${(cumLast * 100).toFixed(1)}%</strong> of total input variance.${escHtml(autoNote)}`;
+  container.appendChild(sumEl);
+
+  if (applyBtn) applyBtn.classList.remove("hidden");
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function _updateApplyBtn(btn) {
   const n = _selected ? _selected.size : 0;
-  btn.disabled     = n < 1;
-  btn.textContent  = n > 0 ? `Apply Selection (${n} inputs) →` : "Apply Selection →";
+  btn.disabled    = n < 1;
+  btn.textContent = n > 0 ? `Apply Selection (${n} inputs) →` : "Apply Selection →";
 }

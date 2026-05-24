@@ -2315,6 +2315,59 @@ body,
   color: var(--color-text-muted);
 }
 
+/* ── VIF tier indicators ──────────────────────────────────────────────────── */
+.vif-tier           { font-weight: 600; font-size: var(--text-sm); }
+.vif-tier--green    { color: var(--color-success); }
+.vif-tier--amber    { color: #f59e0b; }
+.vif-tier--red      { color: var(--color-error); }
+.screen-vif-table   { margin-top: var(--space-2); max-width: 500px; }
+.screen-flag-tag--vif {
+  background:   rgba(239,68,68,0.12);
+  color:        var(--color-error);
+  border-color: rgba(239,68,68,0.28);
+}
+
+/* ── PCA sub-section ──────────────────────────────────────────────────────── */
+.screen-pca-wrap {
+  margin-top:    var(--space-8);
+  border:        1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  overflow:      hidden;
+}
+.screen-pca-toggle {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-2);
+  padding:       var(--space-3) var(--space-4);
+  font-size:     var(--text-sm);
+  font-weight:   600;
+  color:         var(--color-text-secondary);
+  cursor:        pointer;
+  list-style:    none;
+  user-select:   none;
+  background:    var(--color-bg-subtle);
+  transition:    background 0.15s;
+}
+.screen-pca-toggle::-webkit-details-marker { display: none; }
+.screen-pca-toggle::before                 { content: "▶"; font-size: 0.65em; opacity: 0.65; }
+details.screen-pca-wrap[open] .screen-pca-toggle::before { content: "▼"; }
+.screen-pca-toggle:hover { background: var(--color-bg-hover); }
+.screen-pca-body {
+  padding:    var(--space-4) var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+}
+.screen-pca-control-row {
+  display:       flex;
+  align-items:   center;
+  gap:           var(--space-3);
+  margin-bottom: var(--space-4);
+  flex-wrap:     wrap;
+}
+.screen-pca-chart-wrap    { width: 100%; overflow: hidden; margin-bottom: var(--space-3); }
+.screen-pca-loadings-wrap { margin-top: var(--space-3); }
+.screen-pca-apply-btn     { margin-top: var(--space-4); }
+.screen-pca-results       { margin-top: var(--space-4); }
+
 /* ── Comparison prerequisites checklist ──────────────────────────────────── */
 .compare-prereq-card {
   margin-top: var(--space-5);
