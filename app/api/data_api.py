@@ -1427,7 +1427,7 @@ def screen_inputs():
             "message":    "No input columns designated. Complete Step 5 — Assign first.",
         }), 400
 
-    df = primary.get("normalized") or primary.get("clean")
+    df = (primary["normalized"] if primary.get("normalized") is not None else primary["clean"])
     X  = df[input_cols]
 
     # Pearson correlation matrix
@@ -1546,7 +1546,7 @@ def screen_pca():
             "message":    "No input columns designated.",
         }), 400
 
-    df   = primary.get("normalized") or primary.get("clean")
+    df   = (primary["normalized"] if primary.get("normalized") is not None else primary["clean"])
     X    = df[input_cols].values.astype(float)
     max_comp = len(input_cols)
 
@@ -1690,7 +1690,7 @@ def screen_apply():
     if mode == "pca":
         n_components = max(1, min(int(data.get("n_components", 2)), len(all_inputs)))
 
-        df   = primary.get("normalized") or primary.get("clean")
+        df   = (primary["normalized"] if primary.get("normalized") is not None else primary["clean"])
         X    = df[all_inputs].values.astype(float)
         pca  = _PCA(n_components=n_components)
         X_pca = pca.fit_transform(X)
@@ -1706,7 +1706,7 @@ def screen_apply():
         }
 
         # Inject PC columns into a copy of the normalized/clean DataFrame
-        base_df = (primary.get("normalized") or primary.get("clean")).copy()
+        base_df = ((primary["normalized"] if primary.get("normalized") is not None else primary["clean"])).copy()
         for i, name in enumerate(pc_names):
             base_df[name] = X_pca[:, i]
         primary["normalized"] = base_df
