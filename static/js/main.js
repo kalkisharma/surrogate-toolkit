@@ -555,6 +555,7 @@ async function _renderExploration(uploadResponse) {
         _currentNorm       = null;
 
         stepUnlocked["normalize"]  = true;
+        stepUnlocked["screen"]     = true;
         stepUnlocked["configure"]  = true;
         stepUnlocked["compare"]    = true;
         stepUnlocked["export"]     = true;
