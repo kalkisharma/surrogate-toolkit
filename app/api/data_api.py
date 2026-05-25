@@ -695,7 +695,6 @@ def correlate():
         }), 200
 
     # Compute Pearson correlation and round to 4 dp for payload size
-    import numpy as np
     corr_df = df.corr(numeric_only=True)
     matrix  = {}
     for col in corr_df.columns:
@@ -1748,17 +1747,6 @@ def screen_apply():
         "success": False, "error_code": "UNKNOWN_MODE",
         "message": f"Unknown mode '{mode}'. Use 'columns' or 'pca'.",
     }), 400
-
-    return jsonify({
-        "success":       True,
-        "input_columns": new_input_cols,
-        "n_selected":    len(new_input_cols),
-        "n_dropped":     n_dropped,
-        "message":       (
-            f"{len(new_input_cols)} input{'s' if len(new_input_cols) != 1 else ''} selected"
-            + (f", {n_dropped} removed." if n_dropped else ".")
-        ),
-    }), 200
 
 
 # ─── SERIALISATION HELPERS ────────────────────────────────────────────────────
