@@ -19,6 +19,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.3.1] — 2026-05-25
+
+### Parallel Processing — Cores setting wired up and documented
+
+#### Fixed
+
+- `GridSearchCV` in Auto-Tune was hardcoded to `n_jobs=-1` (all available cores), ignoring the session Cores setting and silently violating HPC head-node policies when users left the default value of 1. Now reads `session.processor_count` and passes it as `n_jobs`; default remains 1 (serial).
+- RF training (`RandomForestRegressor`) similarly ignored the Cores setting; `n_jobs` is now threaded from the session through `_make_model` into `RFModel` so tree fitting runs in parallel when a user sets Cores > 1 on an allocated compute node.
+
+#### Changed
+
+- Settings dropdown now shows a three-line explanatory hint below the Cores input: what it parallelises, that 1 is the safe head-node default, and when to increase it.
+- `RFModel.__init__` accepts an `n_jobs` parameter (default 1) instead of hardcoding.
+- `_make_model()` accepts `n_jobs` and forwards it to `RFModel`.
+
+---
+
 ## [3.1.0] — 2026-05-21
 
 ### Phase 17 — Guided Exercises (M4 Phase 1)

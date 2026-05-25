@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-19
-VERSION: 2.3.1
+LAST MODIFIED: 2026-05-25
+VERSION: 2.3.2
 ================================================================================
 """
 
@@ -272,11 +272,15 @@ def tune():
     model_type = config["model_type"]
     cv_folds   = min(config.get("cv_folds") or DEFAULT_CV_FOLDS, 5)
 
+    # Respect the user's Cores setting (session processor_count).
+    # Default 1 = serial, safe on HPC head nodes.
+    n_jobs = int(state.get("session", {}).get("processor_count") or 1)
+
     X = df[input_cols].values
     y = df[output_cols].values
 
     # ── GridSearchCV ──────────────────────────────────────────────────────────
-    model      = _make_model(model_type)
+    model      = _make_model(model_type, n_jobs=n_jobs)
     param_grid = model.get_param_grid()
 
     if not param_grid:
@@ -292,7 +296,7 @@ def tune():
 
     gs = GridSearchCV(
         model._model, param_grid,
-        cv=cv_folds, scoring="r2", n_jobs=-1, refit=False,
+        cv=cv_folds, scoring="r2", n_jobs=n_jobs, refit=False,
     )
     gs.fit(X, y)
 
@@ -495,6 +499,9 @@ def train():
     cv_folds    = config["cv_folds"]
     hyperparams = config.get("hyperparams") or {}
 
+    # Respect the user's Cores setting (session processor_count).
+    n_jobs = int(state.get("session", {}).get("processor_count") or 1)
+
     # ── Build feature / target arrays ─────────────────────────────────────────
     X = df[input_cols].values
     y = df[output_cols].values
@@ -505,7 +512,7 @@ def train():
     )
 
     # ── Build model ───────────────────────────────────────────────────────────
-    model = _make_model(model_type, hyperparams)
+    model = _make_model(model_type, hyperparams, n_jobs=n_jobs)
 
     # ── Training size warnings ────────────────────────────────────────────────
     warnings = []
@@ -1369,7 +1376,7 @@ def train_multifidelity():
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 
-def _make_model(model_type: str, hyperparams: dict = None):
+def _make_model(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
     """Instantiate the correct model class for model_type.
 
     Args:
@@ -1377,6 +1384,8 @@ def _make_model(model_type: str, hyperparams: dict = None):
         hyperparams: Optional dict of model-specific hyperparameter overrides.
                      Unknown keys are silently ignored; each constructor uses
                      its own defaults for missing keys.
+        n_jobs:      Parallelism for RF tree fitting. Reads from session
+                     processor_count; defaults to 1 (serial, safe on head nodes).
 
     Returns:
         BaseSurrogateModel subclass instance (unfitted).
@@ -1401,6 +1410,7 @@ def _make_model(model_type: str, hyperparams: dict = None):
             max_depth=hp.get("max_depth"),
             min_samples_leaf=hp.get("min_samples_leaf", 1),
             max_features=hp.get("max_features", "sqrt"),
+            n_jobs=n_jobs,
         )
     if model_type == "rbf":
         return RBFModel(

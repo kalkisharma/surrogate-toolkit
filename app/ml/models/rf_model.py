@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Random Forest surrogate model
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 1.0.1
+LAST MODIFIED: 2026-05-25
+VERSION: 1.0.2
 ================================================================================
 """
 
@@ -25,7 +25,8 @@ class RFModel(BaseSurrogateModel):
     """Random Forest surrogate model.
 
     RandomForestRegressor natively handles multi-output targets — no wrapper
-    is required. n_jobs=1 to respect the processor allocation stored in STATE.
+    is required. n_jobs defaults to 1 (serial); pass the session processor_count
+    from model_api to enable parallelism on allocated compute nodes.
     """
 
     def __init__(
@@ -34,6 +35,7 @@ class RFModel(BaseSurrogateModel):
         max_depth: int = None,
         min_samples_leaf: int = 1,
         max_features: str = "sqrt",
+        n_jobs: int = 1,
     ):
         super().__init__("rf")
         self._model = RandomForestRegressor(
@@ -42,7 +44,7 @@ class RFModel(BaseSurrogateModel):
             min_samples_leaf=int(min_samples_leaf) if min_samples_leaf else 1,
             max_features=max_features or "sqrt",
             random_state=DEFAULT_RANDOM_STATE,
-            n_jobs=1,
+            n_jobs=int(n_jobs) if n_jobs and n_jobs > 0 else 1,
         )
 
     def fit(

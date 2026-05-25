@@ -1049,6 +1049,13 @@ input, select, textarea { font-family: inherit; }
 .global-header__input:hover { border-color: var(--color-border-focus); }
 .global-header__input:focus { outline: none; border-color: var(--color-border-focus); box-shadow: var(--shadow-accent); }
 .global-header__input.input-caution { border-color: var(--color-warning); color: var(--color-warning); }
+.global-header__cores-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  line-height: 1.55;
+  margin: calc(var(--space-2) * -1) 0 0;
+  max-width: 192px;
+}
 .global-header__btn {
   display: inline-flex;
   align-items: center;

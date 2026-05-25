@@ -6,8 +6,8 @@ PURPOSE: Single source of truth for all configurable constants. Nothing is
          hardcoded elsewhere in the application — all tunable values live here.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-23
-VERSION: 3.3.0
+LAST MODIFIED: 2026-05-25
+VERSION: 3.3.1
 ================================================================================
 """
 
@@ -17,7 +17,7 @@ VERSION: 3.3.0
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "3.3.0"                     # bumped in settings.py, all changed file headers, and index.html on every release
+VERSION = "3.3.1"                     # bumped in settings.py, all changed file headers, and index.html on every release
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
