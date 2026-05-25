@@ -36,6 +36,59 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.3.0] — 2026-05-23
+
+### Phase 18 — Input Filtering (completion) + Learning content expansion
+
+#### Added
+
+- **PCA sub-section** in Filter panel (collapsible `<details>`) — user picks `n_components`, previews explained-variance bar/line chart (`renderExplainedVarianceChart`), inspects per-component top-3 loadings table, then applies. Fitted PCA object stored in STATE; prediction and results steps operate in PC coordinate space after apply.
+- **2 new synthetic datasets** in `app/learning/datasets/`:
+  - `pca_correlated_6d.csv` — 150 rows; 6 aerodynamic inputs with two correlated groups (velocity/q/Mach, span/aspect_ratio); designed for VIF > 100 demonstration
+  - `multifidelity_lf.csv` / `multifidelity_hf.csv` — 200/30 rows; 3-input polynomial + sinusoidal interaction term at different fidelity levels
+- **2 new exercises** in `app/learning/exercises/`:
+  - `ex_06_pca_filter.json` — 10 steps, intermediate; VIF identification + PCA apply + GPR on PC coordinates
+  - `ex_07_multifidelity.json` — 11 steps, intermediate; LF/HF dataset pair, Bridge Correction in Compare step
+- **3 new learning topics** in `app/learning/`:
+  - `input_filtering.json` — 6 sections: why filter, Pearson r, VIF, low-variance, PCA, manual vs PCA decision guide
+  - `multifidelity.json` — 6 sections: what is MF, when to use, Bridge Correction, Co-Kriging, dataset prep, results interpretation
+  - `model_troubleshooting.json` — 6 sections: reading diagnostic signals, wrong model, insufficient data, high dimensionality, data quality, quick checklist
+- **4 new glossary terms**: VIF, Multicollinearity, Principal Component Analysis, Explained Variance Ratio
+- **New data_cleaning.json section**: "VIF — Catching Multicollinearity Pairwise Correlation Misses"
+- **Multi-dataset exercise support** — `start_exercise` in `learning_api.py` ingests all `"datasets"` array entries on exercise start; secondary datasets appear in dataset switcher without changing active dataset
+- Learning guide `_TOPICS` updated with `input_filtering`, `multifidelity`, `model_troubleshooting`
+
+#### Fixed
+
+- **`ValueError: The truth value of a DataFrame is ambiguous`** in `/api/data/screen` — four `or` patterns on DataFrames replaced with explicit `is not None` checks throughout `data_api.py`
+- **Filter step staying locked after designation** — `stepUnlocked["screen"]` was missing from the designation callback block in `main.js`; added alongside the other step unlocks
+
+---
+
+## [3.2.0] — 2026-05-22
+
+### Phase 18 — Input Filtering (core implementation)
+
+#### Added
+
+- **Step 7 — Filter** inserted between Normalize (Step 6) and Model (Step 8). All downstream steps renumber: Model→8, Results→9, Predict→10, Optimize→11, Interpret→12, Active→13, Compare→14, Export→15.
+- **Correlation analysis** — Pearson |r| heatmap (`renderCorrelationHeatmap`) + flagged-pairs table; threshold slider (default 0.90); user selects which of each correlated pair to retain
+- **VIF table** — Variance Inflation Factor for each input (inverse correlation matrix; OLS fallback for singular matrices). Three-tier coloring: ✓ < 5, ⚠ 5–10, ✗ ≥ 10 (pre-unchecked). Sorted by VIF descending. Optional Sobol Sₜ column when Phase 12 interpretation cache is present.
+- **Low-variance flags** — inputs with coefficient of variation below threshold listed as drop candidates
+- **Input toggle checkboxes** — full input list; corr-, low-var-, and VIF-flagged inputs pre-unchecked; user overrides freely. Flag tags (`corr`, `low-var`, `vif`) shown on each row.
+- **Apply (columns mode)** — writes selected input set to STATE; clears surrogate session
+- `POST /api/data/screen`, `POST /api/data/screen/pca`, `PUT /api/data/screen/apply` endpoints
+- `input_screening.js` (~310 lines) — Filter panel module
+- `model_selection.json` decision tree: hint added to medium-dataset node ("If you applied PCA in Step 7 — Filter, count PC components retained")
+- `screen:applied` event in main.js updates `_currentInputCols` and clears downstream results
+
+#### Changed
+
+- Sidebar step label "Screen" → "Filter"; step renamed throughout codebase (`screen` key unchanged)
+- Auto-selection permanently removed from scope — VIF/Sobol flags are suggestions only; engineer decides
+
+---
+
 ## [3.1.0] — 2026-05-21
 
 ### Phase 17 — Guided Exercises (M4 Phase 1)
