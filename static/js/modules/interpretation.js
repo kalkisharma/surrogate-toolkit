@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/interpretation.js
-// Version: 1.1.0
+// Version: 1.1.1
 // Description: Step 12 — Model Interpretation. Sobol global sensitivity
 //              tornado chart + S1/ST table, OAT response curve grid, and
 //              prediction uncertainty summary.

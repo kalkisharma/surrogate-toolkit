@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-25
-VERSION: 2.3.2
+VERSION: 2.3.3
 ================================================================================
 """
 

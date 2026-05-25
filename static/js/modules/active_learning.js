@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/active_learning.js
-// Version: 1.0.0
+// Version: 1.0.1
 // Description: Step 13 — Active Learning. Coverage mode (max-min distance)
 //              and objective mode (EI / UCB) recommendation panels with design
 //              space scatter, recommendation table, CSV export, and history.

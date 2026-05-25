@@ -19,6 +19,28 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.3.2] — 2026-05-25
+
+### Phase 8 plan review — code quality, test coverage, and dependency fixes
+
+#### Fixed
+
+- `interpretation.js` panel title and gate message referenced stale step numbers ("Step 11", "Step 7") left over from before Phase 18 inserted the Filter step. Corrected to "Step 12 — Model Interpretation" and "Step 8 — Model".
+- `active_learning.js` same issue — both rendered h2 titles showed "Step 12" and gate message referenced "Step 7". Corrected to "Step 13 — Active Learning" and "Step 8 — Model".
+- `model_api.py` interpret endpoint error message referenced "Step 7" for the same reason. Corrected to "Step 8 — Model".
+- `data_api.py` had an unreachable `return jsonify(...)` block (dead code) after the `UNKNOWN_MODE` fallthrough in `apply_filter()`, and a redundant `import numpy as np` inside the `correlation_matrix` function body. Both removed.
+- `global_sensitivity.py` used the deprecated `from SALib.sample import saltelli` import. The `saltelli` module was slated for removal before SALib 1.5.1 (our minimum pin); 1.5.2 was installed and still emitting 9 deprecation warnings per test run. Updated to `from SALib.sample import sobol as sobol_sample`.
+
+#### Added
+
+- `tests/unit/test_uncertainty.py` — 32 new unit tests for `SobolAnalyzer`, `OATAnalyzer`, and `compute_uncertainty`. Coverage includes: required return keys and types, n_evaluations formula, PCE analytical shortcut bypass, single-input edge case, OAT range and length contracts, constant-column edge case, GPR/RF/kriging CI shape and ordering, None/empty X_test guards, linear model returning null triple, multi-output index selection. Test suite grows from 154 → 186.
+
+#### Removed
+
+- `app/ml/uncertainty/intervals.py` — unimplemented stub with no callers. Created alongside `bootstrap.py` during scaffolding but never defined or used.
+
+---
+
 ## [3.3.1] — 2026-05-25
 
 ### Parallel Processing — Cores setting wired up and documented
