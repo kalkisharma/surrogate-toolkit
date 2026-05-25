@@ -28,6 +28,14 @@ let _rerenderPending    = false;  // set when updateColumnSelectorRoles fires wh
 // Re-render on theme toggle so palette and font colors update immediately.
 document.addEventListener("theme:changed", () => { if (_chartEl) _rerender(); });
 
+// Handle browser window resize. Only fires when the chart is visible (offsetParent !== null)
+// to avoid Plotly sizing the chart into a zero-width hidden container.
+window.addEventListener("resize", () => {
+  if (_chartEl && _chartEl.offsetParent !== null) {
+    Plotly.Plots.resize(_chartEl);
+  }
+});
+
 // ── Chart settings ────────────────────────────────────────────────────────────
 
 const _SETTINGS_KEY = "surrogate_chart_settings";

@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.2.0
+// Version: 2.2.1
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -188,7 +188,12 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
   };
 
   const config = {
-    responsive:             true,
+    // responsive: false — the SPLOM container uses an explicit style.height set by _rerender().
+    // Plotly's built-in ResizeObserver (responsive:true) reads the padded *parent* clientHeight
+    // instead of the element's inline height, causing incorrect sizing whenever the panel
+    // transitions from display:none to visible. Manual resize is handled by activatePanel()
+    // and the window-resize listener in data_explorer.js.
+    responsive:             false,
     displayModeBar:         true,
     displaylogo:            false,
     modeBarButtonsToRemove: ["sendDataToCloud"],
