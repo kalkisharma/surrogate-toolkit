@@ -41,7 +41,7 @@ class SobolAnalyzer:
         if hasattr(model, "get_sensitivity"):
             return model.get_sensitivity(output_col_idx)
 
-        from SALib.sample import saltelli
+        from SALib.sample import sobol as sobol_sample
         from SALib.analyze import sobol
 
         bounds = [
@@ -53,7 +53,7 @@ class SobolAnalyzer:
             "names":    list(input_cols),
             "bounds":   bounds,
         }
-        X_sample = saltelli.sample(problem, N=n_samples, calc_second_order=False)
+        X_sample = sobol_sample.sample(problem, N=n_samples, calc_second_order=False)
         Y = model.predict(X_sample)[:, output_col_idx]
         Si = sobol.analyze(problem, Y, calc_second_order=False, print_to_console=False)
 
