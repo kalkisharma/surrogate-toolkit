@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/active_learning.js
 // Version: 1.0.0
-// Description: Step 12 — Active Learning. Coverage mode (max-min distance)
+// Description: Step 13 — Active Learning. Coverage mode (max-min distance)
 //              and objective mode (EI / UCB) recommendation panels with design
 //              space scatter, recommendation table, CSV export, and history.
 // =============================================================================
@@ -34,10 +34,10 @@ export async function initActiveLearning(containerEl) {
   if (!resultsResp.success) {
     containerEl.innerHTML = `
       <div class="section-header">
-        <h2 class="section-title">Step 12 — Active Learning</h2>
+        <h2 class="section-title">Step 13 — Active Learning</h2>
       </div>
       <p style="color:var(--color-text-muted);padding:var(--space-4) 0;">
-        No trained model. Complete Step 7 — Configure Training first.
+        No trained model. Complete Step 8 — Model first.
       </p>`;
     return;
   }
@@ -51,7 +51,7 @@ export async function initActiveLearning(containerEl) {
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 12 — Active Learning</h2>
+    <h2 class="section-title">Step 13 — Active Learning</h2>
     <p class="section-desc">Get recommendations for where to run your next simulations.</p>
   `;
   containerEl.appendChild(header);

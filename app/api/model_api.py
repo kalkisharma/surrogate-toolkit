@@ -344,7 +344,7 @@ def interpret():
     if model is None or results is None:
         return jsonify({
             "success": False, "error_code": "NO_TRAINED_MODEL",
-            "message": "No trained model. Train a model in Step 7 first.",
+            "message": "No trained model. Train a model in Step 8 — Model first.",
         }), 404
 
     input_cols  = results["input_columns"]
