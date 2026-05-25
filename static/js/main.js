@@ -13,7 +13,7 @@ import { get, post, put } from "./api.js";
 import { refreshState, getPath } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
-import { initExploration, updateColumnSelectorRoles } from "./modules/data_explorer.js";
+import { initExploration, updateColumnSelectorRoles, notifyExploreVisible } from "./modules/data_explorer.js";
 import { initCleaning } from "./modules/data_cleaning.js";
 import { initDesignation } from "./modules/column_designation.js";
 import { initNormalization } from "./modules/normalization.js";
@@ -443,8 +443,9 @@ async function _renderExploration(uploadResponse) {
       await _initPanel(key, _panelContent[key]);
     }
     if (key === "explore") {
+      notifyExploreVisible();
       const splom = document.getElementById("splom-container");
-      if (splom) Plotly.Plots.resize(splom);
+      if (splom) requestAnimationFrame(() => Plotly.Plots.resize(splom));
     }
   }
 

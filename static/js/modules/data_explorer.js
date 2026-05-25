@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.1.1
+// Version: 1.1.2
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -22,7 +22,8 @@ let _outlierIndices   = new Set();
 let _showOutliers     = false;
 let _chartEl          = null;
 let _fullStats        = null;
-let _selectorRefreshFn = null;   // set by _buildColumnSelector; used by updateColumnSelectorRoles
+let _selectorRefreshFn  = null;   // set by _buildColumnSelector; used by updateColumnSelectorRoles
+let _rerenderPending    = false;  // set when updateColumnSelectorRoles fires while panel is hidden
 
 // Re-render on theme toggle so palette and font colors update immediately.
 document.addEventListener("theme:changed", () => { if (_chartEl) _rerender(); });
@@ -1070,5 +1071,19 @@ export function updateColumnSelectorRoles(inputCols, outputCols) {
   _currentColumns = _selectedCols;
   if (_selectorRefreshFn) _selectorRefreshFn();
   _outlierIndices = detectOutliers(_currentRows, _currentColumns);
-  _rerender();
+  // If the chart element is inside a hidden panel (display:none), rendering into it
+  // produces a zero-width plot. Defer until notifyExploreVisible() is called.
+  if (_chartEl && _chartEl.offsetParent !== null) {
+    _rerender();
+  } else {
+    _rerenderPending = true;
+  }
+}
+
+export function notifyExploreVisible() {
+  if (_rerenderPending && _chartEl) {
+    _rerenderPending = false;
+    // Defer one frame so the browser commits layout after removing .hidden.
+    requestAnimationFrame(() => _rerender());
+  }
 }
