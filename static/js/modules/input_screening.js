@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/input_screening.js
-// Version: 1.1.0 (app v3.3.0)
+// Version: 1.1.0 (app v3.3.1)
 // Description: Step 7 — Input Filtering. Correlation heatmap, VIF table with
 //              3-tier multicollinearity indicators, Sobol ST overlay (when
 //              interpretation cache is present), low-variance flags, input
