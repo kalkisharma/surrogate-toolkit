@@ -205,12 +205,15 @@ async function _renderModelGuide(container) {
 // ── Topics ────────────────────────────────────────────────────────────────────
 
 const _TOPICS = [
-  { key: "diagnostics",    label: "Diagnostics & Metrics" },
-  { key: "uncertainty",    label: "Uncertainty Quantification" },
-  { key: "cv_strategies",  label: "Cross-Validation Strategies" },
-  { key: "sensitivity",    label: "Sensitivity Analysis" },
-  { key: "active_learning", label: "Active Learning" },
-  { key: "data_cleaning",  label: "Data Cleaning" },
+  { key: "diagnostics",          label: "Diagnostics & Metrics" },
+  { key: "uncertainty",          label: "Uncertainty Quantification" },
+  { key: "cv_strategies",        label: "Cross-Validation Strategies" },
+  { key: "sensitivity",          label: "Sensitivity Analysis" },
+  { key: "active_learning",      label: "Active Learning" },
+  { key: "data_cleaning",        label: "Data Cleaning" },
+  { key: "input_filtering",      label: "Input Filtering & Dimensionality Reduction" },
+  { key: "multifidelity",        label: "Multi-Fidelity Modeling" },
+  { key: "model_troubleshooting", label: "Poor Fit? Troubleshooting Guide" },
 ];
 
 const _GUIDES = [
@@ -299,7 +302,7 @@ async function _renderExercises(container) {
   }
 
   const intro = el("p", { cls: "lg-section-intro",
-    text: "Guided exercises auto-load a synthetic dataset and walk you through the full workflow step by step. Quiz questions are advisory — you can always continue regardless of your answer." });
+    text: "Guided exercises auto-load a synthetic dataset and walk you through the full workflow step by step. Quiz questions are advisory — you can always continue regardless of your answer. Suggested order: complete exercises 1–3 before attempting 4–7. Exercise 6 (PCA) requires reading the 'Input Filtering' topic first. Exercise 7 (Multi-Fidelity) requires switching between two auto-loaded datasets." });
   container.appendChild(intro);
 
   for (const ex of resp.exercises) {

@@ -1,0 +1,28 @@
+{
+  "sections": [
+    {
+      "title": "What Is Multi-Fidelity Modeling?",
+      "body": "Multi-fidelity modeling combines data from two or more simulation fidelity levels to build a surrogate that is both globally accurate (from many cheap simulations) and locally corrected (from a few expensive ones). In aerospace engineering, a typical setup is: 200 Euler CFD runs (low fidelity, fast) providing broad coverage of the design space, plus 30 Navier-Stokes runs (high fidelity, expensive) at carefully chosen operating points. A single-fidelity surrogate trained only on HF data would have too few points; trained only on LF data it would miss important physics. Multi-fidelity uses both."
+    },
+    {
+      "title": "When to Use Multi-Fidelity",
+      "body": "Multi-fidelity modeling is most valuable when: you have an existing large LF dataset (CFD, FEA, or analytical) that captures the dominant trends; HF simulations or experiments are at least 5–10× more expensive than LF (otherwise just run more HF); LF and HF outputs are reasonably correlated (LF should predict HF with R² > 0.70 — if not, the LF physics is too different to help); and the design space is large enough that 20–50 HF points cannot cover it alone. It is not appropriate when LF and HF outputs are poorly correlated (the correction model cannot learn a reliable discrepancy), when the LF dataset is smaller than the HF dataset, or when the two fidelities use different input parameterisations."
+    },
+    {
+      "title": "Bridge Correction Method",
+      "body": "Bridge Correction is the toolkit's default multi-fidelity approach. Step 1: train a surrogate (RF by default) on all LF data to get ŷ_LF(x). Step 2: evaluate that LF surrogate at each HF input point to get ŷ_LF(x_HF). Step 3: compute the discrepancy δ(x) = y_HF − ŷ_LF(x_HF) at each HF point. Step 4: train a separate surrogate (GPR by default) on the discrepancy values. Step 5: the final prediction is ŷ_MF(x) = ŷ_LF(x) + δ̂(x). The LF surrogate provides the global trend; the correction model δ̂ adds the HF accuracy where data is available and smoothly interpolates correction between HF points. Bridge Correction is non-parametric — it makes no assumptions about the mathematical relationship between LF and HF physics."
+    },
+    {
+      "title": "Kennedy-O'Hagan Co-Kriging",
+      "body": "Co-Kriging (also called the Kennedy-O'Hagan model) is a more principled multi-fidelity approach that models the HF response as ρ × f_LF(x) + δ(x), where ρ is a scalar scaling factor (estimated by OLS) and δ(x) is a Gaussian process correction. Unlike Bridge Correction, Co-Kriging provides native uncertainty estimates that propagate uncertainty from both the LF surrogate and the correction model. It is more expensive to train and more sensitive to the ρ assumption (if LF and HF are not proportionally related, ρ is poorly estimated). Use Co-Kriging when you need prediction intervals on the multi-fidelity surrogate; use Bridge Correction when you want robustness and simplicity."
+    },
+    {
+      "title": "Preparing LF and HF Datasets",
+      "body": "Both datasets must use the same input column names — the toolkit matches columns by name when computing the LF predictions at HF points. Normalise both datasets using the same method (Min-Max on the combined range, or independently — the toolkit handles both). The HF dataset does not need to be a strict subset of the LF input points, but the HF points should be within the LF training range to avoid extrapolation in the LF surrogate. A good HF design uses Latin Hypercube Sampling (LHS) across the full design space rather than clustering points near the expected optimum — the correction model needs to learn the discrepancy everywhere, not just near the best point. A minimum of 5–10× the number of inputs is recommended for the HF dataset (e.g. 30 HF points for 3 inputs)."
+    },
+    {
+      "title": "Interpreting Multi-Fidelity Results",
+      "body": "The Compare panel reports the Bridge Correction results including: n_lf (LF training rows), n_hf (HF rows used for correction), and per-output metrics (R², RMSE) evaluated by leaving HF points out one at a time. A well-functioning correction model should improve R² relative to the standalone LF surrogate. If the correction model R² is lower than the LF model alone, the LF physics may be poorly correlated with HF (check the discrepancy scatter — it should show a learnable pattern). If the correction model fits perfectly on the HF training set but poorly on HF test points, the correction may be overfitting to the small HF dataset — try a simpler correction model (linear or RF with fewer trees)."
+    }
+  ]
+}

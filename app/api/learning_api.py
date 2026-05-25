@@ -36,12 +36,15 @@ _EXERCISES_DIR = os.path.join(_LEARNING_DIR, "exercises")
 _DATASETS_DIR  = os.path.join(_LEARNING_DIR, "datasets")
 
 _TOPIC_FILES = {
-    "diagnostics":    "diagnostics.json",
-    "uncertainty":    "uncertainty.json",
-    "cv_strategies":  "cv_strategies.json",
-    "sensitivity":    "sensitivity.json",
-    "active_learning": "active_learning.json",
-    "data_cleaning":  "data_cleaning.json",
+    "diagnostics":          "diagnostics.json",
+    "uncertainty":          "uncertainty.json",
+    "cv_strategies":        "cv_strategies.json",
+    "sensitivity":          "sensitivity.json",
+    "active_learning":      "active_learning.json",
+    "data_cleaning":        "data_cleaning.json",
+    "input_filtering":      "input_filtering.json",
+    "multifidelity":        "multifidelity.json",
+    "model_troubleshooting": "model_troubleshooting.json",
 }
 
 _GUIDE_FILES = {
@@ -285,9 +288,56 @@ def start_exercise(exercise_id: str):
             "completed_at":    None,
         }
 
+    # Load secondary datasets (for multi-dataset exercises like multi-fidelity)
+    secondary_names = [d for d in ex.get("datasets", []) if d != dataset_name]
+    for sec_name in secondary_names:
+        sec_path = os.path.join(_DATASETS_DIR, sec_name)
+        if not os.path.isfile(sec_path):
+            continue  # skip silently — primary is already loaded
+        with open(sec_path, "rb") as f:
+            sec_df, sec_result = ingest_csv(f, sec_name)
+        if not sec_result["success"]:
+            continue
+        sec_meta  = sec_result["metadata"]
+        sec_bytes = int(sec_df.memory_usage(deep=True).sum())
+        sec_missing = {
+            col: {"count": sec_meta["null_counts"][col],
+                  "ratio": round(sec_meta["null_counts"][col] / sec_meta["n_rows_original"], 4)}
+            for col in sec_meta["columns"] if sec_meta["null_counts"][col] > 0
+        }
+        _datasets[sec_name] = {
+            "raw":           sec_df.copy(),
+            "clean":         sec_df.copy(),
+            "metadata":      {
+                "filename":            sec_meta["filename"],
+                "upload_timestamp":    sec_meta["upload_timestamp"],
+                "n_rows_original":     sec_meta["n_rows_original"],
+                "n_cols":              sec_meta["n_cols"],
+                "columns":             sec_meta["columns"],
+                "dtypes":              sec_meta["dtypes"],
+                "null_counts":         sec_meta["null_counts"],
+                "coercion_warnings":   sec_meta["coercion_warnings"],
+                "missing_data_report": sec_missing,
+                "data_type":           None,
+                "preview_rows":        _numpy_to_python(sec_df.head(10).where(sec_df.head(10).notna(), other=None).to_dict(orient="records")),
+                "summary_stats":       _build_summary_stats(sec_df),
+            },
+            "memory_bytes":  sec_bytes,
+            "last_accessed": now_ts,
+            "surrogate_session": {
+                "models": {},
+                "config": {
+                    "model_type": None,
+                    "test_split": DEFAULT_TEST_SPLIT,
+                    "cv_folds":   DEFAULT_CV_FOLDS,
+                },
+            },
+        }
+
     append_audit_event(state, "exercise_started", {
-        "exercise_id": exercise_id,
-        "dataset":     dataset_name,
+        "exercise_id":       exercise_id,
+        "dataset":           dataset_name,
+        "secondary_datasets": secondary_names,
     })
 
     return jsonify({

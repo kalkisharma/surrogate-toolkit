@@ -22,7 +22,11 @@
     },
     {
       "title": "Correlation and Redundant Inputs",
-      "body": "Highly correlated inputs (|Pearson r| ≥ 0.90) carry nearly identical information. Including both in a GPR model inflates the effective dimensionality without adding information, and can cause the kernel length-scale optimisation to produce degenerate solutions. The toolkit flags highly correlated pairs in the Explore panel. If two inputs are correlated by design (e.g. dynamic pressure = 0.5·ρ·V²), one is usually derivable from the other and can be dropped. If correlation is coincidental (sampling artefact), keep both but be aware the sensitivity analysis may split variance between them."
+      "body": "Highly correlated inputs (|Pearson r| ≥ 0.90) carry nearly identical information. Including both in a GPR model inflates the effective dimensionality without adding information, and can cause the kernel length-scale optimisation to produce degenerate solutions. The toolkit flags highly correlated pairs in the Explore panel and in the Step 7 Filter heatmap. If two inputs are correlated by design (e.g. dynamic pressure = 0.5·ρ·V²), one is usually derivable from the other and can be dropped. If correlation is coincidental (sampling artefact), keep both but be aware the sensitivity analysis may split variance between them."
+    },
+    {
+      "title": "VIF — Catching Multicollinearity Pairwise Correlation Misses",
+      "body": "Pearson r measures pairwise linear correlation between two inputs. But multicollinearity can exist even when no single pair exceeds the 0.90 threshold: if inputs A and B are each correlated 0.7 with input C, VIF for all three may be 5–10 even though no pairwise |r| is flagged. Variance Inflation Factor (VIF) detects this by asking: how well is each input predicted by all the other inputs combined? VIF = 1/(1−R²), where R² is the regression R² for predicting that input from all others. Rule of thumb: VIF < 5 is acceptable. VIF 5–10 warrants review. VIF ≥ 10 is high multicollinearity — the input is nearly redundant and should be removed or addressed via PCA. The Step 7 Filter panel computes VIF for all designated inputs and sorts by severity, pre-unchecking inputs with VIF ≥ 10 as a starting recommendation. The final decision to remove is always yours."
     }
   ]
 }

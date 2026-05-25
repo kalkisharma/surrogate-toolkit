@@ -1,0 +1,127 @@
+{
+  "id": "ex_07_multifidelity",
+  "title": "Multi-Fidelity Modeling — Bridge Correction",
+  "difficulty": "intermediate",
+  "estimated_minutes": 30,
+  "description": "You have two datasets: 200 cheap low-fidelity (LF) simulation runs and 30 expensive high-fidelity (HF) runs. The LF runs capture the main trends but miss a nonlinear interaction term. You will train both surrogates and use Bridge Correction to combine LF global coverage with HF accuracy. Note: this exercise requires switching between two loaded datasets — use the dataset selector in the sidebar header.",
+  "datasets": ["multifidelity_lf.csv", "multifidelity_hf.csv"],
+  "dataset": "multifidelity_lf.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The LF dataset (currently active) has 200 rows — cheap, fast simulations. Three inputs x1, x2, x3 represent normalised design parameters. Output y is the quantity of interest from the coarse simulation. The dataset switcher in the sidebar shows both LF (200 rows) and HF (30 rows) are loaded.",
+      "quiz": {
+        "question": "In multi-fidelity modeling, why run expensive HF simulations at all if you already have 200 LF runs?",
+        "options": [
+          "HF runs are needed to validate the LF data",
+          "LF simulations use simplified physics that miss some phenomena — HF captures the full physics but is too expensive to run 200 times. A small HF set corrects the LF model where it is wrong",
+          "200 LF runs are not enough to train a surrogate",
+          "HF runs are required by the toolkit to enable the Compare step"
+        ],
+        "correct_index": 1,
+        "explanation": "LF models (coarser mesh, simplified physics) capture the dominant trends cheaply. HF models (fine mesh, full physics) are accurate but expensive — you can afford only 30. Bridge Correction trains an LF surrogate first, then trains a separate model on the discrepancy (HF − LF_prediction) at the 30 HF points. The combined model has global coverage from LF and local accuracy from HF."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "designate",
+      "instruction": "Assign x1, x2, x3 as inputs and y as the output for the LF dataset.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to x1, x2, x3 for the LF dataset.",
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "configure",
+      "instruction": "Configure a Random Forest model (test split 0.15, 5-fold CV). RF is a good choice for the LF dataset — it is robust on the larger, noisier LF runs. Train it.",
+      "quiz": {
+        "question": "Why is Random Forest often preferred over GPR for the low-fidelity surrogate in a multi-fidelity pipeline?",
+        "options": [
+          "RF is more accurate than GPR on all datasets",
+          "LF datasets are often large and noisy — RF handles noise robustly and scales to 200+ rows without the O(n³) cost GPR incurs",
+          "GPR cannot be used in the Compare step",
+          "RF provides better sensitivity analysis for LF data"
+        ],
+        "correct_index": 1,
+        "explanation": "The LF dataset has more rows and typically more noise (simplified physics introduces systematic errors). RF averages over 100 trees, which naturally handles noisy data. GPR is slower (O(n³)) and can overfit noisy data if the kernel alpha is not tuned. For the HF step, GPR is preferred because the small, accurate dataset is GPR's sweet spot."
+      }
+    },
+    {
+      "step_num": 5,
+      "target_panel": "results",
+      "instruction": "Note the LF model's test R² — it should be around 0.90–0.94. The LF model captures the main effects (3x1 + 2x2² + 1.5x1·x3) well but underestimates the nonlinear interaction term 0.8·sin(π·x2·x3) present in the HF physics. The residual plot may show a slight systematic curve.",
+      "quiz": {
+        "question": "The LF surrogate achieves R² = 0.91 on the LF test set. Does this mean it will also achieve R² ≈ 0.91 on the HF outputs?",
+        "options": [
+          "Yes — R² only depends on fit quality, not fidelity level",
+          "Not necessarily — the LF model was trained on different (simpler) physics. It may systematically under-predict or over-predict the HF output wherever the HF interaction term is significant",
+          "It will be higher because HF data is smoother",
+          "R² cannot be computed across fidelity levels"
+        ],
+        "correct_index": 1,
+        "explanation": "The LF model is an accurate surrogate of the LF physics, not the HF physics. Where the two fidelities agree (main effects), LF predictions are close to HF values. Where they diverge (the sin interaction term), LF systematically deviates from HF truth. Bridge Correction fits this deviation explicitly at the 30 HF points."
+      }
+    },
+    {
+      "step_num": 6,
+      "target_panel": "preview",
+      "instruction": "Now switch to the HF dataset: click the 'multifidelity_hf' tab in the dataset selector at the top of the sidebar. The preview should show 30 rows — the same three inputs but with more accurate y values from the high-fidelity simulation.",
+      "quiz": null
+    },
+    {
+      "step_num": 7,
+      "target_panel": "designate",
+      "instruction": "Assign x1, x2, x3 as inputs and y as the output for the HF dataset. Same column names as LF — this is required for the Bridge Correction to work.",
+      "quiz": null
+    },
+    {
+      "step_num": 8,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to the HF inputs. Use the same method as LF so both datasets are on the same scale.",
+      "quiz": null
+    },
+    {
+      "step_num": 9,
+      "target_panel": "configure",
+      "instruction": "Configure a GPR model (test split 0.2, 5-fold CV). GPR is the right choice for 30 accurate HF points — small dataset, smooth response, and native uncertainty estimates. Train it.",
+      "quiz": {
+        "question": "The HF GPR is trained on only 30 points. Why does it still achieve reasonable accuracy compared to the 200-point LF RF?",
+        "options": [
+          "GPR memorises training points exactly so 30 is always enough",
+          "GPR exploits smoothness — 30 well-placed points in 3-D space can reconstruct a smooth function if coverage is reasonable. RF needs more points to build reliable splits",
+          "30 HF points were randomly chosen and happened to be informative",
+          "HF data always trains faster than LF data"
+        ],
+        "correct_index": 1,
+        "explanation": "GPR uses a kernel to propagate information from nearby training points into the gaps. For a 3-input smooth response, 30 points provide good coverage if they span the design space (which LHS sampling ensures). RF, by contrast, builds decision trees that require sufficient density to split regions reliably — 30 points in 3-D is too sparse for RF."
+      }
+    },
+    {
+      "step_num": 10,
+      "target_panel": "results",
+      "instruction": "Note the HF GPR's test R² — it should be higher than the LF RF despite having far fewer data points, because the HF physics is more accurate and smoother. The parity plot should show tighter clustering along the diagonal.",
+      "quiz": null
+    },
+    {
+      "step_num": 11,
+      "target_panel": "compare",
+      "instruction": "Open Step 14 — Compare. Both datasets and their trained models are visible. Select 'Multi-Fidelity' mode, set LF dataset to multifidelity_lf and HF dataset to multifidelity_hf. Choose Bridge Correction method and click Train. The correction model learns the discrepancy (HF − LF_prediction) at the 30 HF points.",
+      "quiz": {
+        "question": "Bridge Correction trains a discrepancy model: δ(x) = y_HF(x) − ŷ_LF(x). What does a large δ at a point indicate?",
+        "options": [
+          "The LF simulation failed at that point",
+          "The LF model significantly under- or over-predicts at that point — the HF physics reveals a phenomenon the LF model missed",
+          "The HF dataset has an outlier at that point",
+          "The inputs at that point are outside the training range"
+        ],
+        "correct_index": 1,
+        "explanation": "δ(x) is the error the LF model makes at a particular input combination. A large δ means the LF physics is missing something important there — often a nonlinear interaction or a regime transition. Bridge Correction builds a surrogate of δ using the 30 HF points, then adds it to LF predictions everywhere: ŷ_MF(x) = ŷ_LF(x) + δ̂(x). The combined model has the global accuracy of LF with the local corrections of HF."
+      }
+    }
+  ]
+}

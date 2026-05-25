@@ -1,0 +1,28 @@
+{
+  "sections": [
+    {
+      "title": "Why Filter Inputs Before Training?",
+      "body": "Surrogate models perform best when each input contributes independent information. Two inputs that measure the same physical quantity (e.g. velocity and dynamic pressure, which are related by q = 0.5ρV²) do not give the model twice as much information — they give it the same information twice, making the input space artificially high-dimensional. This hurts GPR most severely: its kernel treats every input dimension equally, so collinear inputs distort the distance metric and cause length-scale optimisation to produce unreliable results. The Filter step identifies and addresses three types of problematic inputs before they affect model training."
+    },
+    {
+      "title": "Correlation — Pairwise Pearson r",
+      "body": "The simplest redundancy check compares inputs in pairs using the Pearson correlation coefficient r. If |r| ≥ 0.90, the two inputs share at least 81% of their variance — they are nearly interchangeable. The Filter step's correlation heatmap shows all pairwise correlations, with flagged pairs listed in a table. For each flagged pair, keep the input with more physical relevance or the one that is more directly measurable. Never auto-remove — physical context determines which is more useful. Note that Pearson r only detects linear relationships. Two inputs can have |r| < 0.90 but still be functionally redundant if their relationship is nonlinear (e.g. q ∝ V²). VIF catches these cases."
+    },
+    {
+      "title": "Multicollinearity — VIF",
+      "body": "Variance Inflation Factor (VIF) detects multicollinearity by asking: 'How well can this input be predicted by all the other inputs?' VIF for input j is computed as 1 / (1 − R²_j), where R²_j is the coefficient of determination when regressing input j on all other inputs. Interpretation: VIF < 5 means no meaningful collinearity — proceed as normal. VIF 5–10 means moderate multicollinearity — review and consider removing the input or applying PCA. VIF ≥ 10 means high multicollinearity — the input is nearly predictable from the others and should be removed or replaced via PCA. VIF catches cases Pearson r misses: if inputs A and B are each correlated 0.7 with input C but barely correlated with each other, pairwise |r| for any pair is below the 0.90 threshold, but VIF for all three may exceed 5. The Filter step pre-unchecks inputs with VIF ≥ 10 as a starting suggestion."
+    },
+    {
+      "title": "Low-Variance Inputs",
+      "body": "An input whose coefficient of variation (CV = std / |mean|) is below 1% has almost no spread across the dataset — it is effectively constant. Including a near-constant input adds a dimension to the model without adding any useful variation. This can destabilise GPR kernel optimisation (a zero-range input has an undefined length scale) and wastes parameters in RF split rules. Common causes: a parameter that was accidentally held fixed in the design of experiments; a derived quantity that was inadvertently left in the dataset after transformation; or a parameter with a very tight physical tolerance. Low-variance inputs are flagged with a 'low-var' tag in the checkbox grid and pre-unchecked."
+    },
+    {
+      "title": "Principal Component Analysis (PCA)",
+      "body": "When many inputs are correlated, removing them individually may still leave residual correlations. PCA offers an alternative: it projects all inputs into a new coordinate system where each axis (principal component) is uncorrelated with the others. PC1 captures the direction of maximum variance, PC2 the next largest (orthogonal to PC1), and so on. Retaining the top k components (chosen to capture ≥90% of total variance) eliminates all remaining multicollinearity at once. The trade-off is interpretability: principal components are linear combinations of the original inputs, not physical variables. After applying PCA, the model and prediction panels operate in PC coordinates. Inputs labeled PC1, PC2, PC3 in the prediction form represent specific combinations of your original engineering variables. If a physical interpretation of individual input effects is required, use manual filtering (checkbox selection) instead of PCA."
+    },
+    {
+      "title": "When to Use Manual Filtering vs. PCA",
+      "body": "Use manual filtering (uncheck specific inputs) when: you have a small number of flagged inputs (1–3) that are clearly redundant; you need to retain physical interpretability (explaining which variables drive predictions); or the collinear group has one clearly more meaningful member to keep. Use PCA when: more than 3–4 inputs are correlated in complex groups; you cannot determine which inputs to remove based on physical reasoning; or your primary goal is model accuracy rather than interpretability. A practical rule: if VIF ≥ 10 for more than 30% of your inputs, PCA will be more effective than manual removal. The Filter step's PCA sub-section shows an explained-variance chart and a loadings table to help you choose the right number of components."
+    }
+  ]
+}

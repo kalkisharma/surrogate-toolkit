@@ -1,0 +1,28 @@
+{
+  "sections": [
+    {
+      "title": "Reading the Signals: What 'Poor Fit' Looks Like",
+      "body": "A well-fitted surrogate has R² ≥ 0.90 on the test set, a parity plot where points cluster tightly on the 45° diagonal, and a residual plot with no systematic pattern. Poor fit shows up as: R² below 0.85 (significant unexplained variance); a curved or banded residual plot (the model is missing a nonlinear trend); a funnel-shaped residual plot widening at high values (heteroscedasticity — variance changes with output magnitude); or large scattered residuals at specific input combinations (the model cannot represent a local feature). The first step is always to look at the plots — the shape of the failure tells you the cause."
+    },
+    {
+      "title": "Cause 1: Wrong Model Type",
+      "body": "A Linear model applied to a sinusoidal or exponential response will never achieve high R² — the model family simply cannot represent the shape of the data. The parity plot will show a systematic S-curve or arc rather than scatter around the diagonal, and residuals will have a clear curved pattern. Action: switch model type. Use GPR for smooth nonlinear responses, RF for complex or discontinuous ones. The Model Selection Guide in the Topics tab provides a decision tree. Always try at least GPR and RF and compare their CV scores — this costs less than diagnosing a bad fit after the fact."
+    },
+    {
+      "title": "Cause 2: Insufficient Training Data",
+      "body": "If you have 20 training points but 6 inputs, no model will generalise well — the input space is far too sparse. As a rough guideline, GPR needs 10–20 points per input for a smooth response; RF needs 50+ points per input for reliable splits in high-dimensional spaces. Signs of data starvation: low R² with high CV variance (the CV score varies widely across folds); the parity plot is noisy but unbiased (random scatter, not systematic). Actions: if you cannot collect more data, reduce the number of inputs using the Filter step (VIF, PCA, or manual selection). Fewer inputs means a lower-dimensional problem that the existing data can fill more densely. Active Learning (Step 13) recommends where to run next simulations for maximum information gain."
+    },
+    {
+      "title": "Cause 3: High Dimensionality (Curse of Dimensionality)",
+      "body": "As the number of inputs grows, the volume of the design space grows exponentially. 100 points that fill a 2D square leave gaps 0.1 units wide; those same 100 points in 10D leave most of the hypercube empty. GPR is most affected — its kernel length-scale optimisation struggles above 8–10 inputs; the model may achieve poor cross-validation R² even on smooth data. Signs: GPR CV score well below expected for the dataset size; adding more training data helps only slowly. Actions: use the Filter step to remove correlated or low-sensitivity inputs (run Sensitivity Analysis first to identify negligible inputs via Sobol Sₜ). If removing inputs is not acceptable, switch to RF, which handles high-dimensional inputs more robustly via random feature subsampling."
+    },
+    {
+      "title": "Cause 4: Data Quality Issues",
+      "body": "A single row with an erroneous output (a typo: Cd = 2500 instead of 0.025) can destroy a GPR fit — the model bends its surface toward the outlier, producing large residuals everywhere else. Missing values handled incorrectly (e.g. mean imputation on a column with heavy skew) introduce biased training points. Duplicate rows inflate confidence in certain regions. Signs: very high R² on training set but low on test set (overfitting to corrupted data); one or two outlier points in the parity plot far from the diagonal. Actions: return to Step 3 — Clean and re-inspect. Use the IQR outlier detector. Visualise all output columns in the Explore scatter matrix and look for physically impossible values. If the outlier is real (a genuine extreme operating condition), keep it — but confirm it is not a data entry error."
+    },
+    {
+      "title": "What to Try First: A Quick Checklist",
+      "body": "When R² falls below 0.85: (1) Check the residual plot shape — curved means wrong model, random means data or dimensionality issue. (2) Compare CV R² with test R² — large gap means overfitting; both low means model family or data. (3) Retrain with RF if you used GPR, or GPR if you used RF — compare scores. (4) Open Step 7 Filter, run Analyze, check VIF — if any input has VIF > 10, apply filtering and retrain. (5) Open Step 12 Interpret and run Sobol — if one or more inputs have Sₜ < 0.02, remove them and retrain. (6) If R² is still poor, collect more data (use Active Learning to identify where). Do not invest time in hyperparameter tuning until you have ruled out model family, data quality, and dimensionality as causes."
+    }
+  ]
+}

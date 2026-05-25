@@ -1,0 +1,140 @@
+{
+  "id": "ex_06_pca_filter",
+  "title": "Input Filtering — VIF and PCA on Correlated Aerodynamic Inputs",
+  "difficulty": "intermediate",
+  "estimated_minutes": 25,
+  "description": "A wing aerodynamic dataset has 6 inputs: velocity, dynamic pressure, and Mach number are three ways to measure the same flight condition — highly correlated. Span and aspect ratio measure wing geometry — also correlated. You will use the Filter step to identify multicollinearity via VIF, then apply PCA to reduce 6 correlated inputs to 3 uncorrelated components before training. Read the 'Input Filtering & Dimensionality Reduction' topic in the Guide before starting.",
+  "dataset": "pca_correlated_6d.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has 6 inputs: velocity (m/s), dynamic_q (Pa), mach (dimensionless), aoa (angle of attack, degrees), span (m), aspect_ratio. The output is cl (lift coefficient). Notice that velocity, dynamic_q, and mach all measure flight speed — they should be highly correlated.",
+      "quiz": {
+        "question": "If dynamic_q = 0.5 × ρ × velocity², what does that tell you about including both velocity and dynamic_q as model inputs?",
+        "options": [
+          "Nothing — the model needs all available information",
+          "dynamic_q is derived directly from velocity, so they carry redundant information — including both inflates dimensionality without adding new signal",
+          "dynamic_q should replace velocity because it is more physical",
+          "They should be combined into a single input by averaging"
+        ],
+        "correct_index": 1,
+        "explanation": "When one input is a mathematical function of another (q = 0.5ρV²), they are by definition collinear. Their Pearson |r| will be near 1.0 and their VIF will be very large. Including both makes the model think there are two independent sources of information when there is really only one."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "explore",
+      "instruction": "Open the scatter matrix. Look at the velocity vs. dynamic_q and velocity vs. mach plots. You should see tight, nearly deterministic curves — confirming the physical relationship between these variables.",
+      "quiz": {
+        "question": "In the scatter matrix, a curved but tight relationship between two inputs suggests:",
+        "options": [
+          "A linear correlation that GPR will handle automatically",
+          "A nonlinear but nearly deterministic relationship — the two inputs are functionally dependent and one is redundant",
+          "The data needs to be cleaned before correlations can be assessed",
+          "These inputs will cause the surrogate to overfit"
+        ],
+        "correct_index": 1,
+        "explanation": "Pearson r only measures linear correlation. Two variables can have |r| < 1 but still be nearly perfectly redundant if their relationship is nonlinear (e.g. q ∝ V²). The VIF table in the Filter step catches both linear and nonlinear multicollinearity because it measures how well each input is predicted by all the others."
+      }
+    },
+    {
+      "step_num": 3,
+      "target_panel": "designate",
+      "instruction": "Assign all six inputs (velocity, dynamic_q, mach, aoa, span, aspect_ratio) as Input and cl as Output.",
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to all 6 inputs. Normalization is especially important before PCA — PCA uses variance, and variables with large ranges would otherwise dominate the principal components regardless of their physical importance.",
+      "quiz": {
+        "question": "Why must inputs be normalized before PCA?",
+        "options": [
+          "PCA requires inputs to sum to 1.0",
+          "PCA finds directions of maximum variance; without normalization, inputs with large numeric ranges (e.g. dynamic_q in Pa vs. mach ≈ 0.3) dominate the components purely due to scale, not physical importance",
+          "Normalization is only needed for GPR, not PCA",
+          "PCA automatically normalizes internally so this step does not matter"
+        ],
+        "correct_index": 1,
+        "explanation": "dynamic_q ranges up to ~24,000 Pa while mach ranges ~0.15–0.58. Without normalization, PCA's first component would be almost entirely dynamic_q — not because it carries the most information, but because it has the largest numeric spread. Min-Max scaling puts all inputs on [0, 1] so PCA responds to information content, not measurement units."
+      }
+    },
+    {
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter. Click 'Analyze →'. Look at the VIF table. You should see very high VIF (> 100) for velocity, dynamic_q, and mach — confirming severe multicollinearity. span and aspect_ratio should show moderate VIF (5–15).",
+      "quiz": {
+        "question": "VIF = 145 for dynamic_q means:",
+        "options": [
+          "dynamic_q explains 145% of the output variance",
+          "dynamic_q can be predicted from the other inputs with R² ≈ 0.993 — it is almost entirely redundant",
+          "The model trained with dynamic_q will have 145× more error",
+          "You should always remove inputs with VIF > 10"
+        ],
+        "correct_index": 1,
+        "explanation": "VIF = 1/(1 − R²), where R² is how well that input is predicted by all others. VIF = 145 means R² ≈ 1 − 1/145 ≈ 0.993. Nearly 99% of dynamic_q's variance is explained by the other inputs — it contributes almost nothing new. High VIF inputs are candidates for removal or PCA. The decision to remove is still yours — the tool flags, you decide."
+      }
+    },
+    {
+      "step_num": 6,
+      "target_panel": "screen",
+      "instruction": "Scroll to the bottom of the Filter panel and open the 'PCA Dimensionality Reduction' section. Set Components to 3 and click 'Preview PCA →'. Look at the explained-variance chart. PC1 and PC2 should capture the two correlated groups (speed and geometry). PC3 adds aoa's contribution.",
+      "quiz": {
+        "question": "The PCA preview shows that 3 components explain 94% of variance. The suggested auto-threshold (≥90%) is also 3. What does this tell you?",
+        "options": [
+          "3 inputs contain all the information; the other 3 can be dropped safely",
+          "There are approximately 3 independent sources of variation in the 6 inputs — the correlated groups collapse into single components",
+          "The model will train 3× faster with 3 components",
+          "You must use exactly 3 components or the model will be wrong"
+        ],
+        "correct_index": 1,
+        "explanation": "PCA reveals the intrinsic dimensionality of the input space. 6 correlated inputs contain only ~3 independent sources of information. PC1 captures the flight-speed cluster (velocity, q, Mach all vary together), PC2 captures the geometry cluster (span, aspect_ratio), and PC3 captures the remaining variation (mainly aoa). 94% retained means only 6% of total input variance is discarded."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "screen",
+      "instruction": "Click 'Apply PCA →' to replace the 6 correlated inputs with 3 principal components. A success message will confirm. Note: the model and prediction steps will now use PC coordinates (PC1, PC2, PC3) — not the original physical variables.",
+      "quiz": null
+    },
+    {
+      "step_num": 8,
+      "target_panel": "configure",
+      "instruction": "Open Step 8 — Model. Configure a GPR with test split 0.2, 5-fold CV. Train. With only 3 uncorrelated inputs, GPR should fit efficiently.",
+      "quiz": null
+    },
+    {
+      "step_num": 9,
+      "target_panel": "results",
+      "instruction": "Review the R² score and parity plot. A well-tuned PCA + GPR pipeline on this dataset should achieve R² > 0.90. If R² is lower, the discarded variance (6%) may include some aoa signal — try 4 components and retrain.",
+      "quiz": {
+        "question": "You applied PCA and achieved R² = 0.91, but the original 6-input GPR without filtering achieved R² = 0.89. What explains this?",
+        "options": [
+          "PCA always improves R² — it is a free performance boost",
+          "Removing collinear inputs stabilised the GPR kernel optimisation. Multicollinearity causes the kernel to see multiple inputs as equivalent, degrading length-scale estimates and model accuracy",
+          "The test set happened to be easier after PCA",
+          "3 inputs always outperform 6 inputs in GPR"
+        ],
+        "correct_index": 1,
+        "explanation": "GPR uses a kernel (e.g. RBF) to compute distances between points in input space. When three inputs all measure the same thing (velocity, q, Mach), the kernel treats flight speed as three dimensions instead of one, distorting the distance metric. PCA collapses the three correlated inputs into one component, giving the kernel an accurate view of the actual degrees of freedom."
+      }
+    },
+    {
+      "step_num": 10,
+      "target_panel": "predict",
+      "instruction": "Open Step 9 — Predict. Notice that the input fields now show PC1, PC2, PC3 instead of the original variable names. This is the trade-off of PCA: you gain a cleaner model but lose direct physical interpretation of individual inputs. Enter PC1=0.5, PC2=0.3, PC3=0.6 and observe the predicted cl.",
+      "quiz": {
+        "question": "An engineer asks you: 'What lift coefficient would we get if we increase velocity from 100 to 150 m/s?' After PCA, you cannot answer directly because:",
+        "options": [
+          "The model only accepts PC coordinates — you would need to transform the input values through the fitted PCA to get PC coordinates, then predict",
+          "The model is broken after PCA",
+          "Velocity is no longer in the model so it does not affect predictions",
+          "You need to retrain without PCA to answer physical questions"
+        ],
+        "correct_index": 0,
+        "explanation": "The PCA transform is stored in STATE. To predict at a new physical operating point (e.g. velocity=150), you would compute the PC coordinates by transforming [velocity=150, dynamic_q, mach, aoa, span, aspect_ratio] through the fitted PCA matrix, then predict. In this toolkit, that transformation is not yet automated in the prediction panel — which is the fundamental trade-off: PCA gains model accuracy but reduces interpretability."
+      }
+    }
+  ]
+}
