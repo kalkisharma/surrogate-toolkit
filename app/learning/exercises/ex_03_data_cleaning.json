@@ -41,7 +41,7 @@
     {
       "step_num": 3,
       "target_panel": "clean",
-      "instruction": "Open Step 3 — Clean. First, handle the missing values in x1: use median imputation (fills each missing value with the column median). The toolkit highlights columns with nulls.",
+      "instruction": "Open Step 4 — Clean. First, handle the missing values in x1: use median imputation (fills each missing value with the column median). The toolkit highlights columns with nulls.",
       "quiz": {
         "question": "When would you choose 'drop rows' over 'median impute' for missing values?",
         "options": [

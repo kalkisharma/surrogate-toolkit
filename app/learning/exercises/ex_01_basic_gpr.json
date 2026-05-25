@@ -15,7 +15,7 @@
     {
       "step_num": 2,
       "target_panel": "explore",
-      "instruction": "Open the scatter matrix (Step 2). Look at the x1 vs y and x2 vs y plots.",
+      "instruction": "Open the scatter matrix (Step 3). Look at the x1 vs y and x2 vs y plots.",
       "quiz": {
         "question": "What kind of relationship does the x1 vs y scatter suggest?",
         "options": ["Linear (straight line)", "Quadratic (curved)", "No relationship", "Exponential"],
@@ -26,13 +26,13 @@
     {
       "step_num": 3,
       "target_panel": "clean",
-      "instruction": "Open Step 3 — Clean. The dataset is already clean (no nulls, no outliers). You can skip to the next step. In real projects this step is where you handle missing values and outliers.",
+      "instruction": "Open Step 4 — Clean. The dataset is already clean (no nulls, no outliers). You can skip to the next step. In real projects this step is where you handle missing values and outliers.",
       "quiz": null
     },
     {
       "step_num": 4,
       "target_panel": "designate",
-      "instruction": "Open Step 4 — Designate. Set x1 and x2 as Input columns and y as the Output column.",
+      "instruction": "Open Step 5 — Assign. Set x1 and x2 as Input columns and y as the Output column.",
       "quiz": {
         "question": "Why must you designate columns before training?",
         "options": [
@@ -48,7 +48,7 @@
     {
       "step_num": 5,
       "target_panel": "normalize",
-      "instruction": "Open Step 5 — Normalize. Apply Min-Max normalization to x1 and x2. This scales inputs to [0, 1] so that no variable dominates due to magnitude differences.",
+      "instruction": "Open Step 6 — Normalize. Apply Min-Max normalization to x1 and x2. This scales inputs to [0, 1] so that no variable dominates due to magnitude differences.",
       "quiz": {
         "question": "What happens if you skip normalization for GPR?",
         "options": [
@@ -64,7 +64,7 @@
     {
       "step_num": 6,
       "target_panel": "configure",
-      "instruction": "Open Step 6 — Configure. Select GPR as the model type. Leave the test split at 0.2 and CV folds at 5.",
+      "instruction": "Open Step 8 — Model. Select GPR as the model type. Leave the test split at 0.2 and CV folds at 5.",
       "quiz": {
         "question": "Why is GPR a good choice for this 100-row, 2-input, smooth dataset?",
         "options": [
@@ -80,7 +80,7 @@
     {
       "step_num": 7,
       "target_panel": "results",
-      "instruction": "Train the model (Step 7). After training, review the R² score and the parity plot. A well-fit model should have R² > 0.95 on this clean dataset.",
+      "instruction": "Train the model (Step 9). After training, review the R² score and the parity plot. A well-fit model should have R² > 0.95 on this clean dataset.",
       "quiz": {
         "question": "On the parity plot, what does it mean if points cluster tightly along the diagonal?",
         "options": [
@@ -96,7 +96,7 @@
     {
       "step_num": 8,
       "target_panel": "predict",
-      "instruction": "Open Step 8 — Predict. Try a single prediction: set x1 = 1.5, x2 = -2.0. The expected output is approximately 1.5² + 0.5×(-2.0)² = 4.25.",
+      "instruction": "Open Step 10 — Predict. Try a single prediction: set x1 = 1.5, x2 = -2.0. The expected output is approximately 1.5² + 0.5×(-2.0)² = 4.25.",
       "quiz": {
         "question": "What does an extrapolation warning mean?",
         "options": [

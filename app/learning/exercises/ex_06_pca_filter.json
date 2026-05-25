@@ -123,7 +123,7 @@
     {
       "step_num": 10,
       "target_panel": "predict",
-      "instruction": "Open Step 9 — Predict. Notice that the input fields now show PC1, PC2, PC3 instead of the original variable names. This is the trade-off of PCA: you gain a cleaner model but lose direct physical interpretation of individual inputs. Enter PC1=0.5, PC2=0.3, PC3=0.6 and observe the predicted cl.",
+      "instruction": "Open Step 10 — Predict. Notice that the input fields now show PC1, PC2, PC3 instead of the original variable names. This is the trade-off of PCA: you gain a cleaner model but lose direct physical interpretation of individual inputs. Enter PC1=0.5, PC2=0.3, PC3=0.6 and observe the predicted cl.",
       "quiz": {
         "question": "An engineer asks you: 'What lift coefficient would we get if we increase velocity from 100 to 150 m/s?' After PCA, you cannot answer directly because:",
         "options": [

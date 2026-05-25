@@ -49,7 +49,7 @@
     {
       "step_num": 6,
       "target_panel": "interpret",
-      "instruction": "Open Step 9 — Interpret (if it is unlocked after training). Click 'Analyze →' to run Sobol sensitivity analysis. Wait for the tornado chart to appear.",
+      "instruction": "Open Step 12 — Interpret (if it is unlocked after training). Click 'Analyze →' to run Sobol sensitivity analysis. Wait for the tornado chart to appear.",
       "quiz": {
         "question": "In the Sobol tornado chart, what does a large gap between Sₜ and S₁ for an input indicate?",
         "options": [

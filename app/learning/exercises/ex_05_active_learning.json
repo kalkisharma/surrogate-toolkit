@@ -53,7 +53,7 @@
     {
       "step_num": 5,
       "target_panel": "active",
-      "instruction": "Open Step 10 — Active Learning. Run Coverage mode first. This recommends 10 new experiment points that would most reduce overall uncertainty.",
+      "instruction": "Open Step 13 — Active Learning. Run Coverage mode first. This recommends 10 new experiment points that would most reduce overall uncertainty.",
       "quiz": {
         "question": "Coverage mode recommends points in sparse, high-uncertainty regions. When is this the right choice?",
         "options": [
