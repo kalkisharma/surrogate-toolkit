@@ -1052,9 +1052,7 @@ input, select, textarea { font-family: inherit; }
 .global-header__cores-hint {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
-  line-height: 1.55;
-  margin: calc(var(--space-2) * -1) 0 0;
-  max-width: 192px;
+  margin: calc(var(--space-3) * -1) 0 0;
 }
 .global-header__btn {
   display: inline-flex;

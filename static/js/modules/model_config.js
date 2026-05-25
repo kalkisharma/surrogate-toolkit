@@ -350,7 +350,7 @@ export async function initModelConfig(containerEl, onTrain) {
             <input type="checkbox" id="hp-autotune">
             Auto-tune with GridSearchCV
           </label>
-          <span class="hyperparam-hint">Find best hyperparameters automatically (slower to train)</span>
+          <span class="hyperparam-hint">Find best hyperparameters automatically (slower — set ⚙ Cores to parallelise)</span>
         `;
         const autoNote = document.createElement("div");
         autoNote.className = "hp-autotune-note";

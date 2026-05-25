@@ -81,11 +81,7 @@
             <input id="cores-input" type="number" class="global-header__input"
                    min="1" value="1" aria-label="Processor count">
           </div>
-          <p class="global-header__cores-hint">
-            Parallelises Auto-Tune &amp; RF training.<br>
-            <strong>1</strong> = serial (safe on HPC head nodes).<br>
-            Set to your allocated core count on compute nodes.
-          </p>
+          <p class="global-header__cores-hint">Used by Auto-Tune &amp; RF training — 1 = head-node safe</p>
           <div class="global-header__control-group level-expert-only">
             <button id="state-viewer-btn" class="global-header__btn global-header__btn--full"
                     aria-label="View raw session STATE" title="View raw session STATE">{ } View STATE</button>
