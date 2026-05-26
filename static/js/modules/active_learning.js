@@ -2,10 +2,11 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/active_learning.js
-// Version: 1.0.1
-// Description: Step 13 — Active Learning. Coverage mode (max-min distance)
-//              and objective mode (EI / UCB) recommendation panels with design
-//              space scatter, recommendation table, CSV export, and history.
+// Version: 1.1.0
+// Description: Step 13 — Active Learning. Coverage mode (max-min distance),
+//              objective mode (EI / UCB), and residual-guided mode recommendation
+//              panels with design space scatter, recommendation table, CSV export,
+//              and history.
 // =============================================================================
 
 import { get, post } from "../api.js";
@@ -18,7 +19,7 @@ import { renderDesignSpaceScatter } from "../charts.js";
 // ── Module state ──────────────────────────────────────────────────────────────
 
 let _lastResult      = null;
-let _activeMode      = "coverage";   // "coverage" | "objective"
+let _activeMode      = "coverage";   // "coverage" | "objective" | "residual"
 let _axisX           = 0;
 let _axisY           = 1;
 
@@ -67,6 +68,10 @@ export async function initActiveLearning(containerEl) {
     <em>exploration</em> (run where uncertainty is high).
     <strong>EI</strong> (Expected Improvement) automatically balances both.
     <strong>UCB</strong> (Upper Confidence Bound) lets you tune the balance with κ.</p>
+    <p><strong>Residual mode</strong> scores each candidate by its proximity to
+    test-set points weighted by their prediction error. Points near high-residual
+    test samples score highest — directing new runs to regions where the surrogate
+    is currently least accurate.</p>
   `);
 
   // ── Mode tabs ────────────────────────────────────────────────────────────────
@@ -76,11 +81,14 @@ export async function initActiveLearning(containerEl) {
     cls: `al-tab${hasUQ ? "" : " al-tab--disabled"}`,
     text: hasUQ ? "Objective" : "Objective (GPR/RF only)",
   });
+  const tabResidual  = el("button", { cls: "al-tab", text: "Residual" });
   tabCoverage.dataset.mode  = "coverage";
   tabObjective.dataset.mode = "objective";
+  tabResidual.dataset.mode  = "residual";
   if (!hasUQ) tabObjective.disabled = true;
   tabs.appendChild(tabCoverage);
   tabs.appendChild(tabObjective);
+  tabs.appendChild(tabResidual);
   containerEl.appendChild(tabs);
 
   // ── Controls panel ────────────────────────────────────────────────────────────
@@ -100,18 +108,21 @@ export async function initActiveLearning(containerEl) {
     clearEl(controlsDiv);
     if (_activeMode === "coverage") {
       _buildCoverageControls(controlsDiv, inputCols, resultsDiv, historyDiv);
+    } else if (_activeMode === "residual") {
+      _buildResidualControls(controlsDiv, inputCols, outputCols, resultsDiv, historyDiv);
     } else {
       _buildObjectiveControls(controlsDiv, inputCols, outputCols, resultsDiv, historyDiv);
     }
   }
 
   // Tab switching
-  [tabCoverage, tabObjective].forEach(tab => {
+  [tabCoverage, tabObjective, tabResidual].forEach(tab => {
     tab.addEventListener("click", () => {
       if (tab.disabled) return;
       _activeMode = tab.dataset.mode;
       tabCoverage.classList.toggle("al-tab--active",  _activeMode === "coverage");
       tabObjective.classList.toggle("al-tab--active", _activeMode === "objective");
+      tabResidual.classList.toggle("al-tab--active",  _activeMode === "residual");
       renderControls();
     });
   });
@@ -216,6 +227,41 @@ function _buildObjectiveControls(container, inputCols, outputCols, resultsDiv, h
   });
 }
 
+// ── Residual controls ─────────────────────────────────────────────────────────
+
+function _buildResidualControls(container, inputCols, outputCols, resultsDiv, historyDiv) {
+  const row = el("div", { cls: "al-control-row" });
+
+  const nInput = _makeNInput(10);
+  row.appendChild(_makeField("Recommendations:", nInput));
+
+  const outSel = el("select", { cls: "model-config-select" });
+  for (const col of outputCols) {
+    const opt = document.createElement("option");
+    opt.value = col; opt.textContent = col;
+    outSel.appendChild(opt);
+  }
+  row.appendChild(_makeField("Output:", outSel));
+
+  const runBtn = el("button", { cls: "btn btn-primary", text: "Run Residual →" });
+  row.appendChild(runBtn);
+  container.appendChild(row);
+
+  runBtn.addEventListener("click", async () => {
+    const n = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
+    runBtn.disabled = true; runBtn.textContent = "Running…"; showSpinner(runBtn);
+    const resp = await post("/api/active/residual", {
+      n_recommendations: n,
+      output_col: outSel.value,
+    });
+    hideSpinner(runBtn); runBtn.disabled = false; runBtn.textContent = "Run Residual →";
+    if (!resp.success) { showError(resp.message || "Residual analysis failed."); return; }
+    _lastResult = resp;
+    _renderResults(resultsDiv, resp, inputCols);
+    _loadHistory(historyDiv, inputCols);
+  });
+}
+
 // ── Results rendering ─────────────────────────────────────────────────────────
 
 function _renderResults(container, resp, inputCols) {
@@ -226,7 +272,9 @@ function _renderResults(container, resp, inputCols) {
   // Subtitle
   const subtitle = resp.mode === "coverage"
     ? `Coverage — ${resp.n_recommendations} recommendations · ${resp.n_training} training points`
-    : `Objective (${resp.acquisition}, ${resp.direction} ${resp.output_col}) — ${resp.n_recommendations} recommendations`;
+    : resp.mode === "residual"
+      ? `Residual (${resp.output_col}) — ${resp.n_recommendations} recommendations targeting high-error regions · ${resp.n_test} test points`
+      : `Objective (${resp.acquisition}, ${resp.direction} ${resp.output_col}) — ${resp.n_recommendations} recommendations`;
   const hdr = el("div", { cls: "section-subheader" });
   hdr.innerHTML = `<h3>Recommendations</h3><p class="section-desc">${subtitle}</p>`;
   section.appendChild(hdr);
@@ -343,7 +391,9 @@ async function _loadHistory(container, inputCols) {
     const ts    = new Date(entry.timestamp).toLocaleString();
     const label = entry.mode === "coverage"
       ? `Coverage — ${entry.n_recommendations} recs`
-      : `Objective (${entry.acquisition}, ${entry.direction} ${entry.output_col || ""}) — ${entry.n_recommendations} recs`;
+      : entry.mode === "residual"
+        ? `Residual (${entry.output_col || ""}) — ${entry.n_recommendations} recs`
+        : `Objective (${entry.acquisition}, ${entry.direction} ${entry.output_col || ""}) — ${entry.n_recommendations} recs`;
 
     const details = document.createElement("details");
     details.className = "al-history-item";

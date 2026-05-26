@@ -2,12 +2,12 @@
 ================================================================================
 FILE: active_learning_api.py
 MODULE: app/api/
-PURPOSE: Blueprint and routes for /api/active/* — coverage and objective-mode
-         active learning recommendations.
+PURPOSE: Blueprint and routes for /api/active/* — coverage, objective-mode,
+         and residual-guided active learning recommendations.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-15
-VERSION: 1.0.0
+LAST MODIFIED: 2026-05-26
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -114,6 +114,73 @@ def objective():
     append_audit_event(state, "active_learning_recommendations", {
         "mode": "objective", "acquisition": acquisition,
         "output_col": output_col, "n_recommendations": n_recs,
+    })
+
+    return jsonify({"success": True, **result}), 200
+
+
+# ── Residual mode ─────────────────────────────────────────────────────────────
+
+@bp.route("/residual", methods=["POST"])
+def residual():
+    """
+    Generate residual-guided recommendations targeting high-error test regions.
+
+    score(c) = Σ_t |residual_t| · exp(−‖c − t‖² / 2h²)
+    where h = median pairwise distance of test points.
+
+    Args (JSON body):
+        n_recommendations (int, optional): Default 10, max 50.
+        n_candidates (int, optional):      Default 2000, max 10000.
+        output_col (str, optional):        Which output's residuals to use.
+
+    Returns:
+        JSON 200: {"success": True, "mode": "residual", "recommendations": [...], ...}
+        JSON 404: No trained model or no test data.
+    """
+    state      = current_app.config["STATE"]
+    data       = request.get_json(silent=True) or {}
+    n_recs     = min(int(data.get("n_recommendations", 10)), 50)
+    n_cand     = min(int(data.get("n_candidates", 2000)), 10000)
+    output_col = data.get("output_col")
+
+    X_train, input_cols, err = _get_training_data(state)
+    if err:
+        return jsonify(err), 404
+
+    models_dict      = state["surrogate_sessions"]["primary"]["models"]
+    results          = models_dict.get("results")
+    output_cols      = results["output_columns"]
+    if not output_col or output_col not in output_cols:
+        output_col = output_cols[0]
+    output_idx       = output_cols.index(output_col)
+
+    test_inputs      = results.get("test_inputs") or []
+    test_actuals     = results.get("test_actuals") or []
+    test_predictions = results.get("test_predictions") or []
+
+    if not test_inputs:
+        return jsonify({
+            "success": False,
+            "error_code": "NO_TEST_DATA",
+            "message": "No test data available. Retrain the model to generate test-set residuals.",
+        }), 404
+
+    X_test    = np.array(test_inputs)
+    actuals   = np.array(test_actuals)[:, output_idx]
+    predicted = np.array(test_predictions)[:, output_idx]
+    residuals = np.abs(actuals - predicted)
+
+    from app.ml.active_learning.residual_mode import ResidualRecommender
+    result = ResidualRecommender().recommend(
+        X_train, X_test, residuals, input_cols, n_recs, n_cand,
+    )
+    result["output_col"] = output_col
+    _denorm_recommendations(result, state)
+
+    _store_history(state, result)
+    append_audit_event(state, "active_learning_recommendations", {
+        "mode": "residual", "output_col": output_col, "n_recommendations": n_recs,
     })
 
     return jsonify({"success": True, **result}), 200

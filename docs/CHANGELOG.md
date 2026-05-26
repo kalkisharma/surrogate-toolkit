@@ -19,6 +19,22 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.6] — 2026-05-26
+
+### Interpret OAT fix + Residual-Guided Active Learning
+
+#### Fixed
+
+- `model_api.py` `POST /api/model/interpret` — OAT response curves (one-at-a-time sensitivity) now show original-space input values on the x-axis. `OATAnalyzer` operates on normalized `X_train` and previously returned `x`, `median`, `min`, and `max` fields in normalized space; these are now denormalized via `_denorm_value` immediately after the analyzer call before the payload is returned to the client.
+
+#### Added
+
+- `app/ml/active_learning/residual_mode.py` — New `ResidualRecommender` class. Scores Latin Hypercube candidates by `Σ_t |residual_t| · exp(−‖c − t‖² / 2h²)` where `h` is the median pairwise distance between test points. Greedy selection picks high-score candidates in descending order, skipping near-duplicates. Works for all model types (no uncertainty estimate required).
+- `active_learning_api.py` `POST /api/active/residual` — New endpoint for residual-guided mode. Reads `test_inputs`, `test_actuals`, and `test_predictions` from stored results, computes per-test-point absolute residuals for the selected `output_col`, and calls `ResidualRecommender`. Denormalized via `_denorm_recommendations` before response.
+- `active_learning.js` — New **Residual** tab in Step 13. Always enabled (unlike Objective which requires GPR/RF). Output selector lets user choose which output column's residuals to target. History labels, results subtitle, and learning primer updated for residual mode.
+
+---
+
 ## [3.4.5] — 2026-05-26
 
 ### Optimization + Active Learning — original-space values throughout

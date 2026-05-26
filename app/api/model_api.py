@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-26
-VERSION: 2.6.0
+VERSION: 2.7.0
 ================================================================================
 """
 
@@ -363,6 +363,15 @@ def interpret():
 
     sensitivity = SobolAnalyzer().analyze(model, X_train, input_cols, output_idx, n_samples)
     oat         = OATAnalyzer().analyze(model, X_train, input_cols, output_idx)
+
+    # OAT operates on normalized X_train — denormalize x-axis and stats for display
+    norm_params = state["datasets"]["primary"]["metadata"].get("normalization_params", {})
+    for col, curve in oat.items():
+        curve["x"]      = [_denorm_value(v, col, norm_params) for v in curve["x"]]
+        curve["median"] = _denorm_value(curve["median"], col, norm_params)
+        curve["min"]    = _denorm_value(curve["min"],    col, norm_params)
+        curve["max"]    = _denorm_value(curve["max"],    col, norm_params)
+
     unc_method, ci_lower, ci_upper = compute_uncertainty(model, X_test, output_idx, model_type)
 
     uncertainty = None
