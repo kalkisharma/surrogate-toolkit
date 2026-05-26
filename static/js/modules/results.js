@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 2.3.0
+// Version: 2.4.0
 // Description: Step 8 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -11,11 +11,12 @@
 //              switch the full results view to any prior run.
 // =============================================================================
 
-import { get } from "../api.js";
+import { get, post } from "../api.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
-import { el, clearEl } from "../utils.js";
-import { renderOutputFigure, renderEnsembleWeights } from "../charts.js";
+import { el, clearEl, debounce } from "../utils.js";
+import { renderOutputFigure, renderEnsembleWeights,
+         renderScatterExplorer, renderContourExplorer } from "../charts.js";
 
 // R² thresholds — mirror config/settings.py constants
 const R2_MINIMUM = 0.70;
@@ -406,6 +407,30 @@ function _render(containerEl, r) {
     containerEl.appendChild(warnBox);
   }
 
+  // ── Tab bar: Metrics | Explore ────────────────────────────────────────────
+  const tabBar = el("div", { cls: "results-tab-bar" });
+  const metricsBtn = el("button", { cls: "results-tab-btn active", text: "Metrics" });
+  const exploreBtn = el("button", { cls: "results-tab-btn", text: "Explore" });
+  tabBar.appendChild(metricsBtn);
+  tabBar.appendChild(exploreBtn);
+  containerEl.appendChild(tabBar);
+
+  const metricsPane = el("div", { cls: "results-tab-pane" });
+  const explorePane = el("div", { cls: "results-tab-pane hidden" });
+  containerEl.appendChild(metricsPane);
+  containerEl.appendChild(explorePane);
+
+  let exploreInited = false;
+  metricsBtn.addEventListener("click", () => {
+    metricsBtn.classList.add("active");   exploreBtn.classList.remove("active");
+    metricsPane.classList.remove("hidden"); explorePane.classList.add("hidden");
+  });
+  exploreBtn.addEventListener("click", () => {
+    exploreBtn.classList.add("active");   metricsBtn.classList.remove("active");
+    explorePane.classList.remove("hidden"); metricsPane.classList.add("hidden");
+    if (!exploreInited) { exploreInited = true; _initExploreTab(explorePane, r); }
+  });
+
   // ── Multi-fidelity comparison (shown for bridge_correction / co_kriging) ─────
   if (r.mf_comparison) {
     const mfSection = el("div", { cls: "results-section" });
@@ -417,7 +442,7 @@ function _render(containerEl, r) {
     mfSection.appendChild(mfTitle);
     mfSection.appendChild(mfDesc);
     mfSection.appendChild(_buildMFComparisonTable(r.mf_comparison));
-    containerEl.appendChild(mfSection);
+    metricsPane.appendChild(mfSection);
   }
 
   // ── Ensemble breakdown (shown instead of CV table for ensemble models) ───────
@@ -454,7 +479,7 @@ function _render(containerEl, r) {
     });
 
     ensSection.appendChild(_buildEnsembleTable(r));
-    containerEl.appendChild(ensSection);
+    metricsPane.appendChild(ensSection);
   }
 
   // ── Test-set metrics table ───────────────────────────────────────────────────
@@ -471,7 +496,7 @@ function _render(containerEl, r) {
   );
   testSection.appendChild(testTitle);
   testSection.appendChild(_buildMetricsTable(r.test_metrics));
-  containerEl.appendChild(testSection);
+  metricsPane.appendChild(testSection);
 
   // ── CV summary (skipped for ensemble — breakdown shown above instead) ────────
   if (r.model_type === "ensemble") { /* no-op */ }
@@ -495,7 +520,7 @@ function _render(containerEl, r) {
   );
   cvSection.appendChild(cvTitle);
   cvSection.appendChild(_buildCVTable(r.cv_results.per_output));
-  containerEl.appendChild(cvSection);
+  metricsPane.appendChild(cvSection);
   } // end else (non-ensemble CV section)
 
   // ── Diagnostic Figures ────────────────────────────────────────────────────
@@ -529,7 +554,7 @@ function _render(containerEl, r) {
       }));
     }
 
-    containerEl.appendChild(plotSection);
+    metricsPane.appendChild(plotSection);
 
     shown.forEach((colName, j) => {
       const metric   = r.test_metrics.find(m => m.column === colName);
@@ -706,4 +731,297 @@ function _r2Class(r2) {
   if (r2 >= R2_CAUTION)  return "green";
   if (r2 >= R2_MINIMUM)  return "amber";
   return "red";
+}
+
+// ── Explore tab ────────────────────────────────────────────────────────────────
+
+async function _initExploreTab(pane, r) {
+  clearEl(pane);
+  showSpinner(pane);
+  const resp = await get("/api/model/explore/scatter");
+  hideSpinner(pane);
+
+  if (!resp.success) {
+    pane.innerHTML = `<p style="color:var(--color-text-muted);padding:var(--space-4) 0;">No explore data available.</p>`;
+    return;
+  }
+
+  const data = resp;
+
+  // ── SCATTER SECTION ─────────────────────────────────────────────────────────
+  const scatterSection = el("div", { cls: "explore-section" });
+  const scatterTitle = el("h3", { cls: "results-section-title", text: "Scatter Plot" });
+  registerPrimer("explore-scatter", scatterTitle, "How do I use the scatter plot?", `
+    <p>Set the <strong>X axis</strong> to any input column and the <strong>Y axis</strong> to any output.</p>
+    <p>Circles show <strong>actual</strong> values (from your test set). Crosses show the
+    <strong>model's prediction</strong> at each test point. The color encodes a third variable —
+    try setting it to <strong>Residual</strong> to instantly spot where the model is least accurate.</p>
+    <p>The <strong>input range filters</strong> below the controls hide data points outside a given range,
+    letting you focus on a subregion of the design space.</p>
+  `);
+  scatterSection.appendChild(scatterTitle);
+
+  // Controls row
+  const scCtrl = el("div", { cls: "explore-controls-row" });
+
+  const xSel      = _makeExploreSelect("X axis:", data.input_columns,  data.input_columns[0]);
+  const ySel      = _makeExploreSelect("Y axis:", data.output_columns, data.output_columns[0]);
+
+  // Color options: predicted / actual / residual for each output + all inputs
+  const colorOpts = [];
+  for (const col of data.output_columns) {
+    colorOpts.push(`${col}__predicted`);
+    colorOpts.push(`${col}__actual`);
+    colorOpts.push(`${col}__residual`);
+  }
+  for (const col of data.input_columns) colorOpts.push(col);
+  const colorLabels = colorOpts.map(k => k.replace(/__predicted$/, " — predicted")
+    .replace(/__actual$/, " — actual").replace(/__residual$/, " — residual"));
+  const colorSel = _makeExploreSelectLabeled("Color:", colorOpts, colorLabels, colorOpts[0]);
+
+  const scColorscaleSel = _makeExploreSelect("Scale:", ["Viridis","Plasma","RdBu","Inferno","Turbo"], "Viridis");
+
+  scCtrl.appendChild(xSel.wrap);
+  scCtrl.appendChild(ySel.wrap);
+  scCtrl.appendChild(colorSel.wrap);
+  scCtrl.appendChild(scColorscaleSel.wrap);
+  scatterSection.appendChild(scCtrl);
+
+  // Range filter panel
+  const filterPanel = el("div", { cls: "explore-filter-panel" });
+  scatterSection.appendChild(filterPanel);
+
+  // Chart
+  const scatterChart = el("div", { cls: "explore-chart-wrap" });
+  scatterSection.appendChild(scatterChart);
+  pane.appendChild(scatterSection);
+
+  // State
+  const filterRanges = {};
+
+  function rebuildFilterPanel() {
+    clearEl(filterPanel);
+    Object.keys(filterRanges).forEach(k => delete filterRanges[k]);
+    const xCol = xSel.select.value;
+    const fixedInputs = data.input_columns.filter(c => c !== xCol);
+    if (fixedInputs.length === 0) return;
+    const filterTitle = el("p", { cls: "explore-filter-label", text: "Input range filters:" });
+    filterPanel.appendChild(filterTitle);
+    const grid = el("div", { cls: "explore-filter-grid" });
+    filterPanel.appendChild(grid);
+    for (const col of fixedInputs) {
+      const mn = data.input_mins[col] ?? 0;
+      const mx = data.input_maxs[col] ?? 1;
+      filterRanges[col] = [mn, mx];
+      grid.appendChild(_buildRangeFilter(col, mn, mx, (lo, hi) => {
+        filterRanges[col] = [lo, hi];
+        drawScatter();
+      }));
+    }
+  }
+
+  function drawScatter() {
+    renderScatterExplorer(scatterChart, data, {
+      xCol:        xSel.select.value,
+      yCol:        ySel.select.value,
+      colorKey:    colorSel.select.value,
+      colorscale:  scColorscaleSel.select.value,
+      filterRanges,
+    });
+    requestAnimationFrame(() => {
+      const p = scatterChart.querySelector(".js-plotly-plot");
+      if (p) Plotly.Plots.resize(p); // eslint-disable-line no-undef
+    });
+  }
+
+  xSel.select.addEventListener("change", () => { rebuildFilterPanel(); drawScatter(); });
+  ySel.select.addEventListener("change", drawScatter);
+  colorSel.select.addEventListener("change", drawScatter);
+  scColorscaleSel.select.addEventListener("change", drawScatter);
+  rebuildFilterPanel();
+  drawScatter();
+
+  // ── CONTOUR SECTION ─────────────────────────────────────────────────────────
+  const contourSection = el("div", { cls: "explore-section" });
+  const contourTitle = el("h3", { cls: "results-section-title", text: "2D Contour Plot" });
+  registerPrimer("explore-contour", contourTitle, "How do I use the contour plot?", `
+    <p>Set the <strong>X and Y axes</strong> to any two input columns. The model is evaluated
+    on a grid of (X, Y) combinations while all other inputs are held at the values set by the
+    sliders below.</p>
+    <p>The <strong>color</strong> shows the predicted output value at each grid point — darker
+    or lighter regions reveal where the surrogate predicts high or low output.</p>
+    <p>The plot auto-regenerates 500 ms after you change any control. Increase the
+    <strong>grid resolution</strong> for smoother contours at the cost of a longer compute time.</p>
+  `);
+  contourSection.appendChild(contourTitle);
+
+  const coCtrl = el("div", { cls: "explore-controls-row" });
+  const cxSel  = _makeExploreSelect("X axis:", data.input_columns,  data.input_columns[0]);
+  const cyOpts = data.input_columns.length > 1 ? data.input_columns : data.input_columns;
+  const cySel  = _makeExploreSelect("Y axis:", cyOpts, cyOpts[Math.min(1, cyOpts.length - 1)]);
+  const coOutSel = _makeExploreSelect("Output:", data.output_columns, data.output_columns[0]);
+  const gridSel  = _makeExploreSelect("Grid:", ["25", "50", "100"], "50");
+  const coColorscaleSel = _makeExploreSelect("Scale:", ["Plasma","Viridis","RdBu","Inferno","Turbo"], "Plasma");
+
+  coCtrl.appendChild(cxSel.wrap);
+  coCtrl.appendChild(cySel.wrap);
+  coCtrl.appendChild(coOutSel.wrap);
+  coCtrl.appendChild(gridSel.wrap);
+  coCtrl.appendChild(coColorscaleSel.wrap);
+  contourSection.appendChild(coCtrl);
+
+  // Fixed-input sliders
+  const fixedPanel = el("div", { cls: "explore-fixed-panel" });
+  contourSection.appendChild(fixedPanel);
+
+  // Contour chart + spinner overlay wrapper
+  const contourWrap = el("div", { cls: "explore-chart-outer" });
+  const contourChart = el("div", { cls: "explore-chart-wrap" });
+  const contourSpinner = el("div", { cls: "explore-chart-spinner hidden" });
+  contourSpinner.textContent = "Computing…";
+  contourWrap.appendChild(contourChart);
+  contourWrap.appendChild(contourSpinner);
+  contourSection.appendChild(contourWrap);
+  pane.appendChild(contourSection);
+
+  // Fixed-value state
+  const fixedVals = {};
+
+  function rebuildFixedPanel() {
+    clearEl(fixedPanel);
+    Object.keys(fixedVals).forEach(k => delete fixedVals[k]);
+    const xCol = cxSel.select.value;
+    const yCol = cySel.select.value;
+    const remaining = data.input_columns.filter(c => c !== xCol && c !== yCol);
+    if (remaining.length === 0) return;
+    const fixedTitle = el("p", { cls: "explore-filter-label", text: "Fixed input values:" });
+    fixedPanel.appendChild(fixedTitle);
+    const grid = el("div", { cls: "explore-filter-grid" });
+    fixedPanel.appendChild(grid);
+    for (const col of remaining) {
+      const mn  = data.input_mins[col]  ?? 0;
+      const mx  = data.input_maxs[col]  ?? 1;
+      const mid = (mn + mx) / 2;
+      fixedVals[col] = mid;
+      grid.appendChild(_buildFixedSlider(col, mn, mx, mid, debounce(val => {
+        fixedVals[col] = val;
+        drawContour();
+      }, 500)));
+    }
+  }
+
+  const drawContourDebounced = debounce(drawContour, 500);
+
+  async function drawContour() {
+    const xCol = cxSel.select.value;
+    const yCol = cySel.select.value;
+    if (xCol === yCol) return;
+
+    contourSpinner.classList.remove("hidden");
+    const result = await post("/api/model/explore/contour", {
+      x_col:        xCol,
+      y_col:        yCol,
+      output_col:   coOutSel.select.value,
+      fixed_inputs: { ...fixedVals },
+      n_grid:       parseInt(gridSel.select.value, 10),
+    });
+    contourSpinner.classList.add("hidden");
+
+    if (!result.success) return;
+    renderContourExplorer(contourChart, result, coColorscaleSel.select.value);
+    requestAnimationFrame(() => {
+      const p = contourChart.querySelector(".js-plotly-plot");
+      if (p) Plotly.Plots.resize(p); // eslint-disable-line no-undef
+    });
+  }
+
+  cxSel.select.addEventListener("change", () => { rebuildFixedPanel(); drawContourDebounced(); });
+  cySel.select.addEventListener("change", () => { rebuildFixedPanel(); drawContourDebounced(); });
+  coOutSel.select.addEventListener("change", drawContourDebounced);
+  gridSel.select.addEventListener("change", drawContourDebounced);
+  coColorscaleSel.select.addEventListener("change", drawContourDebounced);
+
+  rebuildFixedPanel();
+  drawContour();
+}
+
+// ── Explore UI helpers ─────────────────────────────────────────────────────────
+
+function _makeExploreSelect(labelText, values, defaultVal) {
+  const wrap = el("div", { cls: "explore-ctrl-group" });
+  const lbl  = el("label", { cls: "explore-ctrl-label", text: labelText });
+  const sel  = el("select", { cls: "model-config-select explore-select" });
+  for (const v of values) {
+    const opt = document.createElement("option");
+    opt.value = v; opt.textContent = v;
+    if (v === defaultVal) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  wrap.appendChild(lbl);
+  wrap.appendChild(sel);
+  return { wrap, select: sel };
+}
+
+function _makeExploreSelectLabeled(labelText, values, labels, defaultVal) {
+  const wrap = el("div", { cls: "explore-ctrl-group" });
+  const lbl  = el("label", { cls: "explore-ctrl-label", text: labelText });
+  const sel  = el("select", { cls: "model-config-select explore-select" });
+  values.forEach((v, i) => {
+    const opt = document.createElement("option");
+    opt.value = v; opt.textContent = labels[i] || v;
+    if (v === defaultVal) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  wrap.appendChild(lbl);
+  wrap.appendChild(sel);
+  return { wrap, select: sel };
+}
+
+function _buildRangeFilter(col, mn, mx, onChange) {
+  const step = (mx - mn) / 200 || 0.001;
+  const wrap = el("div", { cls: "explore-range-filter" });
+  wrap.innerHTML = `
+    <span class="explore-range-label">${col}</span>
+    <div class="explore-range-inputs">
+      <label class="explore-range-sublabel">Min</label>
+      <input type="range" class="explore-range-slider" data-role="min"
+             min="${mn}" max="${mx}" step="${step}" value="${mn}">
+      <span class="explore-range-val" data-role="min-val">${mn.toFixed(3)}</span>
+      <label class="explore-range-sublabel">Max</label>
+      <input type="range" class="explore-range-slider" data-role="max"
+             min="${mn}" max="${mx}" step="${step}" value="${mx}">
+      <span class="explore-range-val" data-role="max-val">${mx.toFixed(3)}</span>
+    </div>`;
+  let lo = mn, hi = mx;
+  wrap.querySelector('[data-role="min"]').addEventListener("input", e => {
+    lo = parseFloat(e.target.value);
+    if (lo > hi) { lo = hi; e.target.value = lo; }
+    wrap.querySelector('[data-role="min-val"]').textContent = lo.toFixed(3);
+    onChange(lo, hi);
+  });
+  wrap.querySelector('[data-role="max"]').addEventListener("input", e => {
+    hi = parseFloat(e.target.value);
+    if (hi < lo) { hi = lo; e.target.value = hi; }
+    wrap.querySelector('[data-role="max-val"]').textContent = hi.toFixed(3);
+    onChange(lo, hi);
+  });
+  return wrap;
+}
+
+function _buildFixedSlider(col, mn, mx, defaultVal, onChange) {
+  const step = (mx - mn) / 200 || 0.001;
+  const wrap = el("div", { cls: "explore-fixed-slider" });
+  wrap.innerHTML = `
+    <span class="explore-range-label">${col}</span>
+    <div class="explore-range-inputs">
+      <input type="range" class="explore-range-slider" data-role="fixed"
+             min="${mn}" max="${mx}" step="${step}" value="${defaultVal}">
+      <span class="explore-range-val" data-role="fixed-val">${defaultVal.toFixed(3)}</span>
+    </div>`;
+  wrap.querySelector('[data-role="fixed"]').addEventListener("input", e => {
+    const val = parseFloat(e.target.value);
+    wrap.querySelector('[data-role="fixed-val"]').textContent = val.toFixed(3);
+    onChange(val);
+  });
+  return wrap;
 }

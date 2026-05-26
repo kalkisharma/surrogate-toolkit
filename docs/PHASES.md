@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-26 (Phase 19 complete)
+**Last updated:** 2026-05-26 (Phases 19–20 complete)
 **Total phases:** 23 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -859,7 +859,7 @@
 ---
 
 ### Phase 20 — Design Space Explorer
-**Status:** 🔲 Not started | **Version:** v3.4.1
+**Status:** ✅ Complete | **Version:** v3.4.1
 
 **Purpose:** Give engineers an interactive visual tool to explore the trained surrogate's learned response surface — scatter plots of actual vs. predicted observations and 2D contour maps of model predictions — all filterable by input ranges.
 
@@ -912,7 +912,7 @@
 - Contour: move a fixed-input slider → regenerates correctly 500 ms after release
 - Multi-output model → output selectors list all output columns
 - Explore tab gated until model is trained; gate message shown otherwise
-- All existing 186 tests pass; new unit tests for `/api/model/explore/scatter` and `/api/model/explore/contour`
+- All existing 229 tests pass; 22 new unit tests in `tests/unit/test_explore_api.py`
 
 ---
 

@@ -143,3 +143,17 @@ export function escHtml(str) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
+/**
+ * Returns a debounced version of fn that fires only after `ms` ms of silence.
+ * @param {Function} fn
+ * @param {number} ms
+ * @returns {Function}
+ */
+export function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}

@@ -19,6 +19,24 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.1] — 2026-05-26
+
+### Phase 20 — Design Space Explorer
+
+#### Added
+
+- `GET /api/model/explore/scatter` — returns test-set rows with actual values, model predictions, and residuals for all input/output columns. Response is flat row-oriented JSON keyed as `{col}`, `{col}__actual`, `{col}__predicted`, `{col}__residual`.
+- `POST /api/model/explore/contour` — accepts `{x_col, y_col, output_col, fixed_inputs, n_grid}`; generates an N×N meshgrid, calls `model.predict()`, returns `{x_vals, y_vals, z_grid}`. Grid resolution capped at 100. Fixed inputs default to midpoint of training range.
+- `results.js` — "Metrics | Explore" tab bar added below the section header. Existing metrics/CV/parity content moved into Metrics pane. Explore pane lazy-initialises on first click.
+- Explore tab — **Scatter view**: X (input), Y (output), Color (predicted/actual/residual/any input), colorscale selector, dual-handle min/max range filter per non-X input column. Both actual (circle) and predicted (cross) traces rendered; color applied to both.
+- Explore tab — **Contour view**: X and Y (inputs), output column, grid resolution, colorscale selector, discrete-value slider per remaining input. Auto-regenerates 500 ms after any control change; spinner overlay shown during computation.
+- `charts.js` — `renderScatterExplorer()` and `renderContourExplorer()` added. Both use `Plotly.react` for efficient in-place updates.
+- `utils.js` — `debounce(fn, ms)` utility added.
+- `main.css` — Results tab bar (`.results-tab-bar`, `.results-tab-btn`), explore section layout, filter grid, range slider, fixed slider, chart wrapper, and spinner overlay styles added.
+- `tests/unit/test_explore_api.py` — 22 new unit tests. Coverage: scatter 404 when no model, response structure, column keys, residual arithmetic, n_points/rows match, input_mins/maxs; contour 404/400 validation, grid shape at default/custom/capped N, z_grid float type, fixed_inputs affect output, multi-output. Test suite grows from 207 → 229.
+
+---
+
 ## [3.4.0] — 2026-05-26
 
 ### Phase 19 — Model Export Bundle

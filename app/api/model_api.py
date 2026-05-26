@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-25
-VERSION: 2.3.3
+LAST MODIFIED: 2026-05-26
+VERSION: 2.4.0
 ================================================================================
 """
 
@@ -670,6 +670,128 @@ def get_results():
         )
 
     return jsonify({"success": True, "results": results, "history": history, "runs": runs}), 200
+
+
+# ── Design Space Explorer ─────────────────────────────────────────────────────
+
+@bp.route("/explore/scatter", methods=["GET"])
+def explore_scatter():
+    """Return test-set rows with model predictions and residuals for the Explore scatter plot.
+
+    Returns:
+        JSON 200: {success, input_columns, output_columns, input_mins, input_maxs,
+                   rows: [{col: val, ..., out__actual, out__predicted, out__residual}]}
+        JSON 404: no trained model.
+    """
+    state       = current_app.config["STATE"]
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    model       = models_dict.get("trained")
+    results     = models_dict.get("results")
+
+    if model is None or results is None:
+        return jsonify({"success": False, "message": "No trained model."}), 404
+
+    input_cols  = results["input_columns"]
+    output_cols = results["output_columns"]
+    X_test      = np.array(results.get("test_inputs") or [])
+    y_actual    = np.array(results.get("test_actuals") or [])
+    y_pred      = np.array(results.get("test_predictions") or [])
+
+    if len(X_test) == 0:
+        return jsonify({"success": False, "message": "No test data available."}), 404
+
+    residuals = y_pred - y_actual
+
+    rows = []
+    for i in range(len(X_test)):
+        row = {col: float(X_test[i, j]) for j, col in enumerate(input_cols)}
+        for j, col in enumerate(output_cols):
+            row[f"{col}__actual"]    = float(y_actual[i, j])
+            row[f"{col}__predicted"] = float(y_pred[i, j])
+            row[f"{col}__residual"]  = float(residuals[i, j])
+        rows.append(row)
+
+    return jsonify({
+        "success":       True,
+        "input_columns": input_cols,
+        "output_columns": output_cols,
+        "input_mins":    results.get("input_mins", {}),
+        "input_maxs":    results.get("input_maxs", {}),
+        "rows":          rows,
+        "n_points":      len(rows),
+    }), 200
+
+
+@bp.route("/explore/contour", methods=["POST"])
+def explore_contour():
+    """Generate a 2D contour prediction grid.
+
+    Body (JSON):
+        x_col        (str)  — input column for x-axis.
+        y_col        (str)  — input column for y-axis (must differ from x_col).
+        output_col   (str)  — output column for contour color.
+        fixed_inputs (dict) — {col: normalized_value} for remaining inputs.
+        n_grid       (int)  — grid resolution per axis (capped at 100, default 50).
+
+    Returns:
+        JSON 200: {success, x_vals, y_vals, z_grid (n_grid×n_grid), x_col, y_col, output_col}
+        JSON 400: invalid column selection.
+        JSON 404: no trained model.
+    """
+    state       = current_app.config["STATE"]
+    models_dict = state["surrogate_sessions"]["primary"]["models"]
+    model       = models_dict.get("trained")
+    results     = models_dict.get("results")
+
+    if model is None or results is None:
+        return jsonify({"success": False, "message": "No trained model."}), 404
+
+    data        = request.get_json(silent=True) or {}
+    x_col       = data.get("x_col")
+    y_col       = data.get("y_col")
+    output_col  = data.get("output_col")
+    fixed_inputs = data.get("fixed_inputs", {})
+    n_grid      = min(int(data.get("n_grid", 50)), 100)
+
+    input_cols  = results["input_columns"]
+    output_cols = results["output_columns"]
+    input_mins  = results.get("input_mins", {})
+    input_maxs  = results.get("input_maxs", {})
+
+    if x_col not in input_cols or y_col not in input_cols:
+        return jsonify({"success": False, "message": f"x_col and y_col must be input columns."}), 400
+    if x_col == y_col:
+        return jsonify({"success": False, "message": "x_col and y_col must be different."}), 400
+    if output_col not in output_cols:
+        return jsonify({"success": False, "message": f"output_col must be an output column."}), 400
+
+    x_vals = np.linspace(input_mins.get(x_col, 0.0), input_maxs.get(x_col, 1.0), n_grid)
+    y_vals = np.linspace(input_mins.get(y_col, 0.0), input_maxs.get(y_col, 1.0), n_grid)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+
+    grid = np.zeros((n_grid * n_grid, len(input_cols)))
+    for i, col in enumerate(input_cols):
+        if col == x_col:
+            grid[:, i] = xx.ravel()
+        elif col == y_col:
+            grid[:, i] = yy.ravel()
+        else:
+            mid = (input_mins.get(col, 0.0) + input_maxs.get(col, 1.0)) / 2.0
+            grid[:, i] = float(fixed_inputs.get(col, mid))
+
+    output_idx = output_cols.index(output_col)
+    z_flat     = model.predict(grid)[:, output_idx]
+    z_grid     = z_flat.reshape(n_grid, n_grid).tolist()
+
+    return jsonify({
+        "success":    True,
+        "x_vals":     x_vals.tolist(),
+        "y_vals":     y_vals.tolist(),
+        "z_grid":     z_grid,
+        "x_col":      x_col,
+        "y_col":      y_col,
+        "output_col": output_col,
+    }), 200
 
 
 @bp.route("/train_ensemble", methods=["POST"])

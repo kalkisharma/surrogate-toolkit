@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.2.1
+// Version: 2.3.0
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -1324,5 +1324,128 @@ export function renderExplainedVarianceChart(containerEl, explainedRatio, cumula
 
   Plotly.react(containerEl, traces, layout, {
     responsive: true, displayModeBar: false,
+  });
+}
+
+// ── Design Space Explorer charts ──────────────────────────────────────────────
+
+/**
+ * Render the scatter explorer plot.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {Object}      data         - API response from GET /api/model/explore/scatter.
+ * @param {Object}      opts
+ * @param {string}      opts.xCol        - Input column for x-axis.
+ * @param {string}      opts.yCol        - Output column for y-axis.
+ * @param {string}      opts.colorKey    - Column key for color (e.g. "y1__residual" or "x2").
+ * @param {string}      opts.colorscale  - Plotly colorscale name (default "Viridis").
+ * @param {Object}      opts.filterRanges - {col: [min, max]} — client-side row filter.
+ */
+export function renderScatterExplorer(containerEl, data, opts = {}) {
+  const { xCol, yCol, colorKey, colorscale = "Viridis", filterRanges = {} } = opts;
+  const isDark   = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr  = isDark ? "#8b94b3" : "#4b5478";
+  const gridClr  = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
+
+  // Filter rows by active input ranges (all inputs except the x-axis column)
+  const filtered = data.rows.filter(row =>
+    data.input_columns.every(col => {
+      if (col === xCol) return true;
+      const range = filterRanges[col];
+      if (!range) return true;
+      return row[col] >= range[0] && row[col] <= range[1];
+    })
+  );
+
+  const xVals     = filtered.map(r => r[xCol]);
+  const yActual   = filtered.map(r => r[`${yCol}__actual`]);
+  const yPred     = filtered.map(r => r[`${yCol}__predicted`]);
+
+  const rawColorKey = colorKey || `${yCol}__predicted`;
+  const colorVals = filtered.map(r => r[rawColorKey] ?? 0);
+  const cLabel    = rawColorKey.replace(/__/g, " ").replace(/predicted/, "pred").replace(/residual/, "resid");
+
+  const cMin = Math.min(...colorVals);
+  const cMax = Math.max(...colorVals);
+
+  const markerBase = {
+    color: colorVals, colorscale, cmin: cMin, cmax: cMax,
+    colorbar: { title: { text: cLabel, side: "right" }, thickness: 14, len: 0.75, tickfont: { size: 9 } },
+  };
+
+  const traceActual = {
+    type: "scatter", mode: "markers", name: "Actual",
+    x: xVals, y: yActual,
+    marker: { ...markerBase, symbol: "circle", size: 7, showscale: false, opacity: 0.80 },
+  };
+  const tracePred = {
+    type: "scatter", mode: "markers", name: "Predicted",
+    x: xVals, y: yPred,
+    marker: { ...markerBase, symbol: "cross", size: 9, line: { width: 2, color: colorVals }, showscale: true, opacity: 0.85 },
+  };
+
+  const axisBase = {
+    showgrid: true, gridcolor: gridClr, automargin: true,
+    tickfont: { size: 9 }, zerolinecolor: gridClr,
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, [traceActual, tracePred], {
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    height: 360, margin: { t: 24, b: 48, l: 56, r: 80 },
+    font: { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
+    xaxis: { ...axisBase, title: { text: xCol,  font: { size: 11 } } },
+    yaxis: { ...axisBase, title: { text: yCol,  font: { size: 11 } } },
+    showlegend: true,
+    legend: { orientation: "h", x: 0, y: 1.08, font: { size: 10 } },
+  }, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
+    toImageButtonOptions: { filename: `scatter_${xCol}_vs_${yCol}`, scale: 2 },
+  });
+}
+
+/**
+ * Render the 2D contour explorer plot.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {Object}      result       - Response from POST /api/model/explore/contour.
+ * @param {string}      colorscale   - Plotly colorscale name (default "Plasma").
+ */
+export function renderContourExplorer(containerEl, result, colorscale = "Plasma") {
+  const isDark  = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr = isDark ? "#8b94b3" : "#4b5478";
+  const gridClr = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.08)";
+
+  const trace = {
+    type: "contour",
+    x: result.x_vals,
+    y: result.y_vals,
+    z: result.z_grid,
+    colorscale,
+    colorbar: {
+      title:     { text: result.output_col, side: "right" },
+      thickness: 14, len: 0.75, tickfont: { size: 9 },
+    },
+    contours:  { coloring: "heatmap", showlabels: true, labelfont: { size: 9, color: "white" } },
+    line:      { smoothing: 1.2 },
+    hovertemplate: `${result.x_col}: %{x:.3f}<br>${result.y_col}: %{y:.3f}<br>${result.output_col}: %{z:.4f}<extra></extra>`,
+  };
+
+  const axisBase = {
+    showgrid: true, gridcolor: gridClr, automargin: true, tickfont: { size: 9 },
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, [trace], {
+    paper_bgcolor: "rgba(0,0,0,0)", plot_bgcolor: "rgba(0,0,0,0)",
+    height: 420, margin: { t: 24, b: 48, l: 56, r: 80 },
+    font: { color: fontClr, family: "Inter, system-ui, sans-serif", size: 11 },
+    xaxis: { ...axisBase, title: { text: result.x_col,      font: { size: 11 } } },
+    yaxis: { ...axisBase, title: { text: result.y_col,      font: { size: 11 } } },
+  }, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
+    toImageButtonOptions: { filename: `contour_${result.x_col}_${result.y_col}_${result.output_col}`, scale: 2 },
   });
 }
