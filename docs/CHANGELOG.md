@@ -19,6 +19,22 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.2] — 2026-05-26
+
+### Explore tab — Plot Settings panel + theme-aware colorbar fix
+
+#### Added
+
+- `results.js` Explore tab: full **Plot Settings** `<details>` panel (typography, marker size/opacity/edge, scatter/contour height, plot/paper background, major/minor gridlines) — mirrors the SPLOM settings panel in Step 3 — Explore.
+- Module-level `theme:changed` listener in `results.js` re-renders Metrics parity plots and Explore scatter/contour immediately on light/dark toggle, fixing stale colorbar and axis label colors.
+
+#### Changed
+
+- `charts.js` `renderScatterExplorer` — extended `opts` to accept the full settings object (fontSize, tickFontSize, fontColor, markerSize, opacity, edgeWidth/edgeColor, height, plotBgColor, paperBgColor, showMajorGrid/Color/Opacity, showMinorGrid/Color/Opacity). Hardcoded defaults remain the same.
+- `charts.js` `renderContourExplorer` — same settings extension; `colorscale` is now part of `opts` (string backward compat preserved).
+
+---
+
 ## [3.4.1] — 2026-05-26
 
 ### Phase 20 — Design Space Explorer

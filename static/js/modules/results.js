@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 2.4.0
+// Version: 2.5.0
 // Description: Step 9 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -27,29 +27,43 @@ const R2_CAUTION = 0.85;
 const _RESULT_SETTINGS_KEY = "surrogate_result_chart_settings";
 const _DEFAULT_RESULT_SETTINGS = {
   // Typography
-  fontSize:         11,
-  tickFontSize:     9,
-  fontColor:        null,    // null = auto (theme default)
+  fontSize:              11,
+  tickFontSize:          9,
+  fontColor:             null,    // null = auto (theme default)
   // Markers
-  markerSize:       7,
-  opacity:          0.70,
-  edgeWidth:        0,
-  edgeColor:        "#000000",
-  // Figure
-  height:           300,
-  plotBgColor:      null,    // null = transparent
-  paperBgColor:     null,    // null = transparent
+  markerSize:            7,
+  opacity:               0.70,
+  edgeWidth:             0,
+  edgeColor:             "#000000",
+  // Figure — metrics parity plots
+  height:                300,
+  plotBgColor:           null,    // null = transparent
+  paperBgColor:          null,    // null = transparent
+  // Figure — explore charts
+  exploreScatterHeight:  360,
+  exploreContourHeight:  420,
   // Gridlines
-  showMajorGrid:    true,
-  majorGridColor:   "#cccccc",
-  majorGridOpacity: 1.0,
-  showMinorGrid:    false,
-  minorGridColor:   "#e0e0e0",
-  minorGridOpacity: 0.6,
+  showMajorGrid:         true,
+  majorGridColor:        "#cccccc",
+  majorGridOpacity:      1.0,
+  showMinorGrid:         false,
+  minorGridColor:        "#e0e0e0",
+  minorGridOpacity:      0.6,
 };
 
 let _resultSettings = { ..._DEFAULT_RESULT_SETTINGS };
 let _plotItems = [];   // { figWrap, yTrue, yPred, colName, badgeCls } — cached for re-render
+
+// Stored callbacks so theme listener can trigger explore chart re-render without re-fetching data.
+let _drawExploreScatter = null;
+let _drawExploreContour = null;
+
+// Re-render all Results charts when the theme changes.
+document.addEventListener("theme:changed", () => {
+  _rerenderPlots();
+  _drawExploreScatter?.();
+  _drawExploreContour?.();
+});
 
 function _loadResultSettings() {
   try {
@@ -733,6 +747,233 @@ function _r2Class(r2) {
   return "red";
 }
 
+// ── Explore settings panel ─────────────────────────────────────────────────────
+
+function _buildExploreSettingsPanel() {
+  const s    = _resultSettings;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontColorAuto  = s.fontColor    === null;
+  const fontColorVal   = s.fontColor    !== null ? s.fontColor    : (isDark ? "#8b94b3" : "#4b5478");
+  const plotBgAuto     = s.plotBgColor  === null;
+  const plotBgVal      = s.plotBgColor  !== null ? s.plotBgColor  : "#ffffff";
+  const paperBgAuto    = s.paperBgColor === null;
+  const paperBgVal     = s.paperBgColor !== null ? s.paperBgColor : "#ffffff";
+
+  const details = document.createElement("details");
+  details.className = "chart-settings-panel";
+  details.innerHTML = `
+    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <div class="chart-settings-controls">
+      <div class="settings-divider">Typography</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-font-size">Label font (px)</label>
+        <input id="es-font-size" type="number" class="chart-settings-input" min="7" max="20" step="1" value="${s.fontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-tick-font">Tick font (px)</label>
+        <input id="es-tick-font" type="number" class="chart-settings-input" min="6" max="16" step="1" value="${s.tickFontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-font-color">Font color</label>
+        <div class="color-with-auto">
+          <input id="es-font-color" type="color" class="chart-settings-color" value="${fontColorVal}"${fontColorAuto ? " disabled" : ""} style="opacity:${fontColorAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check"><input type="checkbox" id="es-font-color-auto"${fontColorAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
+      <div class="settings-divider">Markers</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-marker-size">Marker size (px)</label>
+        <input id="es-marker-size" type="number" class="chart-settings-input" min="3" max="16" step="1" value="${s.markerSize}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Opacity</span>
+        <div class="range-with-value">
+          <input id="es-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${s.opacity}">
+          <span id="es-opacity-val" class="chart-settings-range-val">${s.opacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-edge-width">Edge width (px)</label>
+        <input id="es-edge-width" type="number" class="chart-settings-input" min="0" max="3" step="0.5" value="${s.edgeWidth}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-edge-color">Edge color</label>
+        <input id="es-edge-color" type="color" class="chart-settings-color" value="${s.edgeColor}"${s.edgeWidth === 0 ? " disabled" : ""}>
+      </div>
+      <div class="settings-divider">Figure</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-sc-height">Scatter height (px)</label>
+        <input id="es-sc-height" type="number" class="chart-settings-input" min="200" max="800" step="50" value="${s.exploreScatterHeight}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-co-height">Contour height (px)</label>
+        <input id="es-co-height" type="number" class="chart-settings-input" min="200" max="800" step="50" value="${s.exploreContourHeight}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-plot-bg">Plot background</label>
+        <div class="color-with-auto">
+          <input id="es-plot-bg" type="color" class="chart-settings-color" value="${plotBgVal}"${plotBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="es-plot-bg-auto"${plotBgAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-paper-bg">Paper background</label>
+        <div class="color-with-auto">
+          <input id="es-paper-bg" type="color" class="chart-settings-color" value="${paperBgVal}"${paperBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="es-paper-bg-auto"${paperBgAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
+      <div class="settings-divider">Gridlines</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label chart-settings-check" for="es-major-grid">
+          <input type="checkbox" id="es-major-grid"${s.showMajorGrid ? " checked" : ""}> Major grid
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-major-grid-color">Major grid color</label>
+        <input id="es-major-grid-color" type="color" class="chart-settings-color" value="${s.majorGridColor}"${!s.showMajorGrid ? " disabled" : ""}>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Major grid opacity</span>
+        <div class="range-with-value">
+          <input id="es-major-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.majorGridOpacity}"${!s.showMajorGrid ? " disabled" : ""}>
+          <span id="es-major-grid-opacity-val" class="chart-settings-range-val">${s.majorGridOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label chart-settings-check" for="es-minor-grid">
+          <input type="checkbox" id="es-minor-grid"${s.showMinorGrid ? " checked" : ""}> Minor grid
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="es-minor-grid-color">Minor grid color</label>
+        <input id="es-minor-grid-color" type="color" class="chart-settings-color" value="${s.minorGridColor}"${!s.showMinorGrid ? " disabled" : ""}>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Minor grid opacity</span>
+        <div class="range-with-value">
+          <input id="es-minor-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.minorGridOpacity}"${!s.showMinorGrid ? " disabled" : ""}>
+          <span id="es-minor-grid-opacity-val" class="chart-settings-range-val">${s.minorGridOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  function _commit() {
+    _saveResultSettings();
+    _drawExploreScatter?.();
+    _drawExploreContour?.();
+  }
+
+  // Typography
+  details.querySelector("#es-font-size").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#es-font-size").value, 10);
+    if (!isNaN(v) && v >= 7 && v <= 20) { _resultSettings.fontSize = v; _commit(); }
+  });
+  details.querySelector("#es-tick-font").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#es-tick-font").value, 10);
+    if (!isNaN(v) && v >= 6 && v <= 16) { _resultSettings.tickFontSize = v; _commit(); }
+  });
+  const fontColorIn_e  = details.querySelector("#es-font-color");
+  const fontColorAuto_ = details.querySelector("#es-font-color-auto");
+  fontColorAuto_.addEventListener("change", () => {
+    _resultSettings.fontColor = fontColorAuto_.checked ? null : fontColorIn_e.value;
+    fontColorIn_e.disabled = fontColorAuto_.checked;
+    fontColorIn_e.style.opacity = fontColorAuto_.checked ? "0.4" : "1";
+    _commit();
+  });
+  fontColorIn_e.addEventListener("input", () => { _resultSettings.fontColor = fontColorIn_e.value; _commit(); });
+
+  // Markers
+  details.querySelector("#es-marker-size").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#es-marker-size").value, 10);
+    if (!isNaN(v) && v >= 3 && v <= 16) { _resultSettings.markerSize = v; _commit(); }
+  });
+  const opacIn_e  = details.querySelector("#es-opacity");
+  const opacVal_e = details.querySelector("#es-opacity-val");
+  opacIn_e.addEventListener("input", () => {
+    const v = parseFloat(opacIn_e.value);
+    opacVal_e.textContent = v.toFixed(2);
+    _resultSettings.opacity = v;
+    _commit();
+  });
+  const edgeWidthIn_e = details.querySelector("#es-edge-width");
+  const edgeColorIn_e = details.querySelector("#es-edge-color");
+  edgeWidthIn_e.addEventListener("change", () => {
+    const v = parseFloat(edgeWidthIn_e.value);
+    if (!isNaN(v) && v >= 0 && v <= 3) {
+      _resultSettings.edgeWidth = v;
+      edgeColorIn_e.disabled = v === 0;
+      _commit();
+    }
+  });
+  edgeColorIn_e.addEventListener("input", () => { _resultSettings.edgeColor = edgeColorIn_e.value; _commit(); });
+
+  // Figure
+  details.querySelector("#es-sc-height").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#es-sc-height").value, 10);
+    if (!isNaN(v) && v >= 200 && v <= 800) { _resultSettings.exploreScatterHeight = v; _drawExploreScatter?.(); _saveResultSettings(); }
+  });
+  details.querySelector("#es-co-height").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#es-co-height").value, 10);
+    if (!isNaN(v) && v >= 200 && v <= 800) { _resultSettings.exploreContourHeight = v; _drawExploreContour?.(); _saveResultSettings(); }
+  });
+  const plotBgIn_e   = details.querySelector("#es-plot-bg");
+  const plotBgAuto_  = details.querySelector("#es-plot-bg-auto");
+  plotBgAuto_.addEventListener("change", () => {
+    _resultSettings.plotBgColor = plotBgAuto_.checked ? null : plotBgIn_e.value;
+    plotBgIn_e.disabled = plotBgAuto_.checked;
+    _commit();
+  });
+  plotBgIn_e.addEventListener("input", () => { _resultSettings.plotBgColor = plotBgIn_e.value; _commit(); });
+  const paperBgIn_e  = details.querySelector("#es-paper-bg");
+  const paperBgAuto_ = details.querySelector("#es-paper-bg-auto");
+  paperBgAuto_.addEventListener("change", () => {
+    _resultSettings.paperBgColor = paperBgAuto_.checked ? null : paperBgIn_e.value;
+    paperBgIn_e.disabled = paperBgAuto_.checked;
+    _commit();
+  });
+  paperBgIn_e.addEventListener("input", () => { _resultSettings.paperBgColor = paperBgIn_e.value; _commit(); });
+
+  // Gridlines
+  const majorGridChk_e     = details.querySelector("#es-major-grid");
+  const majorGridColorIn_e = details.querySelector("#es-major-grid-color");
+  const majorGridOpacIn_e  = details.querySelector("#es-major-grid-opacity");
+  const majorGridOpacVal_e = details.querySelector("#es-major-grid-opacity-val");
+  majorGridChk_e.addEventListener("change", () => {
+    _resultSettings.showMajorGrid = majorGridChk_e.checked;
+    majorGridColorIn_e.disabled = !majorGridChk_e.checked;
+    majorGridOpacIn_e.disabled  = !majorGridChk_e.checked;
+    _commit();
+  });
+  majorGridColorIn_e.addEventListener("input", () => { _resultSettings.majorGridColor = majorGridColorIn_e.value; _commit(); });
+  majorGridOpacIn_e.addEventListener("input", () => {
+    const v = parseFloat(majorGridOpacIn_e.value);
+    majorGridOpacVal_e.textContent = v.toFixed(2);
+    _resultSettings.majorGridOpacity = v;
+    _commit();
+  });
+  const minorGridChk_e     = details.querySelector("#es-minor-grid");
+  const minorGridColorIn_e = details.querySelector("#es-minor-grid-color");
+  const minorGridOpacIn_e  = details.querySelector("#es-minor-grid-opacity");
+  const minorGridOpacVal_e = details.querySelector("#es-minor-grid-opacity-val");
+  minorGridChk_e.addEventListener("change", () => {
+    _resultSettings.showMinorGrid = minorGridChk_e.checked;
+    minorGridColorIn_e.disabled = !minorGridChk_e.checked;
+    minorGridOpacIn_e.disabled  = !minorGridChk_e.checked;
+    _commit();
+  });
+  minorGridColorIn_e.addEventListener("input", () => { _resultSettings.minorGridColor = minorGridColorIn_e.value; _commit(); });
+  minorGridOpacIn_e.addEventListener("input", () => {
+    const v = parseFloat(minorGridOpacIn_e.value);
+    minorGridOpacVal_e.textContent = v.toFixed(2);
+    _resultSettings.minorGridOpacity = v;
+    _commit();
+  });
+
+  return details;
+}
+
 // ── Explore tab ────────────────────────────────────────────────────────────────
 
 async function _initExploreTab(pane, r) {
@@ -745,6 +986,8 @@ async function _initExploreTab(pane, r) {
     pane.innerHTML = `<p style="color:var(--color-text-muted);padding:var(--space-4) 0;">No explore data available.</p>`;
     return;
   }
+
+  pane.appendChild(_buildExploreSettingsPanel());
 
   const data = resp;
 
@@ -827,12 +1070,16 @@ async function _initExploreTab(pane, r) {
       colorKey:    colorSel.select.value,
       colorscale:  scColorscaleSel.select.value,
       filterRanges,
+      ..._resultSettings,
+      height: _resultSettings.exploreScatterHeight,
     });
     requestAnimationFrame(() => {
       const p = scatterChart.querySelector(".js-plotly-plot");
       if (p) Plotly.Plots.resize(p); // eslint-disable-line no-undef
     });
   }
+
+  _drawExploreScatter = drawScatter;
 
   xSel.select.addEventListener("change", () => { rebuildFilterPanel(); drawScatter(); });
   ySel.select.addEventListener("change", drawScatter);
@@ -928,12 +1175,18 @@ async function _initExploreTab(pane, r) {
     contourSpinner.classList.add("hidden");
 
     if (!result.success) return;
-    renderContourExplorer(contourChart, result, coColorscaleSel.select.value);
+    renderContourExplorer(contourChart, result, {
+      colorscale: coColorscaleSel.select.value,
+      ..._resultSettings,
+      height: _resultSettings.exploreContourHeight,
+    });
     requestAnimationFrame(() => {
       const p = contourChart.querySelector(".js-plotly-plot");
       if (p) Plotly.Plots.resize(p); // eslint-disable-line no-undef
     });
   }
+
+  _drawExploreContour = drawContour;
 
   cxSel.select.addEventListener("change", () => { rebuildFixedPanel(); drawContourDebounced(); });
   cySel.select.addEventListener("change", () => { rebuildFixedPanel(); drawContourDebounced(); });
