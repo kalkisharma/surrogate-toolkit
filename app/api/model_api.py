@@ -669,7 +669,14 @@ def get_results():
             404,
         )
 
-    return jsonify({"success": True, "results": results, "history": history, "runs": runs}), 200
+    # Augment results with original-space input bounds so optimization and
+    # active-learning panels can display physical units without re-training.
+    results_out = dict(results)
+    orig_mins, orig_maxs = _original_bounds(results.get("input_columns", []), state)
+    results_out["input_orig_mins"] = orig_mins
+    results_out["input_orig_maxs"] = orig_maxs
+
+    return jsonify({"success": True, "results": results_out, "history": history, "runs": runs}), 200
 
 
 # ── Design Space Explorer ─────────────────────────────────────────────────────

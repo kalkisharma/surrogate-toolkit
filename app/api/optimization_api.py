@@ -30,10 +30,55 @@ def _get_model_and_results(state):
     return models_dict.get("trained"), models_dict.get("results")
 
 
-def _default_bounds(results, input_cols):
-    mins = results.get("input_mins", {})
-    maxs = results.get("input_maxs", {})
-    return {col: [float(mins.get(col, 0.0)), float(maxs.get(col, 1.0))]
+def _denorm_value(v, col, params):
+    """Inverse-transform a single normalized scalar back to original space."""
+    p = params.get(col)
+    if p is None:
+        return v
+    method = p.get("method", "none")
+    if method == "minmax":
+        return v * (p["max"] - p["min"]) + p["min"]
+    if method == "zscore":
+        return v * p["std"] + p["mean"]
+    return v
+
+
+def _norm_value(v, col, params):
+    """Apply the forward normalization transform to a single scalar."""
+    p = params.get(col)
+    if p is None:
+        return v
+    method = p.get("method", "none")
+    if method == "minmax":
+        rng = p["max"] - p["min"]
+        return (v - p["min"]) / rng if rng != 0 else 0.0
+    if method == "zscore":
+        return (v - p["mean"]) / p["std"] if p["std"] != 0 else 0.0
+    return v
+
+
+def _get_norm_context(state):
+    """Return (norm_params, orig_mins, orig_maxs) for the primary dataset."""
+    meta        = state["datasets"]["primary"]["metadata"]
+    norm_params = meta.get("normalization_params", {})
+    primary     = state["datasets"]["primary"]
+    clean_df    = primary.get("clean")
+    input_cols  = list(state["surrogate_sessions"]["primary"]["models"]
+                       .get("results", {}).get("input_columns", []))
+    if clean_df is not None:
+        orig_mins = {col: float(clean_df[col].min()) for col in input_cols if col in clean_df.columns}
+        orig_maxs = {col: float(clean_df[col].max()) for col in input_cols if col in clean_df.columns}
+    else:
+        results   = state["surrogate_sessions"]["primary"]["models"].get("results", {})
+        orig_mins = results.get("input_mins", {})
+        orig_maxs = results.get("input_maxs", {})
+    return norm_params, orig_mins, orig_maxs
+
+
+def _default_bounds(state, input_cols):
+    """Return original-space default bounds from the clean dataframe."""
+    _, orig_mins, orig_maxs = _get_norm_context(state)
+    return {col: [float(orig_mins.get(col, 0.0)), float(orig_maxs.get(col, 1.0))]
             for col in input_cols}
 
 
@@ -93,16 +138,22 @@ def optimize_single():
     if direction not in ("minimize", "maximize"):
         direction = "minimize"
 
-    bounds = _merge_bounds(
-        _default_bounds(results, input_cols),
+    # Bounds are in original (pre-normalization) space; normalize for optimizer.
+    norm_params, _, _ = _get_norm_context(state)
+    orig_bounds = _merge_bounds(
+        _default_bounds(state, input_cols),
         data.get("bounds"),
         input_cols,
     )
+    norm_bounds = {
+        col: [_norm_value(lo, col, norm_params), _norm_value(hi, col, norm_params)]
+        for col, (lo, hi) in orig_bounds.items()
+    }
 
     from app.ml.optimization.single_objective import SingleObjectiveOptimizer
     try:
         result = SingleObjectiveOptimizer().optimize(
-            model, input_cols, output_cols, bounds,
+            model, input_cols, output_cols, norm_bounds,
             output_col, direction, constraints, n_population, max_iter,
         )
     except Exception as exc:
@@ -110,6 +161,12 @@ def optimize_single():
             "success": False, "error_code": "OPTIMIZER_ERROR",
             "message": str(exc),
         }), 500
+
+    # Denormalize best_inputs to original space for display.
+    result["best_inputs"] = {
+        col: _denorm_value(v, col, norm_params)
+        for col, v in result["best_inputs"].items()
+    }
 
     _store_history(state, result)
     append_audit_event(state, "optimization_single", {
@@ -153,16 +210,21 @@ def optimize_multi():
     pop_size = min(int(data.get("pop_size", 100)), 500)
     n_gen    = min(int(data.get("n_gen",    100)), 500)
 
-    bounds = _merge_bounds(
-        _default_bounds(results, input_cols),
+    norm_params, _, _ = _get_norm_context(state)
+    orig_bounds = _merge_bounds(
+        _default_bounds(state, input_cols),
         data.get("bounds"),
         input_cols,
     )
+    norm_bounds = {
+        col: [_norm_value(lo, col, norm_params), _norm_value(hi, col, norm_params)]
+        for col, (lo, hi) in orig_bounds.items()
+    }
 
     from app.ml.optimization.multi_objective import MultiObjectiveOptimizer
     try:
         result = MultiObjectiveOptimizer().optimize(
-            model, input_cols, output_cols, bounds,
+            model, input_cols, output_cols, norm_bounds,
             objectives, pop_size, n_gen,
         )
     except ImportError as exc:
@@ -175,6 +237,12 @@ def optimize_multi():
             "success": False, "error_code": "OPTIMIZER_ERROR",
             "message": str(exc),
         }), 500
+
+    # Denormalize Pareto solution inputs to original space for display.
+    result["pareto_inputs"] = [
+        {col: _denorm_value(v, col, norm_params) for col, v in row.items()}
+        for row in result.get("pareto_inputs", [])
+    ]
 
     _store_history(state, result)
     append_audit_event(state, "optimization_multi", {

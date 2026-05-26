@@ -51,6 +51,7 @@ def coverage():
 
     from app.ml.active_learning.coverage_mode import CoverageRecommender
     result = CoverageRecommender().recommend(X_train, input_cols, n_recs, n_cand)
+    _denorm_recommendations(result, state)
 
     _store_history(state, result)
     append_audit_event(state, "active_learning_recommendations", {
@@ -107,6 +108,7 @@ def objective():
         n_recs, n_cand, acquisition, direction, model_type, kappa,
     )
     result["output_col"] = output_col
+    _denorm_recommendations(result, state)
 
     _store_history(state, result)
     append_audit_event(state, "active_learning_recommendations", {
@@ -128,6 +130,38 @@ def get_history():
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _denorm_recommendations(result, state):
+    """Denormalize recommendation input coordinates and bounds to original space in-place."""
+    meta        = state["datasets"]["primary"]["metadata"]
+    norm_params = meta.get("normalization_params", {})
+    primary     = state["datasets"]["primary"]
+    clean_df    = primary.get("clean")
+    input_cols  = result.get("input_cols", [])
+
+    def _denorm(v, col):
+        p = norm_params.get(col)
+        if not p:
+            return v
+        m = p.get("method", "none")
+        if m == "minmax":
+            return v * (p["max"] - p["min"]) + p["min"]
+        if m == "zscore":
+            return v * p["std"] + p["mean"]
+        return v
+
+    for rec in result.get("recommendations", []):
+        for col in input_cols:
+            if col in rec:
+                rec[col] = _denorm(float(rec[col]), col)
+
+    # Update bounds to original space
+    if clean_df is not None:
+        result["bounds"] = {
+            "min": {col: float(clean_df[col].min()) for col in input_cols if col in clean_df.columns},
+            "max": {col: float(clean_df[col].max()) for col in input_cols if col in clean_df.columns},
+        }
+
 
 def _get_training_data(state):
     """Return (X_train, input_cols, error_dict). error_dict is None on success."""

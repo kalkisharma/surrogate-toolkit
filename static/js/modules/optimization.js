@@ -33,8 +33,10 @@ export async function initOptimization(containerEl) {
   const results    = resultsResp.results;
   const inputCols  = results.input_columns  || [];
   const outputCols = results.output_columns || [];
-  const inputMins  = results.input_mins     || {};
-  const inputMaxs  = results.input_maxs     || {};
+  // Prefer original-space bounds (added in v3.4.5); fall back to normalized for
+  // sessions that pre-date that field.
+  const inputMins  = results.input_orig_mins ?? results.input_mins ?? {};
+  const inputMaxs  = results.input_orig_maxs ?? results.input_maxs ?? {};
 
   // ── Header ───────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });

@@ -19,6 +19,24 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.5] — 2026-05-26
+
+### Optimization + Active Learning — original-space values throughout
+
+#### Fixed
+
+- `optimization_api.py` — Input bounds table now shows physical (pre-normalization) units. `_default_bounds` reads from the clean DataFrame instead of the normalized results dict. User-supplied bounds are converted to normalized space before passing to `differential_evolution` / NSGA-II, then results are denormalized: `best_inputs` (single-objective) and `pareto_inputs` (multi-objective) are now in original space.
+- `active_learning_api.py` — Recommendation coordinates for both Coverage and Objective modes are now denormalized to original space before the response is returned. The scatter's training data already came from `/api/data/rows` (clean df) so this aligns the two data sources.
+- `model_api.py` `GET /api/model/results` — augmented with `input_orig_mins` and `input_orig_maxs` fields (original-space bounds from clean DataFrame). Existing `input_mins`/`input_maxs` (normalized) are preserved for backward compatibility.
+
+#### Changed
+
+- `optimization.js` — bounds table defaults now use `input_orig_mins`/`input_orig_maxs` with fallback to `input_mins`/`input_maxs` for pre-v3.4.5 sessions.
+- `optimization_api.py` — Added `_denorm_value`, `_norm_value`, `_get_norm_context` helpers.
+- `active_learning_api.py` — Added `_denorm_recommendations` helper.
+
+---
+
 ## [3.4.4] — 2026-05-26
 
 ### Explore tab — original-space input values
