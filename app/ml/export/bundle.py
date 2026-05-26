@@ -231,7 +231,6 @@ def _write_joblib(zf, arcname, obj):
 
 def _build_surrogate_py(input_cols, output_cols, dataset_name, exported_at, version):
     preview   = input_cols[:3]
-    ex_values = ", ".join("0.0" * len(preview)).replace("0.0" * len(preview), ", ".join(["0.0"] * len(preview)))
     col_ex    = ", ".join(f'"{c}": [0.0]' for c in preview)
     if len(input_cols) > 3:
         col_ex += ", ..."

@@ -1381,7 +1381,7 @@ export function renderScatterExplorer(containerEl, data, opts = {}) {
   const tracePred = {
     type: "scatter", mode: "markers", name: "Predicted",
     x: xVals, y: yPred,
-    marker: { ...markerBase, symbol: "cross", size: 9, line: { width: 2, color: colorVals }, showscale: true, opacity: 0.85 },
+    marker: { ...markerBase, symbol: "cross", size: 9, line: { width: 2, color: "rgba(0,0,0,0.3)" }, showscale: true, opacity: 0.85 },
   };
 
   const axisBase = {

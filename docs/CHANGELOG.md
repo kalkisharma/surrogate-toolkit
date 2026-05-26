@@ -13,7 +13,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete — Phases 12 & 13 delivered; 14, 15, 16 complete |
-| **M4** | v4.0.0 | 17–20 | Team deployment, auth, HPC integration | 🔲 In progress — Phase 17 complete |
+| **M4** | v4.0.0 | 17–23 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17, 19, 20 complete |
 
 See `docs/PHASES.md` for full phase definitions.
 

@@ -759,7 +759,7 @@ def explore_contour():
     input_maxs  = results.get("input_maxs", {})
 
     if x_col not in input_cols or y_col not in input_cols:
-        return jsonify({"success": False, "message": f"x_col and y_col must be input columns."}), 400
+        return jsonify({"success": False, "message": "x_col and y_col must be input columns."}), 400
     if x_col == y_col:
         return jsonify({"success": False, "message": "x_col and y_col must be different."}), 400
     if output_col not in output_cols:
