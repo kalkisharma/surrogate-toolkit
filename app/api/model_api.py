@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-26
-VERSION: 2.5.0
+VERSION: 2.6.0
 ================================================================================
 """
 
@@ -674,9 +674,56 @@ def get_results():
 
 # ── Design Space Explorer ─────────────────────────────────────────────────────
 
+def _denorm_value(v, col, params):
+    """Inverse-transform a single normalized scalar back to original space."""
+    p = params.get(col)
+    if p is None:
+        return v
+    method = p.get("method", "none")
+    if method == "minmax":
+        return v * (p["max"] - p["min"]) + p["min"]
+    if method == "zscore":
+        return v * p["std"] + p["mean"]
+    return v
+
+
+def _norm_value(v, col, params):
+    """Apply the forward normalization transform to a single scalar."""
+    p = params.get(col)
+    if p is None:
+        return v
+    method = p.get("method", "none")
+    if method == "minmax":
+        rng = p["max"] - p["min"]
+        return (v - p["min"]) / rng if rng != 0 else 0.0
+    if method == "zscore":
+        return (v - p["mean"]) / p["std"] if p["std"] != 0 else 0.0
+    return v
+
+
+def _original_bounds(input_cols, state):
+    """Return (orig_mins, orig_maxs) dicts in original (pre-normalization) space.
+
+    Reads min/max from the clean dataframe so the result is correct for any
+    normalization method (minmax, zscore, or none).
+    """
+    primary  = state["datasets"]["primary"]
+    clean_df = primary.get("clean")
+    if clean_df is not None:
+        orig_mins = {col: float(clean_df[col].min()) for col in input_cols if col in clean_df.columns}
+        orig_maxs = {col: float(clean_df[col].max()) for col in input_cols if col in clean_df.columns}
+        return orig_mins, orig_maxs
+    # Fallback (should never happen in practice)
+    results = state["surrogate_sessions"]["primary"]["models"].get("results", {})
+    return results.get("input_mins", {}), results.get("input_maxs", {})
+
+
 @bp.route("/explore/scatter", methods=["GET"])
 def explore_scatter():
     """Return test-set rows with model predictions and residuals for the Explore scatter plot.
+
+    Input column values are denormalized to original (pre-normalization) space so
+    axis labels and range filters show the physical units the user uploaded.
 
     Returns:
         JSON 200: {success, input_columns, output_columns, input_mins, input_maxs,
@@ -700,11 +747,17 @@ def explore_scatter():
     if len(X_test) == 0:
         return jsonify({"success": False, "message": "No test data available."}), 404
 
+    meta        = state["datasets"]["primary"]["metadata"]
+    norm_params = meta.get("normalization_params", {})
+    orig_mins, orig_maxs = _original_bounds(input_cols, state)
+
     residuals = y_pred - y_actual
 
     rows = []
     for i in range(len(X_test)):
-        row = {col: float(X_test[i, j]) for j, col in enumerate(input_cols)}
+        row = {}
+        for j, col in enumerate(input_cols):
+            row[col] = _denorm_value(float(X_test[i, j]), col, norm_params)
         for j, col in enumerate(output_cols):
             row[f"{col}__actual"]    = float(y_actual[i, j])
             row[f"{col}__predicted"] = float(y_pred[i, j])
@@ -712,13 +765,13 @@ def explore_scatter():
         rows.append(row)
 
     return jsonify({
-        "success":       True,
-        "input_columns": input_cols,
+        "success":        True,
+        "input_columns":  input_cols,
         "output_columns": output_cols,
-        "input_mins":    results.get("input_mins", {}),
-        "input_maxs":    results.get("input_maxs", {}),
-        "rows":          rows,
-        "n_points":      len(rows),
+        "input_mins":     orig_mins,
+        "input_maxs":     orig_maxs,
+        "rows":           rows,
+        "n_points":       len(rows),
     }), 200
 
 
@@ -730,7 +783,7 @@ def explore_contour():
         x_col        (str)  — input column for x-axis.
         y_col        (str)  — input column for y-axis (must differ from x_col).
         output_col   (str)  — output column for contour color.
-        fixed_inputs (dict) — {col: normalized_value} for remaining inputs.
+        fixed_inputs (dict) — {col: original_value} for remaining inputs (pre-normalization space).
         n_grid       (int)  — grid resolution per axis (capped at 100, default 50).
 
     Returns:
@@ -746,17 +799,15 @@ def explore_contour():
     if model is None or results is None:
         return jsonify({"success": False, "message": "No trained model."}), 404
 
-    data        = request.get_json(silent=True) or {}
-    x_col       = data.get("x_col")
-    y_col       = data.get("y_col")
-    output_col  = data.get("output_col")
-    fixed_inputs = data.get("fixed_inputs", {})
-    n_grid      = min(int(data.get("n_grid", 50)), 100)
+    data         = request.get_json(silent=True) or {}
+    x_col        = data.get("x_col")
+    y_col        = data.get("y_col")
+    output_col   = data.get("output_col")
+    fixed_inputs = data.get("fixed_inputs", {})   # values in original (pre-normalization) space
+    n_grid       = min(int(data.get("n_grid", 50)), 100)
 
     input_cols  = results["input_columns"]
     output_cols = results["output_columns"]
-    input_mins  = results.get("input_mins", {})
-    input_maxs  = results.get("input_maxs", {})
 
     if x_col not in input_cols or y_col not in input_cols:
         return jsonify({"success": False, "message": "x_col and y_col must be input columns."}), 400
@@ -767,9 +818,16 @@ def explore_contour():
     if base_output_col not in output_cols:
         return jsonify({"success": False, "message": "output_col must be an output column."}), 400
 
-    x_vals = np.linspace(input_mins.get(x_col, 0.0), input_maxs.get(x_col, 1.0), n_grid)
-    y_vals = np.linspace(input_mins.get(y_col, 0.0), input_maxs.get(y_col, 1.0), n_grid)
-    xx, yy = np.meshgrid(x_vals, y_vals)
+    meta        = state["datasets"]["primary"]["metadata"]
+    norm_params = meta.get("normalization_params", {})
+    orig_mins, orig_maxs = _original_bounds(input_cols, state)
+
+    # Build axes in original space, then normalize for model input
+    x_orig = np.linspace(orig_mins.get(x_col, 0.0), orig_maxs.get(x_col, 1.0), n_grid)
+    y_orig = np.linspace(orig_mins.get(y_col, 0.0), orig_maxs.get(y_col, 1.0), n_grid)
+    x_norm = np.array([_norm_value(v, x_col, norm_params) for v in x_orig])
+    y_norm = np.array([_norm_value(v, y_col, norm_params) for v in y_orig])
+    xx, yy = np.meshgrid(x_norm, y_norm)
 
     grid = np.zeros((n_grid * n_grid, len(input_cols)))
     for i, col in enumerate(input_cols):
@@ -778,8 +836,9 @@ def explore_contour():
         elif col == y_col:
             grid[:, i] = yy.ravel()
         else:
-            mid = (input_mins.get(col, 0.0) + input_maxs.get(col, 1.0)) / 2.0
-            grid[:, i] = float(fixed_inputs.get(col, mid))
+            orig_mid = (orig_mins.get(col, 0.0) + orig_maxs.get(col, 1.0)) / 2.0
+            orig_val = float(fixed_inputs.get(col, orig_mid))
+            grid[:, i] = _norm_value(orig_val, col, norm_params)
 
     output_idx = output_cols.index(base_output_col)
 
@@ -789,8 +848,9 @@ def explore_contour():
         test_actual = np.array(results.get("test_actuals", []))
         test_pred   = np.array(results.get("test_predictions", []))
         resid       = test_actual[:, output_idx] - test_pred[:, output_idx]
-        x_test      = test_X[:, input_cols.index(x_col)]
-        y_test      = test_X[:, input_cols.index(y_col)]
+        # test_X is in normalized space; grid query points (xx/yy) are also normalized
+        x_test = test_X[:, input_cols.index(x_col)]
+        y_test = test_X[:, input_cols.index(y_col)]
         z_flat = _griddata(
             np.column_stack([x_test, y_test]), resid,
             np.column_stack([xx.ravel(), yy.ravel()]),
@@ -803,8 +863,8 @@ def explore_contour():
 
     return jsonify({
         "success":    True,
-        "x_vals":     x_vals.tolist(),
-        "y_vals":     y_vals.tolist(),
+        "x_vals":     x_orig.tolist(),   # original space for axis labels
+        "y_vals":     y_orig.tolist(),
         "z_grid":     z_grid,
         "x_col":      x_col,
         "y_col":      y_col,

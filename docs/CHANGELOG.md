@@ -19,6 +19,21 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.4] — 2026-05-26
+
+### Explore tab — original-space input values
+
+#### Changed
+
+- `model_api.py` `GET /api/model/explore/scatter` — input column values in `rows` are now **denormalized to original space** before being sent to the client. `input_mins` and `input_maxs` are now read from the clean (pre-normalization) DataFrame instead of the results dict, so range filter sliders always display the physical units the user uploaded.
+- `model_api.py` `POST /api/model/explore/contour` — `fixed_inputs` values are now expected in original space; the backend applies the forward normalization transform internally before building the prediction grid. Returned `x_vals` and `y_vals` are in original space so contour axis labels show physical units. The residual interpolation path (scipy griddata) remains in normalized space for consistency with stored `test_inputs`.
+
+#### Added
+
+- `model_api.py` — three helper functions near the Design Space Explorer section: `_denorm_value(v, col, params)`, `_norm_value(v, col, params)`, `_original_bounds(input_cols, state)`. All explorer routes use these instead of inline arithmetic.
+
+---
+
 ## [3.4.3] — 2026-05-26
 
 ### Explore tab — independent plot settings, residual Y/output options, fixed colorscales
