@@ -1,7 +1,7 @@
 # Surrogate Toolkit — Phase Documentation
 
 **Last updated:** 2026-05-26
-**Total phases:** 21 across 4 milestones
+**Total phases:** 23 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
 ---
@@ -13,7 +13,7 @@
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–21 | Team deployment, auth, HPC integration | 🔲 In definition |
+| **M4** | v4.0.0 | 17–23 | Team deployment, auth, HPC integration | 🔲 In definition |
 
 ---
 
@@ -812,24 +812,128 @@
 
 ---
 
-### Phase 19 — Authentication
-**Status:** 🔲 Not started | **Version:** v3.3.0
+### Phase 19 — Model Export Bundle
+**Status:** 🔲 Not started | **Version:** v3.4.0
+
+**Purpose:** Allow engineers to export their trained surrogate as a self-contained Python bundle they can drop into their own scripts — no toolkit installation required, normalization handled internally.
+
+**User story:** An engineer builds a CD surrogate in the toolkit and needs to integrate it into an existing aerodynamic analysis pipeline. They click "Download Model" in Step 15 — Export, confirm the classification modal, and receive a `.zip`. They unzip it, copy `surrogate.py` and the two `.joblib` files into their project, and call `surrogate.predict(X)` with raw unnormalized inputs. The wrapper handles all normalization and returns predictions in the original output units.
+
+**Scope:**
+- "Download Model (.zip)" button in Step 15 — Export panel, below the existing HTML report button
+- Compliance gate: same classification acknowledgment modal (Sub-phase 11B) must be confirmed before download proceeds
+- Bundle contents (`surrogate_export_<dataset>_<timestamp>.zip`):
+  - `model.joblib` — fitted surrogate model object (all model types: Linear, GPR, RF, PCE, Kriging, Co-Kriging, Ensemble)
+  - `scaler_input.joblib` — fitted `MinMaxScaler` for inputs
+  - `scaler_output.joblib` — fitted `MinMaxScaler` for outputs
+  - `surrogate.py` — thin wrapper class generated from a Jinja2 template:
+    - `SurrogateModel.predict(X)` — accepts raw numpy array or pandas DataFrame; applies input normalization → `model.predict()` → inverse-transforms outputs; returns numpy array
+    - Column-name validation: raises `ValueError` with message listing expected column names if wrong columns passed
+    - Self-contained: only standard dependencies (`numpy`, `pandas`, `joblib`, `scikit-learn`)
+  - `README.txt` — input column names + order, output column names, model type, sklearn version, training dataset name, export timestamp, 5-line usage example
+- Audit event: `model_exported` with model type, sklearn version, dataset name, classification label
+- "Download Model" button disabled with tooltip if no trained model exists
+
+**Backend:**
+- `POST /api/export/model` — assembles bundle in-memory (`io.BytesIO` + `zipfile`), returns as `application/zip` stream; no temp files written to disk
+- New route added to existing `app/api/export_api.py` export Blueprint
+- `app/ml/export/bundle.py` — `build_export_bundle(state)` — serializes model + scalers to BytesIO; renders `surrogate.py` via Jinja2 template; assembles zip
+- `app/templates/export/surrogate_template.py.j2` — Jinja2 template for generated `surrogate.py`
+- No new pip packages (`joblib`, `zipfile`, `io` already available)
+
+**Frontend:**
+- `static/js/modules/export.js` — "Download Model" button added; wires compliance modal; handles `application/zip` Blob response via `URL.createObjectURL` download
+
+**Dependencies:** Phase 4 (trained model + fitted scalers in STATE). Phase 11 (compliance modal reused as-is).
+
+**Definition of done:**
+- Button visible in Step 15 when model is trained; disabled with tooltip otherwise
+- Compliance modal must be confirmed before download begins
+- Downloaded `.zip` contains all 5 files with correct names
+- `surrogate.py` `predict()` on held-out test inputs → outputs match toolkit predictions to 6 decimal places
+- `surrogate.py` passed wrong column count → raises `ValueError` listing expected columns
+- Works for all model types: Linear, GPR, RF, PCE, Kriging, Co-Kriging, Ensemble
+- Audit event written with correct metadata
+- All existing 186 tests pass; new unit tests for `build_export_bundle()` and `POST /api/export/model`
+
+---
+
+### Phase 20 — Design Space Explorer
+**Status:** 🔲 Not started | **Version:** v3.4.1
+
+**Purpose:** Give engineers an interactive visual tool to explore the trained surrogate's learned response surface — scatter plots of actual vs. predicted observations and 2D contour maps of model predictions — all filterable by input ranges.
+
+**User story:** An engineer trains a surrogate on 6 inputs and 2 outputs. They want to understand how AoA and Mach interact to drive CD. They open the Explore tab in Step 9 — Results, pick AoA (x-axis) and Mach (y-axis), select CD as the contour color, and fix the remaining 4 inputs via sliders. The contour auto-updates. They switch to the scatter view, color by residual, and immediately spot that predictions degrade at high Mach + high AoA — telling them exactly where to run more simulations.
+
+**Scope:**
+
+*Scatter Plot view:*
+- X-axis: any input column (dropdown)
+- Y-axis: any output column (dropdown) — shows actual observations (circles) and model predictions at those same points (crosses) overlaid
+- Color axis: predicted value · actual value · residual (predicted − actual) · any input column — user's choice from a dropdown
+- Input range filters: for every input not on the X-axis, a dual-handle min/max range slider; points outside the range are hidden client-side instantly (no server call)
+- Colorbar with Plotly colorscale selector (Viridis default)
+
+*Contour Plot view:*
+- X-axis: any input column (dropdown)
+- Y-axis: any input column (dropdown, must differ from X)
+- Color axis (contour label): any output column (dropdown)
+- Remaining inputs: each gets a discrete value slider (min = training min, max = training max, default = training median); slider displays current value as a live label
+- Grid resolution selector: 25 / 50 (default) / 100 points per axis
+- Auto-refreshes 500 ms after any slider or dropdown change; spinner overlay on contour div during regeneration
+- Colorbar with Plotly colorscale selector (Plasma default)
+
+*Both views:*
+- Explore tab added to existing Step 9 — Results tab bar (alongside Metrics, Parity, Residual); no step renumbering
+- Lazy-initialized on first tab click
+- Multi-output models: all output selectors list every output column
+- Audit events: `explore_scatter_viewed`, `explore_contour_generated`
+- Learning mode primer: what residual coloring reveals; how 2D contour maps relate to OAT curves
+
+**Backend:**
+- `GET /api/model/explore/scatter` — returns training + test rows with model predictions and residuals for all input/output columns; cached per surrogate session; cleared on retrain
+- `POST /api/model/explore/contour` — body: `{x_col, y_col, output_col, fixed_inputs: {col: value}, n_grid}` — generates N×N meshgrid, calls `model.predict()`, returns `{x_vals, y_vals, z_grid}`
+- Both routes added to existing `app/api/model_api.py` model Blueprint
+- No new pip packages (NumPy meshgrid + existing `model.predict()`)
+
+**Frontend:**
+- `static/js/modules/results.js` — tab bar extended with "Explore" tab; `_initExploreTab()` lazy-init on first click; `_initScatterView()`, `_initContourView()`
+- `static/js/charts.js` — `renderScatterExplorer()`, `renderContourExplorer()`
+- Dual-handle range sliders: reuse existing slider pattern from `input_screening.js`
+- Debounce: 500 ms on contour regeneration via `utils.js`
+
+**Dependencies:** Phase 4 (trained model + training/test data in STATE).
+
+**Definition of done:**
+- Scatter: select any input X, any output Y, any color axis → correct data renders with colorbar
+- Scatter: adjust input range filter → points outside range hide instantly with no server call
+- Scatter: color = Residual → systematic bias region visible as a color cluster
+- Contour: select two inputs + one output + fixed values → 50×50 grid renders with colorbar
+- Contour: move a fixed-input slider → regenerates correctly 500 ms after release
+- Multi-output model → output selectors list all output columns
+- Explore tab gated until model is trained; gate message shown otherwise
+- All existing 186 tests pass; new unit tests for `/api/model/explore/scatter` and `/api/model/explore/contour`
+
+---
+
+### Phase 21 — Authentication
+**Status:** 🔲 Not started | **Version:** v3.5.0
 
 *(Scope TBD — defined in next team review)*
 
 ---
 
-### Phase 20 — Surrogate Export & Sharing
-**Status:** 🔲 Not started | **Version:** v3.4.0
+### Phase 22 — Surrogate Export & Sharing
+**Status:** 🔲 Not started | **Version:** v3.6.0
 
-*(Scope TBD — requires Phase 19)*
+*(Scope TBD — requires Phase 21)*
 
 ---
 
-### Phase 21 — HPC Integration
+### Phase 23 — HPC Integration
 **Status:** 🔲 Not started | **Version:** v4.0.0
 
-*(Scope TBD — requires Phase 19; earns major version bump for async architecture change)*
+*(Scope TBD — requires Phase 21; earns major version bump for async architecture change)*
 
 ---
 
@@ -854,9 +958,11 @@
 | Phase 16 | Phase 4 (Phase 14 recommended) |
 | Phase 17 | Phase 13A (Guide modal); Phase 7 (progress persistence) |
 | Phase 18 | Phase 3 (column designation — input_columns set before screening) |
-| Phase 19 | None (standalone auth layer) |
-| Phase 20 | Phase 19 |
-| Phase 21 | Phase 19 |
+| Phase 19 | Phase 4 (trained model + fitted scalers in STATE); Phase 11 (compliance modal reused) |
+| Phase 20 | Phase 4 (trained model + training/test data in STATE) |
+| Phase 21 | None (standalone auth layer) |
+| Phase 22 | Phase 21 |
+| Phase 23 | Phase 21 |
 
 ---
 
@@ -870,5 +976,7 @@
 | Phase 14 | `chaospy` | Polynomial Chaos Expansion |
 | Phase 17 | None | Exercises use existing Flask + NumPy |
 | Phase 18 | None | Input filtering uses existing NumPy/Pandas/sklearn (PCA via sklearn.decomposition) |
-| Phase 19 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
-| Phase 21 | `celery`, `redis` | Async job queue for HPC submission |
+| Phase 19 | None | Model export uses existing `joblib`, `zipfile`, `io` |
+| Phase 20 | None | Design space explorer uses existing NumPy + `model.predict()` |
+| Phase 21 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
+| Phase 23 | `celery`, `redis` | Async job queue for HPC submission |
