@@ -331,7 +331,7 @@
 ---
 
 ### Phase 9 — Active Learning
-**Status:** ✅ Complete | **Version:** v1.3.0
+**Status:** ✅ Complete | **Version:** v3.4.6
 
 **Purpose:** Help engineers decide which new simulations to run to improve the surrogate most efficiently.
 
@@ -346,8 +346,14 @@
 
 *Objective Mode (exploitation/exploration):*
 - Acquisition function: Expected Improvement (EI) or Upper Confidence Bound (UCB)
-- Requires Phase 8 uncertainty estimates
+- Requires Phase 8 uncertainty estimates (GPR or RF only)
 - Output: table of N recommended points ranked by acquisition score + exploitation vs. exploration trade-off plot
+
+*Residual Mode (error-targeted):*
+- Score: `Σ_t |residual_t| · exp(−‖c − t‖² / 2h²)` — each candidate scored by proximity to test-set points weighted by prediction error; `h` = median pairwise distance between test points
+- Works for all model types (no uncertainty estimate required)
+- User selects which output column's residuals to target; multi-output models show an output selector
+- Output: table of N recommended points ranked by residual proximity score
 
 *Shared:*
 - Configurable N recommendations (default 10, max 50)
@@ -356,21 +362,23 @@
 - Learning mode primer explaining design of experiments, space-filling, exploitation vs. exploration
 
 **Backend:**
-- `app/ml/active_learning/coverage_mode.py` — implement CoverageRecommender
-- `app/ml/active_learning/objective_mode.py` — implement ObjectiveRecommender (EI/UCB)
+- `app/ml/active_learning/coverage_mode.py` — CoverageRecommender (max-min distance)
+- `app/ml/active_learning/objective_mode.py` — ObjectiveRecommender (EI/UCB)
+- `app/ml/active_learning/residual_mode.py` — ResidualRecommender (Gaussian kernel proximity score)
 - `app/api/active_learning_api.py`
-- `POST /api/active/coverage`, `POST /api/active/objective`
+- `POST /api/active/coverage`, `POST /api/active/objective`, `POST /api/active/residual`
 
 **Frontend:**
-- `active_learning.js`
+- `active_learning.js` — Coverage, Objective, and Residual tabs; output selector for Objective and Residual modes
 - Step 13 in sidebar
 - `charts.js` — `renderDesignSpaceScatter()` — 2D scatter of existing samples + recommendations
 
-**Dependencies:** Phase 4 (trained model + training data). Phase 8 required for objective mode (needs uncertainty estimates).
+**Dependencies:** Phase 4 (trained model + training data). Phase 8 required for objective mode (needs uncertainty estimates). Residual mode requires a trained model with stored test-set results.
 
 **Definition of done:** ✅
 - Coverage mode → 10 recommendations spread across input space, none duplicating training points
 - Objective mode → recommendations cluster near predicted optimum for a known test function
+- Residual mode → recommendations concentrate near test-set points with highest prediction error
 - History of 3 consecutive rounds stored in STATE without collision
 
 ---
