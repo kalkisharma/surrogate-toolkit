@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/learning_guide.js
-// Version: 3.1.0
+// Version: 3.1.1
 // Description: Learning Guide modal — four tabs: Glossary, Model Guide,
 //              Topics, Exercises. Opens via the "? Guide" header button.
 //              Exercises tab auto-injects datasets and shows step-by-step
@@ -305,12 +305,72 @@ async function _renderExercises(container) {
     text: "Guided exercises auto-load a synthetic dataset and walk you through the full workflow step by step. Quiz questions are advisory — you can always continue regardless of your answer. Suggested order: complete exercises 1–3 before attempting 4–7. Exercise 6 (PCA) requires reading the 'Input Filtering' topic first. Exercise 7 (Multi-Fidelity) requires switching between two auto-loaded datasets." });
   container.appendChild(intro);
 
-  for (const ex of resp.exercises) {
-    container.appendChild(_buildExerciseCard(ex, container));
+  // Build cards (numbered 1-based)
+  const cardEls = resp.exercises.map((ex, i) => _buildExerciseCard(ex, i + 1, container));
+
+  // Filter state
+  let activeDiff = "all";
+  let activeTag  = "all";
+
+  function applyFilters() {
+    cardEls.forEach((card, i) => {
+      const ex = resp.exercises[i];
+      const diffOk = activeDiff === "all" || ex.difficulty === activeDiff;
+      const tagOk  = activeTag  === "all" || (ex.tags || []).includes(activeTag);
+      card.style.display = (diffOk && tagOk) ? "" : "none";
+    });
   }
+
+  // Unique difficulties and tags in order of first appearance
+  const seenDiffs = [], seenTags = [];
+  for (const ex of resp.exercises) {
+    if (!seenDiffs.includes(ex.difficulty)) seenDiffs.push(ex.difficulty);
+    for (const t of (ex.tags || [])) if (!seenTags.includes(t)) seenTags.push(t);
+  }
+
+  function makeChip(val, label, getActive, setActive, chipRow) {
+    const chip = el("button", { cls: `ex-filter-chip${val === getActive() ? " ex-filter-chip--active" : ""}`, text: label });
+    chip.addEventListener("click", () => {
+      setActive(val);
+      chipRow.querySelectorAll(".ex-filter-chip").forEach(c => c.classList.remove("ex-filter-chip--active"));
+      chip.classList.add("ex-filter-chip--active");
+      applyFilters();
+    });
+    return chip;
+  }
+
+  const filterBar = el("div", { cls: "ex-filter-bar" });
+
+  // Difficulty row
+  const diffRow = el("div", { cls: "ex-filter-row" });
+  const diffLabel = el("span", { cls: "ex-filter-label", text: "Difficulty" });
+  diffRow.appendChild(diffLabel);
+  diffRow.appendChild(makeChip("all", "All", () => activeDiff, v => { activeDiff = v; }, diffRow));
+  for (const d of seenDiffs) {
+    diffRow.appendChild(makeChip(d, _DIFFICULTY_LABELS[d] || d, () => activeDiff, v => { activeDiff = v; }, diffRow));
+  }
+
+  // Topic row
+  const tagRow = el("div", { cls: "ex-filter-row" });
+  const tagLabel = el("span", { cls: "ex-filter-label", text: "Topic" });
+  tagRow.appendChild(tagLabel);
+  tagRow.appendChild(makeChip("all", "All", () => activeTag, v => { activeTag = v; }, tagRow));
+  for (const t of seenTags) {
+    tagRow.appendChild(makeChip(t, _titleCase(t), () => activeTag, v => { activeTag = v; }, tagRow));
+  }
+
+  filterBar.appendChild(diffRow);
+  filterBar.appendChild(tagRow);
+  container.appendChild(filterBar);
+
+  for (const card of cardEls) container.appendChild(card);
 }
 
-function _buildExerciseCard(ex, listContainer) {
+function _titleCase(str) {
+  return str.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function _buildExerciseCard(ex, num, listContainer) {
   const statusClass = {
     not_started:  "ex-card__status--todo",
     in_progress:  "ex-card__status--progress",
@@ -323,12 +383,17 @@ function _buildExerciseCard(ex, listContainer) {
                   : "ex-badge--intermediate";
 
   const card = el("div", { cls: "ex-card" });
+  const tagsHtml = (ex.tags || []).map(t =>
+    `<span class="ex-card__tag">${escHtml(_titleCase(t))}</span>`).join("");
+
   card.innerHTML = `
     <div class="ex-card__header">
+      <span class="ex-card__num">${String(num).padStart(2, "0")}</span>
       <span class="ex-card__title">${escHtml(ex.title)}</span>
       <span class="ex-badge ${diffClass}">${escHtml(_DIFFICULTY_LABELS[ex.difficulty] || ex.difficulty)}</span>
     </div>
     <p class="ex-card__desc">${escHtml(ex.description)}</p>
+    ${tagsHtml ? `<div class="ex-card__tags">${tagsHtml}</div>` : ""}
     <div class="ex-card__meta">
       <span class="ex-card__time">~${ex.estimated_minutes} min</span>
       <span class="ex-card__progress">${ex.steps_completed}/${ex.steps_total} steps</span>

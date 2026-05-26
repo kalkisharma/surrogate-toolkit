@@ -19,6 +19,32 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.7] — 2026-05-26
+
+### Exercises tab — numbered cards, difficulty + topic filters
+
+#### Added
+
+- `learning_guide.js` — Exercise cards now show a two-digit number badge (`01`–`07`) so the intro text's "complete exercises 1–3 first" instruction is actionable.
+- `learning_guide.js` — Filter bar above the exercise list: **Difficulty** row (All / Beginner / Intermediate chips) and **Topic** row (All + one chip per unique tag). Filters are AND-combined; hiding cards is client-side with no server round-trip.
+- `learning_guide.js` — Each card footer now shows topic tag chips so the category is visible without opening the filter.
+- `learning_guide.js` — `_titleCase` helper for display-formatting tag strings.
+- `main.css` — `.ex-card__num`, `.ex-card__tags`, `.ex-card__tag`, `.ex-filter-bar`, `.ex-filter-row`, `.ex-filter-label`, `.ex-filter-chip`, `.ex-filter-chip--active` styles.
+- `learning_api.py` `GET /api/learning/exercises` — `tags` array added to each exercise summary; sourced from new `tags` field in each exercise JSON.
+
+#### Changed
+
+- All 7 exercise JSON files — added `tags` field:
+  - `ex_01`: `["full workflow", "GPR"]`
+  - `ex_02`: `["model selection", "GPR", "Random Forest", "Linear"]`
+  - `ex_03`: `["data cleaning"]`
+  - `ex_04`: `["sensitivity analysis"]`
+  - `ex_05`: `["active learning"]`
+  - `ex_06`: `["input filtering", "PCA"]`
+  - `ex_07`: `["multi-fidelity"]`
+
+---
+
 ## [3.4.6] — 2026-05-26
 
 ### Interpret OAT fix + Residual-Guided Active Learning

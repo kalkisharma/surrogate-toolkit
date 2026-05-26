@@ -4,6 +4,7 @@
   "difficulty": "intermediate",
   "estimated_minutes": 20,
   "description": "Train three different surrogates on the same 3-input nonlinear dataset and compare their cross-validation scores. You will see why model choice matters and when GPR outperforms Random Forest and Linear models.",
+  "tags": ["model selection", "GPR", "Random Forest", "Linear"],
   "dataset": "nonlinear_response.csv",
   "steps": [
     {

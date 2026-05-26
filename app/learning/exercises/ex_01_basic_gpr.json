@@ -4,6 +4,7 @@
   "difficulty": "beginner",
   "estimated_minutes": 15,
   "description": "Walk through the full upload → clean → train → predict workflow on a smooth 2-input quadratic function. By the end you will have a trained GPR and understand what each step does.",
+  "tags": ["full workflow", "GPR"],
   "dataset": "simple_quadratic.csv",
   "steps": [
     {

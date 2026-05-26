@@ -4,6 +4,7 @@
   "difficulty": "intermediate",
   "estimated_minutes": 30,
   "description": "You have two datasets: 200 cheap low-fidelity (LF) simulation runs and 30 expensive high-fidelity (HF) runs. The LF runs capture the main trends but miss a nonlinear interaction term. You will train both surrogates and use Bridge Correction to combine LF global coverage with HF accuracy. Note: this exercise requires switching between two loaded datasets — use the dataset selector in the sidebar header.",
+  "tags": ["multi-fidelity"],
   "datasets": ["multifidelity_lf.csv", "multifidelity_hf.csv"],
   "dataset": "multifidelity_lf.csv",
   "steps": [

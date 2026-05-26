@@ -8,8 +8,8 @@ PURPOSE: Blueprint for /api/learning/* — serves static learning content from
          in STATE.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-19
-LAST MODIFIED: 2026-05-21
-VERSION: 3.1.0
+LAST MODIFIED: 2026-05-26
+VERSION: 3.1.1
 ================================================================================
 """
 
@@ -145,6 +145,7 @@ def list_exercises():
             "difficulty":        ex["difficulty"],
             "estimated_minutes": ex["estimated_minutes"],
             "description":       ex.get("description", ""),
+            "tags":              ex.get("tags", []),
             "dataset":           ex["dataset"],
             "steps_total":       steps_total,
             "steps_completed":   steps_done,

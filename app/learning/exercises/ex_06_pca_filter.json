@@ -4,6 +4,7 @@
   "difficulty": "intermediate",
   "estimated_minutes": 25,
   "description": "A wing aerodynamic dataset has 6 inputs: velocity, dynamic pressure, and Mach number are three ways to measure the same flight condition — highly correlated. Span and aspect ratio measure wing geometry — also correlated. You will use the Filter step to identify multicollinearity via VIF, then apply PCA to reduce 6 correlated inputs to 3 uncorrelated components before training. Read the 'Input Filtering & Dimensionality Reduction' topic in the Guide before starting.",
+  "tags": ["input filtering", "PCA"],
   "dataset": "pca_correlated_6d.csv",
   "steps": [
     {

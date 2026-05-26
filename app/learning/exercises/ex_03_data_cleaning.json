@@ -4,6 +4,7 @@
   "difficulty": "beginner",
   "estimated_minutes": 15,
   "description": "This dataset has deliberate problems: 8 missing values in x1, three extreme outliers in x2, and a log-normally distributed (right-skewed) x2 column. Practice identifying and fixing each issue before training.",
+  "tags": ["data cleaning"],
   "dataset": "dirty_data.csv",
   "steps": [
     {

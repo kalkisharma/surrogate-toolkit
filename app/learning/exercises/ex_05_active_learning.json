@@ -4,6 +4,7 @@
   "difficulty": "intermediate",
   "estimated_minutes": 20,
   "description": "This dataset has only 50 rows — sparse for a 4-input problem. Active learning recommends where to run next experiments. You will compare Coverage mode (fill gaps in the space) with Objective mode (find the maximum) and understand the trade-off.",
+  "tags": ["active learning"],
   "dataset": "sparse_4d.csv",
   "steps": [
     {

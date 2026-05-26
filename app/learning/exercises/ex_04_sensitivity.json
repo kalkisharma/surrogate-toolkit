@@ -4,6 +4,7 @@
   "difficulty": "intermediate",
   "estimated_minutes": 25,
   "description": "The Ishigami function is a classic benchmark for sensitivity analysis. It has 5 inputs: x1, x2, x3 drive the output (with x1 dominant), and x4, x5 are pure noise. You will train a GPR and use Sobol sensitivity analysis to identify which inputs matter.",
+  "tags": ["sensitivity analysis"],
   "dataset": "ishigami_5d.csv",
   "steps": [
     {
