@@ -2,10 +2,10 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/export.js
-// Version: 1.0.0
-// Description: Step 13 — Export & Compliance panel. Generates HTML analysis
-//              reports with classification watermarks and downloads the export
-//              audit log.
+// Version: 1.1.0
+// Description: Step 15 — Export & Compliance panel. Generates HTML analysis
+//              reports with classification watermarks, downloads surrogate model
+//              bundles, and exports the audit log.
 // =============================================================================
 
 import { get, post } from "../api.js";
@@ -25,8 +25,8 @@ export async function initExport(containerEl) {
   clearEl(containerEl);
 
   const header = el("div", { cls: "section-header" });
-  header.innerHTML = `<h2 class="section-title">Step 13 — Export &amp; Compliance</h2>
-    <p class="section-desc">Generate a self-contained HTML analysis report. All completed workflow sections are included automatically.</p>`;
+  header.innerHTML = `<h2 class="section-title">Step 15 — Export &amp; Compliance</h2>
+    <p class="section-desc">Generate a self-contained HTML analysis report, or download your trained surrogate model for use in your own Python scripts.</p>`;
   containerEl.appendChild(header);
 
   registerPrimer("export", header, "What does this report contain?", `
@@ -80,12 +80,21 @@ export async function initExport(containerEl) {
   // ── Action buttons ───────────────────────────────────────────────────────
   const btnRow = el("div", { cls: "export-btn-row" });
 
-  const genBtn = el("button", { cls: "btn btn-primary", id: "export-gen-btn", text: "Generate Report" });
+  const genBtn   = el("button", { cls: "btn btn-primary",   id: "export-gen-btn",   text: "Generate Report" });
+  const modelBtn = el("button", { cls: "btn btn-secondary", id: "export-model-btn", text: "Download Model (.zip)" });
   const auditBtn = el("button", { cls: "btn btn-secondary", text: "Download Audit Log" });
 
   btnRow.appendChild(genBtn);
+  btnRow.appendChild(modelBtn);
   btnRow.appendChild(auditBtn);
   containerEl.appendChild(btnRow);
+
+  // Check whether a trained model exists to enable/disable the model button
+  const modelResp = await get("/api/model/results");
+  if (!modelResp.success) {
+    modelBtn.disabled = true;
+    modelBtn.title    = "Train a model in Step 8 — Model first.";
+  }
 
   // ── Export history ───────────────────────────────────────────────────────
   const historyDiv = el("div", { id: "export-history" });
@@ -139,6 +148,51 @@ export async function initExport(containerEl) {
       genBtn.disabled = false;
       hideSpinner(genBtn);
       genBtn.textContent = "Generate Report";
+    }
+  });
+
+  modelBtn.addEventListener("click", async () => {
+    const cls = clsSel.value;
+    const needsAck = cls === "ITAR" || cls === "EAR";
+    const ackChecked = document.getElementById("export-itar-ack")?.checked;
+
+    if (needsAck && !ackChecked) {
+      showError("You must confirm export compliance before downloading an export-controlled model.");
+      return;
+    }
+
+    modelBtn.disabled    = true;
+    modelBtn.textContent = "Preparing…";
+    showSpinner(modelBtn);
+
+    try {
+      const resp = await fetch("/api/export/model", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ classification: cls, acknowledged: needsAck ? true : false }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        showError(err.message || `Model export failed (HTTP ${resp.status}).`);
+        return;
+      }
+
+      const blob     = await resp.blob();
+      const cd       = resp.headers.get("Content-Disposition") || "";
+      const match    = cd.match(/filename=(.+)/);
+      const filename = match ? match[1] : "surrogate_export.zip";
+
+      _downloadBlob(blob, filename);
+      showSuccess("Model bundle downloaded.");
+      _loadExportHistory(historyDiv);
+    } catch (err) {
+      showError("Network error downloading model. Check the console.");
+      console.error(err);
+    } finally {
+      modelBtn.disabled    = false;
+      hideSpinner(modelBtn);
+      modelBtn.textContent = "Download Model (.zip)";
     }
   });
 

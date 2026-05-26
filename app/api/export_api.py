@@ -3,12 +3,12 @@
 FILE: export_api.py
 MODULE: app/api/
 PURPOSE: Blueprint and routes for /api/export/*. Provides CSV download of
-         cleaned and normalized datasets, HTML report generation, and audit log
-         export.
+         cleaned and normalized datasets, HTML report generation, audit log
+         export, and surrogate model bundle download.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-15
-VERSION: 1.1.0
+LAST MODIFIED: 2026-05-26
+VERSION: 1.2.0
 ================================================================================
 """
 
@@ -23,6 +23,7 @@ from flask import Blueprint, Response, current_app, jsonify, render_template, re
 
 from app.compliance.audit import format_audit_csv, record_export, set_file_hash
 from app.compliance.classification import requires_confirmation
+from app.ml.export.bundle import build_export_bundle
 from app.report.generator import build_report_data
 from app.state.schema import append_audit_event
 
@@ -156,6 +157,70 @@ def export_audit():
         csv_text,
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=export_audit_log.csv"},
+    )
+
+
+# ── Model bundle download ─────────────────────────────────────────────────────
+
+@bp.route("/model", methods=["POST"])
+def export_model():
+    """
+    Build and download a self-contained surrogate model export bundle.
+
+    Body (JSON):
+        classification (str): Classification label.
+        acknowledged   (bool): Must be True for ITAR/EAR classifications.
+
+    Returns:
+        200: ZIP file download containing model, pipeline metadata,
+             surrogate.py wrapper, and README.
+        400: ITAR/EAR acknowledgment missing.
+        422: No trained model in STATE.
+    """
+    state = current_app.config["STATE"]
+    data  = request.get_json(silent=True) or {}
+
+    classification = data.get("classification", "Unclassified")
+    acknowledged   = bool(data.get("acknowledged", False))
+
+    if requires_confirmation(classification) and not acknowledged:
+        return jsonify({
+            "success":    False,
+            "error_code": "CONFIRMATION_REQUIRED",
+            "message":    (
+                f"Exporting a {classification}-marked model requires explicit "
+                "acknowledgment. Set acknowledged=true in the request body."
+            ),
+        }), 400
+
+    try:
+        zip_bytes, zip_name = build_export_bundle(state)
+    except ValueError as exc:
+        return jsonify({
+            "success":    False,
+            "error_code": "NO_MODEL",
+            "message":    str(exc),
+        }), 422
+
+    entry = record_export(state, zip_name, classification, acknowledged)
+    set_file_hash(entry, zip_bytes)
+
+    append_audit_event(state, "model_exported", {
+        "filename":       zip_name,
+        "classification": classification,
+        "model_type":     (
+            state["surrogate_sessions"]["primary"]["models"]
+            .get("results", {}).get("model_type", "unknown")
+        ),
+    })
+
+    current_app.logger.info(f"Model bundle exported — {zip_name} [{classification}]")
+
+    return send_file(
+        io.BytesIO(zip_bytes),
+        attachment_filename=zip_name,
+        as_attachment=True,
+        mimetype="application/zip",
     )
 
 

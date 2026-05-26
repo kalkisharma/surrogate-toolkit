@@ -19,6 +19,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.0] — 2026-05-26
+
+### Phase 19 — Model Export Bundle
+
+#### Added
+
+- `app/ml/export/bundle.py` — `build_export_bundle(state)` assembles a self-contained surrogate export ZIP in memory. Bundle contains: `model.joblib` (fitted surrogate), `pipeline.json` (input/output columns, normalization params, sklearn version, PCA flag), `pca.joblib` (only when PCA was applied in Step 7 — Filter), `surrogate.py` (ready-to-use Python wrapper with `predict(X_raw)`), and `README.txt` (column names, quick-start example, requirements).
+- `POST /api/export/model` — new route in `export_api.py`. Builds the bundle, records the compliance audit entry, writes a `model_exported` audit event, and streams the ZIP as `application/zip`. Requires the same ITAR/EAR acknowledgment gate as the HTML report.
+- `export.js` — "Download Model (.zip)" button added to Step 15 — Export alongside the existing "Generate Report" button. Button is disabled with tooltip if no trained model exists. Wires the same compliance acknowledgment flow as the report button.
+- `tests/unit/test_export_bundle.py` — 21 new unit tests. Coverage: ValueError when no model, return type and filename format, required zip files, `pipeline.json` keys and values, `surrogate.py` valid Python, README column names, `predict()` shape and numerical correctness against direct model, wrong column count raises `ValueError`, DataFrame input with named columns, GPR and RF model types, PCA mode (pca.joblib present, original columns exposed, predict shape), no-norm passthrough. Test suite grows from 186 → 207.
+
+#### Fixed
+
+- `export.js` header and panel title showed stale "Step 13" (pre-Phase 18 number). Corrected to "Step 15".
+
+---
+
 ## [3.3.2] — 2026-05-25
 
 ### Phase 8 plan review — code quality, test coverage, and dependency fixes

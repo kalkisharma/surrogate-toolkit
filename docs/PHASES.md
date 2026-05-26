@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-26
+**Last updated:** 2026-05-26 (Phase 19 complete)
 **Total phases:** 23 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -813,7 +813,7 @@
 ---
 
 ### Phase 19 — Model Export Bundle
-**Status:** 🔲 Not started | **Version:** v3.4.0
+**Status:** ✅ Complete | **Version:** v3.4.0
 
 **Purpose:** Allow engineers to export their trained surrogate as a self-contained Python bundle they can drop into their own scripts — no toolkit installation required, normalization handled internally.
 
@@ -854,7 +854,7 @@
 - `surrogate.py` passed wrong column count → raises `ValueError` listing expected columns
 - Works for all model types: Linear, GPR, RF, PCE, Kriging, Co-Kriging, Ensemble
 - Audit event written with correct metadata
-- All existing 186 tests pass; new unit tests for `build_export_bundle()` and `POST /api/export/model`
+- All existing 207 tests pass; 21 new unit tests in `tests/unit/test_export_bundle.py`
 
 ---
 
