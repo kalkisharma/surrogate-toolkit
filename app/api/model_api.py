@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-26
-VERSION: 2.4.0
+VERSION: 2.5.0
 ================================================================================
 """
 
@@ -762,8 +762,10 @@ def explore_contour():
         return jsonify({"success": False, "message": "x_col and y_col must be input columns."}), 400
     if x_col == y_col:
         return jsonify({"success": False, "message": "x_col and y_col must be different."}), 400
-    if output_col not in output_cols:
-        return jsonify({"success": False, "message": f"output_col must be an output column."}), 400
+    is_residual     = output_col.endswith("__residual")
+    base_output_col = output_col[:-len("__residual")] if is_residual else output_col
+    if base_output_col not in output_cols:
+        return jsonify({"success": False, "message": "output_col must be an output column."}), 400
 
     x_vals = np.linspace(input_mins.get(x_col, 0.0), input_maxs.get(x_col, 1.0), n_grid)
     y_vals = np.linspace(input_mins.get(y_col, 0.0), input_maxs.get(y_col, 1.0), n_grid)
@@ -779,9 +781,25 @@ def explore_contour():
             mid = (input_mins.get(col, 0.0) + input_maxs.get(col, 1.0)) / 2.0
             grid[:, i] = float(fixed_inputs.get(col, mid))
 
-    output_idx = output_cols.index(output_col)
-    z_flat     = model.predict(grid)[:, output_idx]
-    z_grid     = z_flat.reshape(n_grid, n_grid).tolist()
+    output_idx = output_cols.index(base_output_col)
+
+    if is_residual:
+        from scipy.interpolate import griddata as _griddata
+        test_X      = np.array(results.get("test_inputs", []))
+        test_actual = np.array(results.get("test_actuals", []))
+        test_pred   = np.array(results.get("test_predictions", []))
+        resid       = test_actual[:, output_idx] - test_pred[:, output_idx]
+        x_test      = test_X[:, input_cols.index(x_col)]
+        y_test      = test_X[:, input_cols.index(y_col)]
+        z_flat = _griddata(
+            np.column_stack([x_test, y_test]), resid,
+            np.column_stack([xx.ravel(), yy.ravel()]),
+            method="linear", fill_value=0.0,
+        )
+    else:
+        z_flat = model.predict(grid)[:, output_idx]
+
+    z_grid = z_flat.reshape(n_grid, n_grid).tolist()
 
     return jsonify({
         "success":    True,

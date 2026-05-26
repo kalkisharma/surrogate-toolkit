@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.4.0
+// Version: 2.5.0
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -11,6 +11,16 @@
 
 // Maximum columns shown in scatter matrix before we cap for readability.
 const SPLOM_MAX_COLS = 12;
+
+// Explicit colorscale arrays extracted from the vendored Plotly build (v2.35.2).
+// Using arrays instead of named strings bypasses Plotly's case-sensitive registry lookup.
+const _COLORSCALES = {
+  Viridis: [[0,"rgb(68,1,84)"],[0.13,"rgb(71,44,122)"],[0.25,"rgb(59,81,139)"],[0.38,"rgb(44,113,142)"],[0.5,"rgb(33,144,141)"],[0.63,"rgb(39,173,129)"],[0.75,"rgb(92,200,99)"],[0.88,"rgb(170,220,50)"],[1,"rgb(253,231,37)"]],
+  Plasma:  [[0,"rgb(13,8,135)"],[0.13,"rgb(75,3,161)"],[0.25,"rgb(125,3,168)"],[0.38,"rgb(168,34,150)"],[0.5,"rgb(203,70,121)"],[0.63,"rgb(229,107,93)"],[0.75,"rgb(248,148,65)"],[0.88,"rgb(253,195,40)"],[1,"rgb(240,249,33)"]],
+  RdBu:    [[0,"rgb(5,10,172)"],[0.35,"rgb(106,137,247)"],[0.5,"rgb(190,190,190)"],[0.6,"rgb(220,170,132)"],[0.7,"rgb(230,145,90)"],[1,"rgb(178,10,28)"]],
+  Inferno: [[0,"rgb(0,0,4)"],[0.13,"rgb(31,12,72)"],[0.25,"rgb(85,15,109)"],[0.38,"rgb(136,34,106)"],[0.5,"rgb(186,54,85)"],[0.63,"rgb(227,89,51)"],[0.75,"rgb(249,140,10)"],[0.88,"rgb(249,201,50)"],[1,"rgb(252,255,164)"]],
+  Hot:     [[0,"rgb(0,0,0)"],[0.3,"rgb(230,0,0)"],[0.6,"rgb(255,210,0)"],[1,"rgb(255,255,255)"]],
+};
 
 function _hexToRgba(hex, opacity) {
   if (!hex || !hex.startsWith("#")) return hex;
@@ -1365,11 +1375,14 @@ export function renderScatterExplorer(containerEl, data, opts = {}) {
     })
   );
 
-  const xVals     = filtered.map(r => r[xCol]);
-  const yActual   = filtered.map(r => r[`${yCol}__actual`]);
-  const yPred     = filtered.map(r => r[`${yCol}__predicted`]);
+  const xVals = filtered.map(r => r[xCol]);
 
-  const rawColorKey = colorKey || `${yCol}__predicted`;
+  // Dual trace (actual + predicted) only when yCol is a raw output column.
+  // For residual/derived Y columns (e.g. y1__residual), show a single trace.
+  const hasDualTrace = filtered.length > 0 && (`${yCol}__actual` in filtered[0]);
+  const yLabel = yCol.replace(/__residual$/, " residual").replace(/__actual$/, " actual").replace(/__predicted$/, " predicted");
+
+  const rawColorKey = colorKey || (hasDualTrace ? `${yCol}__residual` : yCol);
   const colorVals = filtered.map(r => r[rawColorKey] ?? 0);
   const cLabel    = rawColorKey.replace(/__/g, " ").replace(/predicted/, "pred").replace(/residual/, "resid");
 
@@ -1377,23 +1390,11 @@ export function renderScatterExplorer(containerEl, data, opts = {}) {
   const cMax = Math.max(...colorVals);
 
   const gridClr = showMajorGrid ? _hexToRgba(majorGridColor, majorGridOpacity) : "rgba(0,0,0,0)";
+  const cs = _COLORSCALES[colorscale] ?? colorscale;
 
   const markerBase = {
-    color: colorVals, colorscale, autocolorscale: false, cmin: cMin, cmax: cMax,
+    color: colorVals, colorscale: cs, autocolorscale: false, cmin: cMin, cmax: cMax,
     colorbar: { title: { text: cLabel, side: "right" }, thickness: 14, len: 0.75, tickfont: { size: tickFontSize } },
-  };
-
-  const actualEdge = edgeWidth > 0 ? { width: edgeWidth, color: edgeColor } : {};
-  const traceActual = {
-    type: "scatter", mode: "markers", name: "Actual",
-    x: xVals, y: yActual,
-    marker: { ...markerBase, symbol: "circle", size: markerSize, showscale: false, opacity,
-      ...(edgeWidth > 0 ? { line: actualEdge } : {}) },
-  };
-  const tracePred = {
-    type: "scatter", mode: "markers", name: "Predicted",
-    x: xVals, y: yPred,
-    marker: { ...markerBase, symbol: "cross", size: markerSize + 2, line: { width: 2, color: "rgba(0,0,0,0.3)" }, showscale: true, opacity },
   };
 
   const axisBase = {
@@ -1402,14 +1403,41 @@ export function renderScatterExplorer(containerEl, data, opts = {}) {
     ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: _hexToRgba(minorGridColor, minorGridOpacity) } } : {}),
   };
 
+  let traces;
+  if (hasDualTrace) {
+    const actualEdge = edgeWidth > 0 ? { width: edgeWidth, color: edgeColor } : {};
+    traces = [
+      {
+        type: "scatter", mode: "markers", name: "Actual",
+        x: xVals, y: filtered.map(r => r[`${yCol}__actual`]),
+        marker: { ...markerBase, symbol: "circle", size: markerSize, showscale: false, opacity,
+          ...(edgeWidth > 0 ? { line: actualEdge } : {}) },
+      },
+      {
+        type: "scatter", mode: "markers", name: "Predicted",
+        x: xVals, y: filtered.map(r => r[`${yCol}__predicted`]),
+        marker: { ...markerBase, symbol: "cross", size: markerSize + 2, line: { width: 2, color: "rgba(0,0,0,0.3)" }, showscale: true, opacity },
+      },
+    ];
+  } else {
+    const singleEdge = edgeWidth > 0 ? { line: { width: edgeWidth, color: edgeColor } } : {};
+    traces = [
+      {
+        type: "scatter", mode: "markers", name: yLabel,
+        x: xVals, y: filtered.map(r => r[yCol] ?? 0),
+        marker: { ...markerBase, symbol: "circle", size: markerSize, showscale: true, opacity, ...singleEdge },
+      },
+    ];
+  }
+
   // eslint-disable-next-line no-undef
-  Plotly.react(containerEl, [traceActual, tracePred], {
+  Plotly.react(containerEl, traces, {
     paper_bgcolor: paperBg, plot_bgcolor: plotBg,
     height, margin: { t: 24, b: 48, l: 56, r: 80 },
     font: { color: fontClr, family: "Inter, system-ui, sans-serif", size: fontSize },
-    xaxis: { ...axisBase, title: { text: xCol, font: { size: fontSize } } },
-    yaxis: { ...axisBase, title: { text: yCol, font: { size: fontSize } } },
-    showlegend: true,
+    xaxis: { ...axisBase, title: { text: xCol,   font: { size: fontSize } } },
+    yaxis: { ...axisBase, title: { text: yLabel, font: { size: fontSize } } },
+    showlegend: hasDualTrace,
     legend: { orientation: "h", x: 0, y: 1.08, font: { size: Math.max(9, fontSize - 1) } },
   }, {
     responsive: true, displayModeBar: true, displaylogo: false,
@@ -1440,19 +1468,22 @@ export function renderContourExplorer(containerEl, result, opts = {}) {
   const paperBg = paperBgColor !== null ? paperBgColor : "rgba(0,0,0,0)";
   const gridClr = showMajorGrid ? _hexToRgba(majorGridColor, majorGridOpacity) : "rgba(0,0,0,0)";
 
+  const cs = _COLORSCALES[colorscale] ?? colorscale;
+  const coLabel = (result.output_col || "").replace(/__/g, " ").replace(/residual/, "resid");
+
   const trace = {
     type: "contour",
     x: result.x_vals,
     y: result.y_vals,
     z: result.z_grid,
-    colorscale, autocolorscale: false,
+    colorscale: cs, autocolorscale: false,
     colorbar: {
-      title:     { text: result.output_col, side: "right" },
+      title:     { text: coLabel, side: "right" },
       thickness: 14, len: 0.75, tickfont: { size: tickFontSize },
     },
     contours:  { coloring: "heatmap", showlabels: true, labelfont: { size: tickFontSize, color: "white" } },
     line:      { smoothing: 1.2 },
-    hovertemplate: `${result.x_col}: %{x:.3f}<br>${result.y_col}: %{y:.3f}<br>${result.output_col}: %{z:.4f}<extra></extra>`,
+    hovertemplate: `${result.x_col}: %{x:.3f}<br>${result.y_col}: %{y:.3f}<br>${coLabel}: %{z:.4f}<extra></extra>`,
   };
 
   const axisBase = {

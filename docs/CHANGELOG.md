@@ -19,6 +19,26 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.4.3] — 2026-05-26
+
+### Explore tab — independent plot settings, residual Y/output options, fixed colorscales
+
+#### Added
+
+- `results.js` — Scatter and Contour plots each have their **own independent** Plot Settings panel (`_buildScatterSettingsPanel` prefix `ss-`, `_buildContourSettingsPanel` prefix `ct-`), stored in separate localStorage keys (`surrogate_scatter_settings`, `surrogate_contour_settings`). Panels are placed directly within each chart section.
+- Scatter **Y axis** dropdown now includes `{col} — residual` options alongside raw output columns, enabling single-trace residual scatter plots without the actual/predicted overlay.
+- Contour **Output** dropdown now includes `{col} — residual` options. Backend `explore_contour` handles residual columns via `scipy.interpolate.griddata` on test-set residuals (actual − predicted), interpolated onto the 2D contour grid.
+- `charts.js` — `_COLORSCALES` map: explicit `[[stop, "rgb(...)"], ...]` arrays for Viridis, Plasma, RdBu, Inferno, and Hot, bypassing Plotly's case-sensitive internal name lookup. Resolves Plasma/Inferno/RdBu showing wrong colors.
+- Scatter color options simplified: removed `__actual` and `__predicted` keys; retained only `{col} — residual` + all input columns.
+
+#### Changed
+
+- Typography font size upper limits doubled in **all** plot settings panels (Metrics `rs-`, Scatter `ss-`, Contour `ct-`): label font max 20 → 40, tick font max 16 → 32.
+- `charts.js` `renderScatterExplorer` — dual/single-trace logic unified: if `yCol` has `__actual` key in data it shows actual+predicted overlay; otherwise renders single trace using `r[yCol]` directly (supports residual columns).
+- `charts.js` both renderers now set `autocolorscale: false` and resolve colorscale through `_COLORSCALES` lookup before passing to Plotly.
+
+---
+
 ## [3.4.2] — 2026-05-26
 
 ### Explore tab — Plot Settings panel + theme-aware colorbar fix

@@ -39,9 +39,6 @@ const _DEFAULT_RESULT_SETTINGS = {
   height:                300,
   plotBgColor:           null,    // null = transparent
   paperBgColor:          null,    // null = transparent
-  // Figure — explore charts
-  exploreScatterHeight:  360,
-  exploreContourHeight:  420,
   // Gridlines
   showMajorGrid:         true,
   majorGridColor:        "#cccccc",
@@ -53,6 +50,68 @@ const _DEFAULT_RESULT_SETTINGS = {
 
 let _resultSettings = { ..._DEFAULT_RESULT_SETTINGS };
 let _plotItems = [];   // { figWrap, yTrue, yPred, colName, badgeCls } — cached for re-render
+
+// ── Scatter plot settings (persisted independently) ───────────────────────────
+
+const _SCATTER_SETTINGS_KEY = "surrogate_scatter_settings";
+const _DEFAULT_SCATTER_SETTINGS = {
+  fontSize:         11,
+  tickFontSize:     9,
+  fontColor:        null,
+  markerSize:       7,
+  opacity:          0.70,
+  edgeWidth:        0,
+  edgeColor:        "#000000",
+  height:           360,
+  plotBgColor:      null,
+  paperBgColor:     null,
+  showMajorGrid:    true,
+  majorGridColor:   "#cccccc",
+  majorGridOpacity: 1.0,
+  showMinorGrid:    false,
+  minorGridColor:   "#e0e0e0",
+  minorGridOpacity: 0.6,
+};
+let _scatterSettings = { ..._DEFAULT_SCATTER_SETTINGS };
+
+function _loadScatterSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(_SCATTER_SETTINGS_KEY) || "{}");
+    _scatterSettings = { ..._DEFAULT_SCATTER_SETTINGS, ...stored };
+  } catch { _scatterSettings = { ..._DEFAULT_SCATTER_SETTINGS }; }
+}
+function _saveScatterSettings() {
+  localStorage.setItem(_SCATTER_SETTINGS_KEY, JSON.stringify(_scatterSettings));
+}
+
+// ── Contour plot settings (persisted independently) ───────────────────────────
+
+const _CONTOUR_SETTINGS_KEY = "surrogate_contour_settings";
+const _DEFAULT_CONTOUR_SETTINGS = {
+  fontSize:         11,
+  tickFontSize:     9,
+  fontColor:        null,
+  height:           420,
+  plotBgColor:      null,
+  paperBgColor:     null,
+  showMajorGrid:    true,
+  majorGridColor:   "#cccccc",
+  majorGridOpacity: 1.0,
+  showMinorGrid:    false,
+  minorGridColor:   "#e0e0e0",
+  minorGridOpacity: 0.6,
+};
+let _contourSettings = { ..._DEFAULT_CONTOUR_SETTINGS };
+
+function _loadContourSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(_CONTOUR_SETTINGS_KEY) || "{}");
+    _contourSettings = { ..._DEFAULT_CONTOUR_SETTINGS, ...stored };
+  } catch { _contourSettings = { ..._DEFAULT_CONTOUR_SETTINGS }; }
+}
+function _saveContourSettings() {
+  localStorage.setItem(_CONTOUR_SETTINGS_KEY, JSON.stringify(_contourSettings));
+}
 
 // Stored callbacks so theme listener can trigger explore chart re-render without re-fetching data.
 let _drawExploreScatter = null;
@@ -104,11 +163,11 @@ function _buildSettingsPanel() {
       <div class="settings-divider">Typography</div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-font-size">Label font (px)</label>
-        <input id="rs-font-size" type="number" class="chart-settings-input" min="7" max="20" step="1" value="${_resultSettings.fontSize}">
+        <input id="rs-font-size" type="number" class="chart-settings-input" min="7" max="40" step="1" value="${_resultSettings.fontSize}">
       </div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-tick-font">Tick font (px)</label>
-        <input id="rs-tick-font" type="number" class="chart-settings-input" min="6" max="16" step="1" value="${_resultSettings.tickFontSize}">
+        <input id="rs-tick-font" type="number" class="chart-settings-input" min="6" max="32" step="1" value="${_resultSettings.tickFontSize}">
       </div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="rs-font-color">Font color</label>
@@ -221,11 +280,11 @@ function _buildSettingsPanel() {
   // Typography
   fontSizeIn.addEventListener("change", () => {
     const v = parseInt(fontSizeIn.value, 10);
-    if (!isNaN(v) && v >= 7 && v <= 20) { _resultSettings.fontSize = v; _commit(); }
+    if (!isNaN(v) && v >= 7 && v <= 40) { _resultSettings.fontSize = v; _commit(); }
   });
   tickFontIn.addEventListener("change", () => {
     const v = parseInt(tickFontIn.value, 10);
-    if (!isNaN(v) && v >= 6 && v <= 16) { _resultSettings.tickFontSize = v; _commit(); }
+    if (!isNaN(v) && v >= 6 && v <= 32) { _resultSettings.tickFontSize = v; _commit(); }
   });
   fontColorAuto_.addEventListener("change", () => {
     _resultSettings.fontColor = fontColorAuto_.checked ? null : fontColorIn.value;
@@ -747,227 +806,385 @@ function _r2Class(r2) {
   return "red";
 }
 
-// ── Explore settings panel ─────────────────────────────────────────────────────
+// ── Scatter plot settings panel (ss-) ─────────────────────────────────────────
 
-function _buildExploreSettingsPanel() {
-  const s    = _resultSettings;
+function _buildScatterSettingsPanel() {
+  const s = _scatterSettings;
   const isDark = document.documentElement.getAttribute("data-theme") === "dark";
-  const fontColorAuto  = s.fontColor    === null;
-  const fontColorVal   = s.fontColor    !== null ? s.fontColor    : (isDark ? "#8b94b3" : "#4b5478");
-  const plotBgAuto     = s.plotBgColor  === null;
-  const plotBgVal      = s.plotBgColor  !== null ? s.plotBgColor  : "#ffffff";
-  const paperBgAuto    = s.paperBgColor === null;
-  const paperBgVal     = s.paperBgColor !== null ? s.paperBgColor : "#ffffff";
+  const fontColorAuto = s.fontColor    === null;
+  const fontColorVal  = s.fontColor    !== null ? s.fontColor    : (isDark ? "#8b94b3" : "#4b5478");
+  const plotBgAuto    = s.plotBgColor  === null;
+  const plotBgVal     = s.plotBgColor  !== null ? s.plotBgColor  : "#ffffff";
+  const paperBgAuto   = s.paperBgColor === null;
+  const paperBgVal    = s.paperBgColor !== null ? s.paperBgColor : "#ffffff";
 
   const details = document.createElement("details");
   details.className = "chart-settings-panel";
   details.innerHTML = `
-    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <summary class="chart-settings-panel__summary">Scatter Plot Settings</summary>
     <div class="chart-settings-controls">
       <div class="settings-divider">Typography</div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-font-size">Label font (px)</label>
-        <input id="es-font-size" type="number" class="chart-settings-input" min="7" max="20" step="1" value="${s.fontSize}">
+        <label class="chart-settings-group__label" for="ss-font-size">Label font (px)</label>
+        <input id="ss-font-size" type="number" class="chart-settings-input" min="7" max="40" step="1" value="${s.fontSize}">
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-tick-font">Tick font (px)</label>
-        <input id="es-tick-font" type="number" class="chart-settings-input" min="6" max="16" step="1" value="${s.tickFontSize}">
+        <label class="chart-settings-group__label" for="ss-tick-font">Tick font (px)</label>
+        <input id="ss-tick-font" type="number" class="chart-settings-input" min="6" max="32" step="1" value="${s.tickFontSize}">
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-font-color">Font color</label>
+        <label class="chart-settings-group__label" for="ss-font-color">Font color</label>
         <div class="color-with-auto">
-          <input id="es-font-color" type="color" class="chart-settings-color" value="${fontColorVal}"${fontColorAuto ? " disabled" : ""} style="opacity:${fontColorAuto ? "0.4" : "1"}">
-          <label class="chart-settings-check"><input type="checkbox" id="es-font-color-auto"${fontColorAuto ? " checked" : ""}> Auto</label>
+          <input id="ss-font-color" type="color" class="chart-settings-color" value="${fontColorVal}"${fontColorAuto ? " disabled" : ""} style="opacity:${fontColorAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check"><input type="checkbox" id="ss-font-color-auto"${fontColorAuto ? " checked" : ""}> Auto</label>
         </div>
       </div>
       <div class="settings-divider">Markers</div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-marker-size">Marker size (px)</label>
-        <input id="es-marker-size" type="number" class="chart-settings-input" min="3" max="16" step="1" value="${s.markerSize}">
+        <label class="chart-settings-group__label" for="ss-marker-size">Marker size (px)</label>
+        <input id="ss-marker-size" type="number" class="chart-settings-input" min="3" max="16" step="1" value="${s.markerSize}">
       </div>
       <div class="chart-settings-group">
         <span class="chart-settings-group__label">Opacity</span>
         <div class="range-with-value">
-          <input id="es-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${s.opacity}">
-          <span id="es-opacity-val" class="chart-settings-range-val">${s.opacity.toFixed(2)}</span>
+          <input id="ss-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${s.opacity}">
+          <span id="ss-opacity-val" class="chart-settings-range-val">${s.opacity.toFixed(2)}</span>
         </div>
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-edge-width">Edge width (px)</label>
-        <input id="es-edge-width" type="number" class="chart-settings-input" min="0" max="3" step="0.5" value="${s.edgeWidth}">
+        <label class="chart-settings-group__label" for="ss-edge-width">Edge width (px)</label>
+        <input id="ss-edge-width" type="number" class="chart-settings-input" min="0" max="3" step="0.5" value="${s.edgeWidth}">
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-edge-color">Edge color</label>
-        <input id="es-edge-color" type="color" class="chart-settings-color" value="${s.edgeColor}"${s.edgeWidth === 0 ? " disabled" : ""}>
+        <label class="chart-settings-group__label" for="ss-edge-color">Edge color</label>
+        <input id="ss-edge-color" type="color" class="chart-settings-color" value="${s.edgeColor}"${s.edgeWidth === 0 ? " disabled" : ""}>
       </div>
       <div class="settings-divider">Figure</div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-sc-height">Scatter height (px)</label>
-        <input id="es-sc-height" type="number" class="chart-settings-input" min="200" max="800" step="50" value="${s.exploreScatterHeight}">
+        <label class="chart-settings-group__label" for="ss-height">Height (px)</label>
+        <input id="ss-height" type="number" class="chart-settings-input" min="200" max="800" step="50" value="${s.height}">
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-co-height">Contour height (px)</label>
-        <input id="es-co-height" type="number" class="chart-settings-input" min="200" max="800" step="50" value="${s.exploreContourHeight}">
-      </div>
-      <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-plot-bg">Plot background</label>
+        <label class="chart-settings-group__label" for="ss-plot-bg">Plot background</label>
         <div class="color-with-auto">
-          <input id="es-plot-bg" type="color" class="chart-settings-color" value="${plotBgVal}"${plotBgAuto ? " disabled" : ""}>
-          <label class="chart-settings-check"><input type="checkbox" id="es-plot-bg-auto"${plotBgAuto ? " checked" : ""}> Auto</label>
+          <input id="ss-plot-bg" type="color" class="chart-settings-color" value="${plotBgVal}"${plotBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="ss-plot-bg-auto"${plotBgAuto ? " checked" : ""}> Auto</label>
         </div>
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-paper-bg">Paper background</label>
+        <label class="chart-settings-group__label" for="ss-paper-bg">Paper background</label>
         <div class="color-with-auto">
-          <input id="es-paper-bg" type="color" class="chart-settings-color" value="${paperBgVal}"${paperBgAuto ? " disabled" : ""}>
-          <label class="chart-settings-check"><input type="checkbox" id="es-paper-bg-auto"${paperBgAuto ? " checked" : ""}> Auto</label>
+          <input id="ss-paper-bg" type="color" class="chart-settings-color" value="${paperBgVal}"${paperBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="ss-paper-bg-auto"${paperBgAuto ? " checked" : ""}> Auto</label>
         </div>
       </div>
       <div class="settings-divider">Gridlines</div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label chart-settings-check" for="es-major-grid">
-          <input type="checkbox" id="es-major-grid"${s.showMajorGrid ? " checked" : ""}> Major grid
+        <label class="chart-settings-group__label chart-settings-check" for="ss-major-grid">
+          <input type="checkbox" id="ss-major-grid"${s.showMajorGrid ? " checked" : ""}> Major grid
         </label>
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-major-grid-color">Major grid color</label>
-        <input id="es-major-grid-color" type="color" class="chart-settings-color" value="${s.majorGridColor}"${!s.showMajorGrid ? " disabled" : ""}>
+        <label class="chart-settings-group__label" for="ss-major-grid-color">Major grid color</label>
+        <input id="ss-major-grid-color" type="color" class="chart-settings-color" value="${s.majorGridColor}"${!s.showMajorGrid ? " disabled" : ""}>
       </div>
       <div class="chart-settings-group">
         <span class="chart-settings-group__label">Major grid opacity</span>
         <div class="range-with-value">
-          <input id="es-major-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.majorGridOpacity}"${!s.showMajorGrid ? " disabled" : ""}>
-          <span id="es-major-grid-opacity-val" class="chart-settings-range-val">${s.majorGridOpacity.toFixed(2)}</span>
+          <input id="ss-major-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.majorGridOpacity}"${!s.showMajorGrid ? " disabled" : ""}>
+          <span id="ss-major-grid-opacity-val" class="chart-settings-range-val">${s.majorGridOpacity.toFixed(2)}</span>
         </div>
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label chart-settings-check" for="es-minor-grid">
-          <input type="checkbox" id="es-minor-grid"${s.showMinorGrid ? " checked" : ""}> Minor grid
+        <label class="chart-settings-group__label chart-settings-check" for="ss-minor-grid">
+          <input type="checkbox" id="ss-minor-grid"${s.showMinorGrid ? " checked" : ""}> Minor grid
         </label>
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="es-minor-grid-color">Minor grid color</label>
-        <input id="es-minor-grid-color" type="color" class="chart-settings-color" value="${s.minorGridColor}"${!s.showMinorGrid ? " disabled" : ""}>
+        <label class="chart-settings-group__label" for="ss-minor-grid-color">Minor grid color</label>
+        <input id="ss-minor-grid-color" type="color" class="chart-settings-color" value="${s.minorGridColor}"${!s.showMinorGrid ? " disabled" : ""}>
       </div>
       <div class="chart-settings-group">
         <span class="chart-settings-group__label">Minor grid opacity</span>
         <div class="range-with-value">
-          <input id="es-minor-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.minorGridOpacity}"${!s.showMinorGrid ? " disabled" : ""}>
-          <span id="es-minor-grid-opacity-val" class="chart-settings-range-val">${s.minorGridOpacity.toFixed(2)}</span>
+          <input id="ss-minor-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.minorGridOpacity}"${!s.showMinorGrid ? " disabled" : ""}>
+          <span id="ss-minor-grid-opacity-val" class="chart-settings-range-val">${s.minorGridOpacity.toFixed(2)}</span>
         </div>
       </div>
     </div>
   `;
 
-  function _commit() {
-    _saveResultSettings();
-    _drawExploreScatter?.();
-    _drawExploreContour?.();
-  }
+  function _commit() { _saveScatterSettings(); _drawExploreScatter?.(); }
 
   // Typography
-  details.querySelector("#es-font-size").addEventListener("change", () => {
-    const v = parseInt(details.querySelector("#es-font-size").value, 10);
-    if (!isNaN(v) && v >= 7 && v <= 20) { _resultSettings.fontSize = v; _commit(); }
+  details.querySelector("#ss-font-size").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#ss-font-size").value, 10);
+    if (!isNaN(v) && v >= 7 && v <= 40) { _scatterSettings.fontSize = v; _commit(); }
   });
-  details.querySelector("#es-tick-font").addEventListener("change", () => {
-    const v = parseInt(details.querySelector("#es-tick-font").value, 10);
-    if (!isNaN(v) && v >= 6 && v <= 16) { _resultSettings.tickFontSize = v; _commit(); }
+  details.querySelector("#ss-tick-font").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#ss-tick-font").value, 10);
+    if (!isNaN(v) && v >= 6 && v <= 32) { _scatterSettings.tickFontSize = v; _commit(); }
   });
-  const fontColorIn_e  = details.querySelector("#es-font-color");
-  const fontColorAuto_ = details.querySelector("#es-font-color-auto");
-  fontColorAuto_.addEventListener("change", () => {
-    _resultSettings.fontColor = fontColorAuto_.checked ? null : fontColorIn_e.value;
-    fontColorIn_e.disabled = fontColorAuto_.checked;
-    fontColorIn_e.style.opacity = fontColorAuto_.checked ? "0.4" : "1";
+  const ssFontColorIn   = details.querySelector("#ss-font-color");
+  const ssFontColorAuto = details.querySelector("#ss-font-color-auto");
+  ssFontColorAuto.addEventListener("change", () => {
+    _scatterSettings.fontColor = ssFontColorAuto.checked ? null : ssFontColorIn.value;
+    ssFontColorIn.disabled = ssFontColorAuto.checked;
+    ssFontColorIn.style.opacity = ssFontColorAuto.checked ? "0.4" : "1";
     _commit();
   });
-  fontColorIn_e.addEventListener("input", () => { _resultSettings.fontColor = fontColorIn_e.value; _commit(); });
+  ssFontColorIn.addEventListener("input", () => { _scatterSettings.fontColor = ssFontColorIn.value; _commit(); });
 
   // Markers
-  details.querySelector("#es-marker-size").addEventListener("change", () => {
-    const v = parseInt(details.querySelector("#es-marker-size").value, 10);
-    if (!isNaN(v) && v >= 3 && v <= 16) { _resultSettings.markerSize = v; _commit(); }
+  details.querySelector("#ss-marker-size").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#ss-marker-size").value, 10);
+    if (!isNaN(v) && v >= 3 && v <= 16) { _scatterSettings.markerSize = v; _commit(); }
   });
-  const opacIn_e  = details.querySelector("#es-opacity");
-  const opacVal_e = details.querySelector("#es-opacity-val");
-  opacIn_e.addEventListener("input", () => {
-    const v = parseFloat(opacIn_e.value);
-    opacVal_e.textContent = v.toFixed(2);
-    _resultSettings.opacity = v;
+  const ssOpacIn  = details.querySelector("#ss-opacity");
+  const ssOpacVal = details.querySelector("#ss-opacity-val");
+  ssOpacIn.addEventListener("input", () => {
+    const v = parseFloat(ssOpacIn.value);
+    ssOpacVal.textContent = v.toFixed(2);
+    _scatterSettings.opacity = v;
     _commit();
   });
-  const edgeWidthIn_e = details.querySelector("#es-edge-width");
-  const edgeColorIn_e = details.querySelector("#es-edge-color");
-  edgeWidthIn_e.addEventListener("change", () => {
-    const v = parseFloat(edgeWidthIn_e.value);
+  const ssEdgeWidthIn = details.querySelector("#ss-edge-width");
+  const ssEdgeColorIn = details.querySelector("#ss-edge-color");
+  ssEdgeWidthIn.addEventListener("change", () => {
+    const v = parseFloat(ssEdgeWidthIn.value);
     if (!isNaN(v) && v >= 0 && v <= 3) {
-      _resultSettings.edgeWidth = v;
-      edgeColorIn_e.disabled = v === 0;
+      _scatterSettings.edgeWidth = v;
+      ssEdgeColorIn.disabled = v === 0;
       _commit();
     }
   });
-  edgeColorIn_e.addEventListener("input", () => { _resultSettings.edgeColor = edgeColorIn_e.value; _commit(); });
+  ssEdgeColorIn.addEventListener("input", () => { _scatterSettings.edgeColor = ssEdgeColorIn.value; _commit(); });
 
   // Figure
-  details.querySelector("#es-sc-height").addEventListener("change", () => {
-    const v = parseInt(details.querySelector("#es-sc-height").value, 10);
-    if (!isNaN(v) && v >= 200 && v <= 800) { _resultSettings.exploreScatterHeight = v; _drawExploreScatter?.(); _saveResultSettings(); }
+  details.querySelector("#ss-height").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#ss-height").value, 10);
+    if (!isNaN(v) && v >= 200 && v <= 800) { _scatterSettings.height = v; _commit(); }
   });
-  details.querySelector("#es-co-height").addEventListener("change", () => {
-    const v = parseInt(details.querySelector("#es-co-height").value, 10);
-    if (!isNaN(v) && v >= 200 && v <= 800) { _resultSettings.exploreContourHeight = v; _drawExploreContour?.(); _saveResultSettings(); }
-  });
-  const plotBgIn_e   = details.querySelector("#es-plot-bg");
-  const plotBgAuto_  = details.querySelector("#es-plot-bg-auto");
-  plotBgAuto_.addEventListener("change", () => {
-    _resultSettings.plotBgColor = plotBgAuto_.checked ? null : plotBgIn_e.value;
-    plotBgIn_e.disabled = plotBgAuto_.checked;
+  const ssPlotBgIn   = details.querySelector("#ss-plot-bg");
+  const ssPlotBgAuto = details.querySelector("#ss-plot-bg-auto");
+  ssPlotBgAuto.addEventListener("change", () => {
+    _scatterSettings.plotBgColor = ssPlotBgAuto.checked ? null : ssPlotBgIn.value;
+    ssPlotBgIn.disabled = ssPlotBgAuto.checked;
     _commit();
   });
-  plotBgIn_e.addEventListener("input", () => { _resultSettings.plotBgColor = plotBgIn_e.value; _commit(); });
-  const paperBgIn_e  = details.querySelector("#es-paper-bg");
-  const paperBgAuto_ = details.querySelector("#es-paper-bg-auto");
-  paperBgAuto_.addEventListener("change", () => {
-    _resultSettings.paperBgColor = paperBgAuto_.checked ? null : paperBgIn_e.value;
-    paperBgIn_e.disabled = paperBgAuto_.checked;
+  ssPlotBgIn.addEventListener("input", () => { _scatterSettings.plotBgColor = ssPlotBgIn.value; _commit(); });
+  const ssPaperBgIn   = details.querySelector("#ss-paper-bg");
+  const ssPaperBgAuto = details.querySelector("#ss-paper-bg-auto");
+  ssPaperBgAuto.addEventListener("change", () => {
+    _scatterSettings.paperBgColor = ssPaperBgAuto.checked ? null : ssPaperBgIn.value;
+    ssPaperBgIn.disabled = ssPaperBgAuto.checked;
     _commit();
   });
-  paperBgIn_e.addEventListener("input", () => { _resultSettings.paperBgColor = paperBgIn_e.value; _commit(); });
+  ssPaperBgIn.addEventListener("input", () => { _scatterSettings.paperBgColor = ssPaperBgIn.value; _commit(); });
 
   // Gridlines
-  const majorGridChk_e     = details.querySelector("#es-major-grid");
-  const majorGridColorIn_e = details.querySelector("#es-major-grid-color");
-  const majorGridOpacIn_e  = details.querySelector("#es-major-grid-opacity");
-  const majorGridOpacVal_e = details.querySelector("#es-major-grid-opacity-val");
-  majorGridChk_e.addEventListener("change", () => {
-    _resultSettings.showMajorGrid = majorGridChk_e.checked;
-    majorGridColorIn_e.disabled = !majorGridChk_e.checked;
-    majorGridOpacIn_e.disabled  = !majorGridChk_e.checked;
+  const ssMajorGridChk     = details.querySelector("#ss-major-grid");
+  const ssMajorGridColorIn = details.querySelector("#ss-major-grid-color");
+  const ssMajorGridOpacIn  = details.querySelector("#ss-major-grid-opacity");
+  const ssMajorGridOpacVal = details.querySelector("#ss-major-grid-opacity-val");
+  ssMajorGridChk.addEventListener("change", () => {
+    _scatterSettings.showMajorGrid = ssMajorGridChk.checked;
+    ssMajorGridColorIn.disabled = !ssMajorGridChk.checked;
+    ssMajorGridOpacIn.disabled  = !ssMajorGridChk.checked;
     _commit();
   });
-  majorGridColorIn_e.addEventListener("input", () => { _resultSettings.majorGridColor = majorGridColorIn_e.value; _commit(); });
-  majorGridOpacIn_e.addEventListener("input", () => {
-    const v = parseFloat(majorGridOpacIn_e.value);
-    majorGridOpacVal_e.textContent = v.toFixed(2);
-    _resultSettings.majorGridOpacity = v;
+  ssMajorGridColorIn.addEventListener("input", () => { _scatterSettings.majorGridColor = ssMajorGridColorIn.value; _commit(); });
+  ssMajorGridOpacIn.addEventListener("input", () => {
+    const v = parseFloat(ssMajorGridOpacIn.value);
+    ssMajorGridOpacVal.textContent = v.toFixed(2);
+    _scatterSettings.majorGridOpacity = v;
     _commit();
   });
-  const minorGridChk_e     = details.querySelector("#es-minor-grid");
-  const minorGridColorIn_e = details.querySelector("#es-minor-grid-color");
-  const minorGridOpacIn_e  = details.querySelector("#es-minor-grid-opacity");
-  const minorGridOpacVal_e = details.querySelector("#es-minor-grid-opacity-val");
-  minorGridChk_e.addEventListener("change", () => {
-    _resultSettings.showMinorGrid = minorGridChk_e.checked;
-    minorGridColorIn_e.disabled = !minorGridChk_e.checked;
-    minorGridOpacIn_e.disabled  = !minorGridChk_e.checked;
+  const ssMinorGridChk     = details.querySelector("#ss-minor-grid");
+  const ssMinorGridColorIn = details.querySelector("#ss-minor-grid-color");
+  const ssMinorGridOpacIn  = details.querySelector("#ss-minor-grid-opacity");
+  const ssMinorGridOpacVal = details.querySelector("#ss-minor-grid-opacity-val");
+  ssMinorGridChk.addEventListener("change", () => {
+    _scatterSettings.showMinorGrid = ssMinorGridChk.checked;
+    ssMinorGridColorIn.disabled = !ssMinorGridChk.checked;
+    ssMinorGridOpacIn.disabled  = !ssMinorGridChk.checked;
     _commit();
   });
-  minorGridColorIn_e.addEventListener("input", () => { _resultSettings.minorGridColor = minorGridColorIn_e.value; _commit(); });
-  minorGridOpacIn_e.addEventListener("input", () => {
-    const v = parseFloat(minorGridOpacIn_e.value);
-    minorGridOpacVal_e.textContent = v.toFixed(2);
-    _resultSettings.minorGridOpacity = v;
+  ssMinorGridColorIn.addEventListener("input", () => { _scatterSettings.minorGridColor = ssMinorGridColorIn.value; _commit(); });
+  ssMinorGridOpacIn.addEventListener("input", () => {
+    const v = parseFloat(ssMinorGridOpacIn.value);
+    ssMinorGridOpacVal.textContent = v.toFixed(2);
+    _scatterSettings.minorGridOpacity = v;
+    _commit();
+  });
+
+  return details;
+}
+
+// ── Contour plot settings panel (ct-) ─────────────────────────────────────────
+
+function _buildContourSettingsPanel() {
+  const s = _contourSettings;
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontColorAuto = s.fontColor    === null;
+  const fontColorVal  = s.fontColor    !== null ? s.fontColor    : (isDark ? "#8b94b3" : "#4b5478");
+  const plotBgAuto    = s.plotBgColor  === null;
+  const plotBgVal     = s.plotBgColor  !== null ? s.plotBgColor  : "#ffffff";
+  const paperBgAuto   = s.paperBgColor === null;
+  const paperBgVal    = s.paperBgColor !== null ? s.paperBgColor : "#ffffff";
+
+  const details = document.createElement("details");
+  details.className = "chart-settings-panel";
+  details.innerHTML = `
+    <summary class="chart-settings-panel__summary">Contour Plot Settings</summary>
+    <div class="chart-settings-controls">
+      <div class="settings-divider">Typography</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-font-size">Label font (px)</label>
+        <input id="ct-font-size" type="number" class="chart-settings-input" min="7" max="40" step="1" value="${s.fontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-tick-font">Tick font (px)</label>
+        <input id="ct-tick-font" type="number" class="chart-settings-input" min="6" max="32" step="1" value="${s.tickFontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-font-color">Font color</label>
+        <div class="color-with-auto">
+          <input id="ct-font-color" type="color" class="chart-settings-color" value="${fontColorVal}"${fontColorAuto ? " disabled" : ""} style="opacity:${fontColorAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check"><input type="checkbox" id="ct-font-color-auto"${fontColorAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
+      <div class="settings-divider">Figure</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-height">Height (px)</label>
+        <input id="ct-height" type="number" class="chart-settings-input" min="200" max="800" step="50" value="${s.height}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-plot-bg">Plot background</label>
+        <div class="color-with-auto">
+          <input id="ct-plot-bg" type="color" class="chart-settings-color" value="${plotBgVal}"${plotBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="ct-plot-bg-auto"${plotBgAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-paper-bg">Paper background</label>
+        <div class="color-with-auto">
+          <input id="ct-paper-bg" type="color" class="chart-settings-color" value="${paperBgVal}"${paperBgAuto ? " disabled" : ""}>
+          <label class="chart-settings-check"><input type="checkbox" id="ct-paper-bg-auto"${paperBgAuto ? " checked" : ""}> Auto</label>
+        </div>
+      </div>
+      <div class="settings-divider">Gridlines</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label chart-settings-check" for="ct-major-grid">
+          <input type="checkbox" id="ct-major-grid"${s.showMajorGrid ? " checked" : ""}> Major grid
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-major-grid-color">Major grid color</label>
+        <input id="ct-major-grid-color" type="color" class="chart-settings-color" value="${s.majorGridColor}"${!s.showMajorGrid ? " disabled" : ""}>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Major grid opacity</span>
+        <div class="range-with-value">
+          <input id="ct-major-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.majorGridOpacity}"${!s.showMajorGrid ? " disabled" : ""}>
+          <span id="ct-major-grid-opacity-val" class="chart-settings-range-val">${s.majorGridOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label chart-settings-check" for="ct-minor-grid">
+          <input type="checkbox" id="ct-minor-grid"${s.showMinorGrid ? " checked" : ""}> Minor grid
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="ct-minor-grid-color">Minor grid color</label>
+        <input id="ct-minor-grid-color" type="color" class="chart-settings-color" value="${s.minorGridColor}"${!s.showMinorGrid ? " disabled" : ""}>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Minor grid opacity</span>
+        <div class="range-with-value">
+          <input id="ct-minor-grid-opacity" type="range" class="chart-settings-range" min="0" max="1" step="0.05" value="${s.minorGridOpacity}"${!s.showMinorGrid ? " disabled" : ""}>
+          <span id="ct-minor-grid-opacity-val" class="chart-settings-range-val">${s.minorGridOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  function _commit() { _saveContourSettings(); _drawExploreContour?.(); }
+
+  // Typography
+  details.querySelector("#ct-font-size").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#ct-font-size").value, 10);
+    if (!isNaN(v) && v >= 7 && v <= 40) { _contourSettings.fontSize = v; _commit(); }
+  });
+  details.querySelector("#ct-tick-font").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#ct-tick-font").value, 10);
+    if (!isNaN(v) && v >= 6 && v <= 32) { _contourSettings.tickFontSize = v; _commit(); }
+  });
+  const ctFontColorIn   = details.querySelector("#ct-font-color");
+  const ctFontColorAuto = details.querySelector("#ct-font-color-auto");
+  ctFontColorAuto.addEventListener("change", () => {
+    _contourSettings.fontColor = ctFontColorAuto.checked ? null : ctFontColorIn.value;
+    ctFontColorIn.disabled = ctFontColorAuto.checked;
+    ctFontColorIn.style.opacity = ctFontColorAuto.checked ? "0.4" : "1";
+    _commit();
+  });
+  ctFontColorIn.addEventListener("input", () => { _contourSettings.fontColor = ctFontColorIn.value; _commit(); });
+
+  // Figure
+  details.querySelector("#ct-height").addEventListener("change", () => {
+    const v = parseInt(details.querySelector("#ct-height").value, 10);
+    if (!isNaN(v) && v >= 200 && v <= 800) { _contourSettings.height = v; _commit(); }
+  });
+  const ctPlotBgIn   = details.querySelector("#ct-plot-bg");
+  const ctPlotBgAuto = details.querySelector("#ct-plot-bg-auto");
+  ctPlotBgAuto.addEventListener("change", () => {
+    _contourSettings.plotBgColor = ctPlotBgAuto.checked ? null : ctPlotBgIn.value;
+    ctPlotBgIn.disabled = ctPlotBgAuto.checked;
+    _commit();
+  });
+  ctPlotBgIn.addEventListener("input", () => { _contourSettings.plotBgColor = ctPlotBgIn.value; _commit(); });
+  const ctPaperBgIn   = details.querySelector("#ct-paper-bg");
+  const ctPaperBgAuto = details.querySelector("#ct-paper-bg-auto");
+  ctPaperBgAuto.addEventListener("change", () => {
+    _contourSettings.paperBgColor = ctPaperBgAuto.checked ? null : ctPaperBgIn.value;
+    ctPaperBgIn.disabled = ctPaperBgAuto.checked;
+    _commit();
+  });
+  ctPaperBgIn.addEventListener("input", () => { _contourSettings.paperBgColor = ctPaperBgIn.value; _commit(); });
+
+  // Gridlines
+  const ctMajorGridChk     = details.querySelector("#ct-major-grid");
+  const ctMajorGridColorIn = details.querySelector("#ct-major-grid-color");
+  const ctMajorGridOpacIn  = details.querySelector("#ct-major-grid-opacity");
+  const ctMajorGridOpacVal = details.querySelector("#ct-major-grid-opacity-val");
+  ctMajorGridChk.addEventListener("change", () => {
+    _contourSettings.showMajorGrid = ctMajorGridChk.checked;
+    ctMajorGridColorIn.disabled = !ctMajorGridChk.checked;
+    ctMajorGridOpacIn.disabled  = !ctMajorGridChk.checked;
+    _commit();
+  });
+  ctMajorGridColorIn.addEventListener("input", () => { _contourSettings.majorGridColor = ctMajorGridColorIn.value; _commit(); });
+  ctMajorGridOpacIn.addEventListener("input", () => {
+    const v = parseFloat(ctMajorGridOpacIn.value);
+    ctMajorGridOpacVal.textContent = v.toFixed(2);
+    _contourSettings.majorGridOpacity = v;
+    _commit();
+  });
+  const ctMinorGridChk     = details.querySelector("#ct-minor-grid");
+  const ctMinorGridColorIn = details.querySelector("#ct-minor-grid-color");
+  const ctMinorGridOpacIn  = details.querySelector("#ct-minor-grid-opacity");
+  const ctMinorGridOpacVal = details.querySelector("#ct-minor-grid-opacity-val");
+  ctMinorGridChk.addEventListener("change", () => {
+    _contourSettings.showMinorGrid = ctMinorGridChk.checked;
+    ctMinorGridColorIn.disabled = !ctMinorGridChk.checked;
+    ctMinorGridOpacIn.disabled  = !ctMinorGridChk.checked;
+    _commit();
+  });
+  ctMinorGridColorIn.addEventListener("input", () => { _contourSettings.minorGridColor = ctMinorGridColorIn.value; _commit(); });
+  ctMinorGridOpacIn.addEventListener("input", () => {
+    const v = parseFloat(ctMinorGridOpacIn.value);
+    ctMinorGridOpacVal.textContent = v.toFixed(2);
+    _contourSettings.minorGridOpacity = v;
     _commit();
   });
 
@@ -987,7 +1204,8 @@ async function _initExploreTab(pane, r) {
     return;
   }
 
-  pane.appendChild(_buildExploreSettingsPanel());
+  _loadScatterSettings();
+  _loadContourSettings();
 
   const data = resp;
 
@@ -1003,23 +1221,31 @@ async function _initExploreTab(pane, r) {
     letting you focus on a subregion of the design space.</p>
   `);
   scatterSection.appendChild(scatterTitle);
+  scatterSection.appendChild(_buildScatterSettingsPanel());
 
   // Controls row
   const scCtrl = el("div", { cls: "explore-controls-row" });
 
-  const xSel      = _makeExploreSelect("X axis:", data.input_columns,  data.input_columns[0]);
-  const ySel      = _makeExploreSelect("Y axis:", data.output_columns, data.output_columns[0]);
+  const xSel = _makeExploreSelect("X axis:", data.input_columns, data.input_columns[0]);
 
-  // Color options: predicted / actual / residual for each output + all inputs
-  const colorOpts = [];
+  // Y axis: raw output columns + residuals
+  const yOpts = [], yLabels = [];
   for (const col of data.output_columns) {
-    colorOpts.push(`${col}__predicted`);
-    colorOpts.push(`${col}__actual`);
-    colorOpts.push(`${col}__residual`);
+    yOpts.push(col);              yLabels.push(col);
+    yOpts.push(`${col}__residual`); yLabels.push(`${col} — residual`);
   }
-  for (const col of data.input_columns) colorOpts.push(col);
-  const colorLabels = colorOpts.map(k => k.replace(/__predicted$/, " — predicted")
-    .replace(/__actual$/, " — actual").replace(/__residual$/, " — residual"));
+  const ySel = _makeExploreSelectLabeled("Y axis:", yOpts, yLabels, yOpts[0]);
+
+  // Color options: residual for each output + all inputs
+  const colorOpts = [], colorLabels = [];
+  for (const col of data.output_columns) {
+    colorOpts.push(`${col}__residual`);
+    colorLabels.push(`${col} — residual`);
+  }
+  for (const col of data.input_columns) {
+    colorOpts.push(col);
+    colorLabels.push(col);
+  }
   const colorSel = _makeExploreSelectLabeled("Color:", colorOpts, colorLabels, colorOpts[0]);
 
   const scColorscaleSel = _makeExploreSelect("Scale:", ["Viridis","Plasma","RdBu","Inferno","Hot"], "Viridis");
@@ -1070,8 +1296,7 @@ async function _initExploreTab(pane, r) {
       colorKey:    colorSel.select.value,
       colorscale:  scColorscaleSel.select.value,
       filterRanges,
-      ..._resultSettings,
-      height: _resultSettings.exploreScatterHeight,
+      ..._scatterSettings,
     });
     requestAnimationFrame(() => {
       const p = scatterChart.querySelector(".js-plotly-plot");
@@ -1101,12 +1326,20 @@ async function _initExploreTab(pane, r) {
     <strong>grid resolution</strong> for smoother contours at the cost of a longer compute time.</p>
   `);
   contourSection.appendChild(contourTitle);
+  contourSection.appendChild(_buildContourSettingsPanel());
 
   const coCtrl = el("div", { cls: "explore-controls-row" });
   const cxSel  = _makeExploreSelect("X axis:", data.input_columns,  data.input_columns[0]);
   const cyOpts = data.input_columns;
   const cySel  = _makeExploreSelect("Y axis:", cyOpts, cyOpts[Math.min(1, cyOpts.length - 1)]);
-  const coOutSel = _makeExploreSelect("Output:", data.output_columns, data.output_columns[0]);
+
+  // Output: raw output columns + residuals
+  const coOutputOpts = [], coOutputLabels = [];
+  for (const col of data.output_columns) {
+    coOutputOpts.push(col);              coOutputLabels.push(col);
+    coOutputOpts.push(`${col}__residual`); coOutputLabels.push(`${col} — residual`);
+  }
+  const coOutSel = _makeExploreSelectLabeled("Output:", coOutputOpts, coOutputLabels, coOutputOpts[0]);
   const gridSel  = _makeExploreSelect("Grid:", ["25", "50", "100"], "50");
   const coColorscaleSel = _makeExploreSelect("Scale:", ["Plasma","Viridis","RdBu","Inferno","Hot"], "Plasma");
 
@@ -1182,8 +1415,7 @@ async function _initExploreTab(pane, r) {
     if (!result.success) return;
     renderContourExplorer(contourChart, result, {
       colorscale: coColorscaleSel.select.value,
-      ..._resultSettings,
-      height: _resultSettings.exploreContourHeight,
+      ..._contourSettings,
     });
     requestAnimationFrame(() => {
       const p = contourChart.querySelector(".js-plotly-plot");
