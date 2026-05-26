@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-23
+**Last updated:** 2026-05-26
 **Total phases:** 21 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -162,7 +162,7 @@
 - Train GPR on 200-row dataset → CV metrics and parity plot render in < 30 seconds
 - Auto-tune → best params displayed; trained model uses those params
 - Switch datasets → trained model from previous dataset restored without retraining
-- All 154 existing tests continue to pass; new tuning tests added
+- All 186 existing tests continue to pass; new tuning tests added
 
 ---
 
@@ -189,7 +189,7 @@
 
 **Frontend:**
 - `prediction.js` — fully implemented with single-point form, batch CSV upload/download, and learning mode primers
-- Step 9 in sidebar (registered in `main.js` STEP_KEYS / STEP_LABELS / STEP_NUMS)
+- Step 10 in sidebar (registered in `main.js` STEP_KEYS / STEP_LABELS / STEP_NUMS)
 
 **Dependencies:** Phase 4 (trained model in STATE).
 
@@ -230,7 +230,7 @@
 
 **Frontend:**
 - New module: `static/js/modules/optimization.js`
-- Step 10 in sidebar
+- Step 11 in sidebar
 - `charts.js` — `renderParetoFront(containerEl, paretoOutputs, objNames)`
 
 **Dependencies:** Phase 5 (prediction path; optimization uses the same model.predict()).
@@ -291,12 +291,12 @@
 **Scope:**
 
 *Uncertainty Quantification:*
-- GPR: native posterior std → ±1.96σ error bars on parity plots in Step 8 — Training Results
+- GPR: native posterior std → ±1.96σ error bars on parity plots in Step 9 — Results
 - RF: tree-variance 95% CI (percentile across all estimators, no refitting) — mean CI width shown in Interpret panel
 - Linear: explanatory note; no native uncertainty
 
 *Sensitivity Analysis:*
-- Sobol global sensitivity (SALib): S1 (first-order) and ST (total-order) indices per input; N=512 Saltelli samples
+- Sobol global sensitivity (SALib): S1 (first-order) and ST (total-order) indices per input; N=512 Sobol samples
 - OAT: vary each input over its range (50 points) while holding all others at training median; dashed nominal line
 - Tornado chart: horizontal bar chart sorted by ST descending, ST + S1 overlay
 - Multi-output: user selects which output to analyze; results cached per output column
@@ -305,17 +305,17 @@
 **Backend:**
 - `app/ml/models/gpr_model.py` — `predict_std(X)` via `MultiOutputRegressor.estimators_[i].predict(X, return_std=True)`
 - `app/ml/uncertainty/bootstrap.py` — `compute_uncertainty()` (GPR native + RF tree variance)
-- `app/ml/sensitivity/global_sensitivity.py` — `SobolAnalyzer.analyze()` (SALib.sample.saltelli + SALib.analyze.sobol)
+- `app/ml/sensitivity/global_sensitivity.py` — `SobolAnalyzer.analyze()` (SALib.sample.sobol + SALib.analyze.sobol)
 - `app/ml/sensitivity/one_at_a_time.py` — `OATAnalyzer.analyze()`
 - `POST /api/model/interpret` — runs Sobol + OAT + uncertainty; caches per output
 - `GET /api/model/interpret?output_col=X` — returns cached result
 - `train` results dict extended: `test_inputs`, `test_stds`, `input_mins`, `input_maxs`; interpretation cache cleared on retrain
 
 **Frontend:**
-- `static/js/modules/interpretation.js` — new Step 11 module (Sobol tornado, OAT grid, uncertainty section)
+- `static/js/modules/interpretation.js` — new Step 12 module (Sobol tornado, OAT grid, uncertainty section)
 - `static/js/charts.js` — `renderTornadoChart()`, `renderOATGrid()`; `renderOutputFigure` error-bar support via `opts.stds`
 - `static/js/modules/results.js` — passes `stds` to `renderOutputFigure`
-- `static/js/main.js` — Step 11 registered in STEP_KEYS/STEP_LABELS/STEP_NUMS; unlock logic in two places; `_initInterpretPanel`
+- `static/js/main.js` — Step 12 registered in STEP_KEYS/STEP_LABELS/STEP_NUMS; unlock logic in two places; `_initInterpretPanel`
 
 **Dependencies:** Phase 4 (trained model). Phase 5 recommended (GPR uncertainty displayed in Results panel).
 
@@ -358,12 +358,12 @@
 **Backend:**
 - `app/ml/active_learning/coverage_mode.py` — implement CoverageRecommender
 - `app/ml/active_learning/objective_mode.py` — implement ObjectiveRecommender (EI/UCB)
-- `app/api/active_learning_api.py` — implement (currently 21-line stub)
+- `app/api/active_learning_api.py`
 - `POST /api/active/coverage`, `POST /api/active/objective`
 
 **Frontend:**
-- `active_learning.js` — implement (currently 9-line stub)
-- Step 12 in sidebar
+- `active_learning.js`
+- Step 13 in sidebar
 - `charts.js` — `renderDesignSpaceScatter()` — 2D scatter of existing samples + recommendations
 
 **Dependencies:** Phase 4 (trained model + training data). Phase 8 required for objective mode (needs uncertainty estimates).
@@ -391,12 +391,12 @@
 - Audit event: `comparison_run`
 
 **Backend:**
-- `app/api/comparison_api.py` — implement (currently 21-line stub)
+- `app/api/comparison_api.py`
 - `GET /api/comparison/summary`, `POST /api/comparison/bias`, `POST /api/comparison/error_model`
 
 **Frontend:**
-- New module: `static/js/modules/comparison.js`
-- Step 13 in sidebar
+- `static/js/modules/comparison.js`
+- Step 14 in sidebar
 - `charts.js` — `renderComparisonScatter()`
 
 **Dependencies:** Phase 4 on at least two datasets (two trained surrogates in STATE).
@@ -431,12 +431,12 @@
 - `app/security/file_validation.py` — implement strict file content validation
 
 **Backend:**
-- `app/api/export_api.py` — implement (currently 21-line stub)
+- `app/api/export_api.py`
 - `POST /api/export/report/html`, `POST /api/export/report/pdf`, `POST /api/export/audit`
 
 **Frontend:**
-- New module: `static/js/modules/export.js`
-- Step 14 in sidebar
+- `static/js/modules/export.js`
+- Step 15 in sidebar
 - `app/templates/components/modals/compliance_modal.html` — full implementation (stub exists)
 - Report templates: `app/templates/report/report_base.html`
 
@@ -757,7 +757,7 @@
 - Quiz question appears, answer selection shows explanation; wrong answers do not block progress
 - Progress tracked in STATE; exercise card shows "complete" badge after all steps visited
 - Progress persists after save → load
-- All existing 154 tests pass; new unit tests for exercise API endpoints
+- All existing 186 tests pass; new unit tests for exercise API endpoints
 
 ---
 
