@@ -1022,7 +1022,7 @@ async function _initExploreTab(pane, r) {
     .replace(/__actual$/, " — actual").replace(/__residual$/, " — residual"));
   const colorSel = _makeExploreSelectLabeled("Color:", colorOpts, colorLabels, colorOpts[0]);
 
-  const scColorscaleSel = _makeExploreSelect("Scale:", ["Viridis","Plasma","RdBu","Inferno","Turbo"], "Viridis");
+  const scColorscaleSel = _makeExploreSelect("Scale:", ["Viridis","Plasma","RdBu","Inferno","Hot"], "Viridis");
 
   scCtrl.appendChild(xSel.wrap);
   scCtrl.appendChild(ySel.wrap);
@@ -1108,7 +1108,7 @@ async function _initExploreTab(pane, r) {
   const cySel  = _makeExploreSelect("Y axis:", cyOpts, cyOpts[Math.min(1, cyOpts.length - 1)]);
   const coOutSel = _makeExploreSelect("Output:", data.output_columns, data.output_columns[0]);
   const gridSel  = _makeExploreSelect("Grid:", ["25", "50", "100"], "50");
-  const coColorscaleSel = _makeExploreSelect("Scale:", ["Plasma","Viridis","RdBu","Inferno","Turbo"], "Plasma");
+  const coColorscaleSel = _makeExploreSelect("Scale:", ["Plasma","Viridis","RdBu","Inferno","Hot"], "Plasma");
 
   coCtrl.appendChild(cxSel.wrap);
   coCtrl.appendChild(cySel.wrap);
@@ -1162,7 +1162,12 @@ async function _initExploreTab(pane, r) {
   async function drawContour() {
     const xCol = cxSel.select.value;
     const yCol = cySel.select.value;
-    if (xCol === yCol) return;
+    if (xCol === yCol) {
+      // eslint-disable-next-line no-undef
+      if (contourChart.querySelector(".js-plotly-plot")) Plotly.purge(contourChart);
+      contourChart.innerHTML = `<p style="color:var(--color-text-muted);padding:var(--space-4) 0;">X and Y axes must be different columns.</p>`;
+      return;
+    }
 
     contourSpinner.classList.remove("hidden");
     const result = await post("/api/model/explore/contour", {

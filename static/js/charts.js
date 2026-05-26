@@ -1379,7 +1379,7 @@ export function renderScatterExplorer(containerEl, data, opts = {}) {
   const gridClr = showMajorGrid ? _hexToRgba(majorGridColor, majorGridOpacity) : "rgba(0,0,0,0)";
 
   const markerBase = {
-    color: colorVals, colorscale, cmin: cMin, cmax: cMax,
+    color: colorVals, colorscale, autocolorscale: false, cmin: cMin, cmax: cMax,
     colorbar: { title: { text: cLabel, side: "right" }, thickness: 14, len: 0.75, tickfont: { size: tickFontSize } },
   };
 
@@ -1445,7 +1445,7 @@ export function renderContourExplorer(containerEl, result, opts = {}) {
     x: result.x_vals,
     y: result.y_vals,
     z: result.z_grid,
-    colorscale,
+    colorscale, autocolorscale: false,
     colorbar: {
       title:     { text: result.output_col, side: "right" },
       thickness: 14, len: 0.75, tickfont: { size: tickFontSize },
