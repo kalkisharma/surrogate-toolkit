@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 2.5.0
+// Version: 2.6.0
 // Description: Step 9 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -471,6 +471,14 @@ function _render(containerEl, r) {
      are shown alongside their standard deviations to indicate consistency.</p>`
   );
 
+  // Normalization-not-applied warning
+  if (r.normalization_warning) {
+    const normWarn = el("div", { cls: "results-warning-box results-warning-box--norm" });
+    normWarn.appendChild(el("p", { cls: "results-warning-text",
+      text: "⚠ Normalization was not applied — model trained on raw data. Results may be unreliable. Return to Step 6 — Normalize, click Apply, then retrain." }));
+    containerEl.appendChild(normWarn);
+  }
+
   // GPR/size warnings
   if (r.warnings && r.warnings.length > 0) {
     const warnBox = el("div", { cls: "results-warning-box" });
@@ -554,6 +562,27 @@ function _render(containerEl, r) {
     ensSection.appendChild(_buildEnsembleTable(r));
     metricsPane.appendChild(ensSection);
   }
+
+  // ── Model configuration card ─────────────────────────────────────────────────
+  const configSection = el("div", { cls: "results-section results-config-card" });
+  const configTitle   = el("h3", { cls: "results-section-title", text: "Model Configuration" });
+  configSection.appendChild(configTitle);
+  const configRows = [
+    ["Model type",  r.model_type.toUpperCase()],
+    ["Test split",  `${Math.round(r.test_split * 100)}%`],
+    ["CV folds",    r.cv_folds ?? r.cv_results?.n_folds ?? "—"],
+  ];
+  if (r.hyperparams?.kernel) configRows.splice(1, 0, ["Kernel", r.hyperparams.kernel]);
+  if (r.hyperparams?.alpha  != null) configRows.splice(2, 0, ["Alpha (noise)", r.hyperparams.alpha]);
+  const configGrid = el("div", { cls: "results-config-grid" });
+  for (const [label, value] of configRows) {
+    const cell = el("div", { cls: "results-config-cell" });
+    cell.appendChild(el("span", { cls: "results-config-label", text: label }));
+    cell.appendChild(el("span", { cls: "results-config-value", text: String(value) }));
+    configGrid.appendChild(cell);
+  }
+  configSection.appendChild(configGrid);
+  metricsPane.appendChild(configSection);
 
   // ── Test-set metrics table ───────────────────────────────────────────────────
   const testSection = el("div", { cls: "results-section" });

@@ -1858,10 +1858,29 @@ body,
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);
 }
+.results-warning-box--norm {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: var(--color-warning);
+}
 .results-warning-text {
   font-size: var(--text-sm);
   color: var(--color-warning);
 }
+
+/* ── Model configuration card ───────────────────────────────────────────────── */
+.results-config-card { margin-bottom: var(--space-4); }
+.results-config-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+}
+.results-config-cell { display: flex; flex-direction: column; gap: 2px; min-width: 100px; }
+.results-config-label { font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.results-config-value { font-size: var(--text-sm); font-weight: var(--font-semi); color: var(--color-text-primary); font-family: var(--font-mono); }
 
 /* ── Model training history (Previous Runs) ─────────────────────────────────── */
 .results-history-details {

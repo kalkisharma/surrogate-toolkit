@@ -44,30 +44,23 @@
   to   { opacity: 0; transform: translateX(20px); }
 }
 
-.toast--success {
-  background: rgba(22, 35, 25, 0.95);
-  border-color: var(--color-success);
-  color: var(--color-success);
-}
-.toast--error {
-  background: rgba(35, 16, 16, 0.95);
-  border-color: var(--color-error);
-  color: var(--color-error);
-}
-.toast--warning {
-  background: rgba(35, 28, 16, 0.95);
-  border-color: var(--color-warning);
-  color: var(--color-warning);
-}
-.toast--info {
-  background: rgba(16, 28, 35, 0.95);
-  border-color: var(--color-info);
-  color: var(--color-info);
-}
+/* Light mode — lighter backgrounds with high-contrast text */
+.toast--success { background: rgba(240, 253, 244, 0.97); border-color: var(--color-success); color: #15803d; }
+.toast--error   { background: rgba(255, 241, 242, 0.97); border-color: var(--color-error);   color: #b91c1c; }
+.toast--warning { background: rgba(255, 251, 235, 0.97); border-color: var(--color-warning); color: #92400e; }
+.toast--info    { background: rgba(239, 246, 255, 0.97); border-color: var(--color-info);    color: #1d4ed8; }
+
+/* Dark mode — dark tinted backgrounds */
+[data-theme="dark"] .toast--success { background: rgba(22, 35, 25, 0.95);  color: var(--color-success); }
+[data-theme="dark"] .toast--error   { background: rgba(35, 16, 16, 0.95);  color: var(--color-error); }
+[data-theme="dark"] .toast--warning { background: rgba(35, 28, 16, 0.95);  color: var(--color-warning); }
+[data-theme="dark"] .toast--info    { background: rgba(16, 28, 35, 0.95);  color: var(--color-info); }
 
 .toast__icon { font-size: var(--text-lg); flex-shrink: 0; }
 .toast__body { flex: 1; }
-.toast__message { color: #e8ecf5; }
+/* Message text inherits from the toast variant color for per-mode contrast */
+.toast__message { color: inherit; }
+[data-theme="dark"] .toast__message { color: #e8ecf5; }
 .toast__dismiss {
   background: none;
   border: none;

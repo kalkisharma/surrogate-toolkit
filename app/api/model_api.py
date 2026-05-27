@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-26
-VERSION: 2.7.0
+LAST MODIFIED: 2026-05-27
+VERSION: 2.8.0
 ================================================================================
 """
 
@@ -558,24 +558,27 @@ def train():
 
     # ── Persist to STATE ──────────────────────────────────────────────────────
     results = {
-        "model_type":       model_type,
-        "hyperparams":      hyperparams,
-        "n_train":          int(len(X_train)),
-        "n_test":           int(len(X_test)),
-        "source_filename":  meta.get("filename"),
-        "input_columns":    input_cols,
-        "output_columns":   output_cols,
-        "input_means":      {col: float((_clean if _clean is not None else df)[col].mean()) for col in input_cols},
-        "input_mins":       {col: float(df[col].min()) for col in input_cols},
-        "input_maxs":       {col: float(df[col].max()) for col in input_cols},
-        "test_metrics":     test_metrics,
-        "cv_results":       cv_results,
-        "warnings":         warnings,
+        "model_type":           model_type,
+        "hyperparams":          hyperparams,
+        "n_train":              int(len(X_train)),
+        "n_test":               int(len(X_test)),
+        "test_split":           float(test_split),
+        "cv_folds":             int(cv_folds),
+        "normalization_warning": _norm is None,
+        "source_filename":      meta.get("filename"),
+        "input_columns":        input_cols,
+        "output_columns":       output_cols,
+        "input_means":          {col: float((_clean if _clean is not None else df)[col].mean()) for col in input_cols},
+        "input_mins":           {col: float(df[col].min()) for col in input_cols},
+        "input_maxs":           {col: float(df[col].max()) for col in input_cols},
+        "test_metrics":         test_metrics,
+        "cv_results":           cv_results,
+        "warnings":             warnings,
         # Raw arrays for parity and residual plots (shape: n_test × n_outputs).
-        "test_actuals":     y_test.tolist(),
-        "test_predictions": y_pred_test.tolist(),
-        "test_inputs":      X_test.tolist(),
-        "test_stds":        test_stds,
+        "test_actuals":         y_test.tolist(),
+        "test_predictions":     y_pred_test.tolist(),
+        "test_inputs":          X_test.tolist(),
+        "test_stds":            test_stds,
     }
     models_dict = state["surrogate_sessions"]["primary"]["models"]
     models_dict.pop("interpretation", None)

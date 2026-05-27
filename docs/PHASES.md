@@ -1,7 +1,7 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-26 (Phases 19–20 complete)
-**Total phases:** 23 across 4 milestones
+**Last updated:** 2026-05-27 (Phase 21 added — exercise walkthrough polish & training guardrails)
+**Total phases:** 24 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
 ---
@@ -13,7 +13,7 @@
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–23 | Team deployment, auth, HPC integration | 🔲 In definition |
+| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In definition |
 
 ---
 
@@ -924,24 +924,67 @@
 
 ---
 
-### Phase 21 — Authentication
+### Phase 21 — Exercise Walkthrough Polish & Training Guardrails
 **Status:** 🔲 Not started | **Version:** v3.5.0
+
+**Purpose:** Fix beginner UX gaps and missing guardrails discovered during the first end-to-end walkthrough of Exercise 1. Eight targeted improvements across exercise instructions, learning-mode text, training results, and UI styling.
+
+**User story:** A new engineer opens Exercise 1, follows every step without confusion, gets a valid model on the first attempt, and can read their results without needing to look up what R², overfitting, or normalization mean.
+
+**Scope:**
+
+*Exercise instruction fixes (exercise JSON + learning_guide.js):*
+- Step 5 (Normalize) — add explicit instruction: "Click Apply before moving to the next step"
+- Step 5 (Normalize) — add one-sentence explanation of why Min-Max is chosen over Z-Score for bounded inputs
+- Step 5 (Normalize) — rewrite learning-mode explanation to remove jargon (kernel, RBF, length-scale); replace with plain-language description of what scaling does and why
+- Step 6 (Configure) — add beginner-friendly preface before the GPR quiz: briefly explain what GPR is and why it suits smooth, low-sample datasets before asking the quiz question
+- Step 8 (Predict) — add tooltip or inline definition for overfitting/underfitting in learning mode
+
+*Training guardrails (backend + frontend):*
+- Results panel — show a yellow warning banner when the trained model used raw (un-normalized) data: "Normalization was not applied — results may be unreliable. Return to the Normalize step and click Apply, then retrain."
+- Results panel — add a model configuration summary card alongside the metrics: model type, kernel, alpha, test split fraction, k-fold count
+
+*UI styling:*
+- Green success toast — fix text color contrast in light mode (currently hard to read against the green background)
+
+**Backend:**
+- `app/api/model_api.py` — `POST /api/model/train`: check `state["datasets"]["primary"]["normalized"]` is not None; if None, set `results["normalization_warning"] = True`
+- `app/learning/exercises/ex_01_basic_gpr.json` — update Step 5 instruction + quiz explanation; update Step 6 quiz explanation; update Step 8 learning primer
+
+**Frontend:**
+- `static/js/modules/results.js` — read `normalization_warning` flag; render yellow banner if true; render model config summary card
+- `static/js/modules/learning_guide.js` — update learning-mode primer text for Normalize and Predict steps
+- `static/css/notifications.css` — fix `.notification--success` text color for light mode
+
+**Dependencies:** Phase 17 (exercise JSON schema and runner). Phase 4 (training result envelope).
+
+**Definition of done:**
+- Exercise 1 walkthrough completes without beginner confusion at Normalize, Configure, or Predict steps
+- Training without normalization shows yellow warning banner in Results
+- Model config (type, kernel, alpha, splits) visible in Results metrics tab
+- Green toast text readable in both light and dark mode
+- All existing 229 tests pass
+
+---
+
+### Phase 22 — Authentication
+**Status:** 🔲 Not started | **Version:** v3.6.0
 
 *(Scope TBD — defined in next team review)*
 
 ---
 
-### Phase 22 — Surrogate Export & Sharing
-**Status:** 🔲 Not started | **Version:** v3.6.0
+### Phase 23 — Surrogate Export & Sharing
+**Status:** 🔲 Not started | **Version:** v3.7.0
 
-*(Scope TBD — requires Phase 21)*
+*(Scope TBD — requires Phase 22)*
 
 ---
 
-### Phase 23 — HPC Integration
+### Phase 24 — HPC Integration
 **Status:** 🔲 Not started | **Version:** v4.0.0
 
-*(Scope TBD — requires Phase 21; earns major version bump for async architecture change)*
+*(Scope TBD — requires Phase 22; earns major version bump for async architecture change)*
 
 ---
 
@@ -968,9 +1011,10 @@
 | Phase 18 | Phase 3 (column designation — input_columns set before screening) |
 | Phase 19 | Phase 4 (trained model + fitted scalers in STATE); Phase 11 (compliance modal reused) |
 | Phase 20 | Phase 4 (trained model + training/test data in STATE) |
-| Phase 21 | None (standalone auth layer) |
-| Phase 22 | Phase 21 |
-| Phase 23 | Phase 21 |
+| Phase 21 | Phase 17 (exercise JSON schema); Phase 4 (training result envelope) |
+| Phase 22 | None (standalone auth layer) |
+| Phase 23 | Phase 22 |
+| Phase 24 | Phase 22 |
 
 ---
 
@@ -986,5 +1030,6 @@
 | Phase 18 | None | Input filtering uses existing NumPy/Pandas/sklearn (PCA via sklearn.decomposition) |
 | Phase 19 | None | Model export uses existing `joblib`, `zipfile`, `io` |
 | Phase 20 | None | Design space explorer uses existing NumPy + `model.predict()` |
-| Phase 21 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
-| Phase 23 | `celery`, `redis` | Async job queue for HPC submission |
+| Phase 21 | None | All fixes use existing Flask, Jinja2, and vanilla JS |
+| Phase 22 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
+| Phase 24 | `celery`, `redis` | Async job queue for HPC submission |

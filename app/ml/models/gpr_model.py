@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 1.0.1
+LAST MODIFIED: 2026-05-27
+VERSION: 1.0.2
 ================================================================================
 """
 
@@ -43,6 +43,7 @@ class GPRModel(BaseSurrogateModel):
             kernel=k,
             alpha=float(alpha) if alpha is not None else GPR_DEFAULT_ALPHA,
             normalize_y=True,
+            n_restarts_optimizer=5,
             random_state=DEFAULT_RANDOM_STATE,
         )
         # MultiOutputRegressor clones single_gpr internally for each output.

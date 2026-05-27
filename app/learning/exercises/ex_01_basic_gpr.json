@@ -49,39 +49,39 @@
     {
       "step_num": 5,
       "target_panel": "normalize",
-      "instruction": "Open Step 6 — Normalize. Apply Min-Max normalization to x1 and x2. This scales inputs to [0, 1] so that no variable dominates due to magnitude differences.",
+      "instruction": "Open Step 6 — Normalize. Select Min-Max and click Apply. Min-Max is chosen here because x1 and x2 have known, bounded ranges — it scales every input to [0, 1] so neither variable overshadows the other just because it has larger numbers. Z-Score (the alternative) is better suited when data may have outliers or an unbounded range. Once you see the green confirmation banner, you can move on.",
       "quiz": {
-        "question": "What happens if you skip normalization for GPR?",
+        "question": "What happens if you skip normalization before training?",
         "options": [
-          "Nothing — GPR is scale-invariant",
-          "The kernel may treat inputs with larger ranges as more important, biasing the length-scale parameters",
+          "Nothing — the model handles it automatically",
+          "Inputs with larger numeric ranges will have more influence on the model than inputs with smaller ranges, even if they are less important",
           "The model will throw an error",
           "Training will be faster"
         ],
         "correct_index": 1,
-        "explanation": "GPR uses a kernel (e.g., RBF) that computes distances between points. If x1 ranges 0–10 and x2 ranges 0–0.01, the kernel sees x1 as dominating every distance calculation. Normalizing first gives each input an equal starting weight."
+        "explanation": "The model measures how similar two data points are by looking at the distance between them. If x1 goes from 0 to 1000 and x2 goes from 0 to 1, a small step in x1 looks much bigger than a large step in x2 — even if x2 matters more. Scaling both to the same range removes that bias."
       }
     },
     {
       "step_num": 6,
       "target_panel": "configure",
-      "instruction": "Open Step 8 — Model. Select GPR as the model type. Leave the test split at 0.2 and CV folds at 5.",
+      "instruction": "Open Step 8 — Model. Select GPR as the model type. Leave the test split at 0.2 and CV folds at 5. GPR (Gaussian Process Regression) is a model that learns not just a prediction, but also how confident it is — useful when your data is limited and you need to know where the model might be wrong.",
       "quiz": {
-        "question": "Why is GPR a good choice for this 100-row, 2-input, smooth dataset?",
+        "question": "Why is GPR a good choice for this small, smooth 2-input dataset?",
         "options": [
-          "GPR is the fastest model",
-          "GPR provides uncertainty estimates and fits smooth responses well with small datasets",
-          "GPR requires the fewest hyperparameters",
-          "GPR is the only model that supports 2 inputs"
+          "GPR is the fastest model to train",
+          "GPR is designed for small datasets and gives a confidence estimate alongside every prediction",
+          "GPR requires the fewest settings to configure",
+          "GPR is the only model that works with 2 inputs"
         ],
         "correct_index": 1,
-        "explanation": "GPR excels on small, smooth datasets because its kernel captures correlations between nearby points. The posterior variance also gives you a free confidence interval on every prediction — invaluable for engineering decisions."
+        "explanation": "GPR works well when you have a limited number of experiments and a smooth response. It learns from patterns between nearby data points and tells you how certain it is about each prediction — a useful safety check when making engineering decisions based on the surrogate."
       }
     },
     {
       "step_num": 7,
       "target_panel": "results",
-      "instruction": "Train the model (Step 9). After training, review the R² score and the parity plot. A well-fit model should have R² > 0.95 on this clean dataset.",
+      "instruction": "Train the model (Step 9). After training, review the R² score and the parity plot. A well-fit model should have R² > 0.90 on this clean dataset. Overfitting means the model memorised the training data but fails on new data (high CV R², low test R²). Underfitting means the model is too simple to capture the pattern (low R² on both).",
       "quiz": {
         "question": "On the parity plot, what does it mean if points cluster tightly along the diagonal?",
         "options": [
@@ -91,7 +91,7 @@
           "The test split was too small"
         ],
         "correct_index": 1,
-        "explanation": "The parity plot compares y_predicted vs y_true on the held-out test set. Points on the diagonal mean prediction = truth. Scatter around the diagonal indicates error; systematic curves indicate the model is missing a nonlinear pattern."
+        "explanation": "The parity plot compares predicted vs actual values on the held-out test set — rows the model never saw during training. Points on the diagonal mean prediction = truth. Points scattered far from it indicate error. A curve or systematic bend means the model is missing a pattern in the data (underfitting)."
       }
     },
     {
