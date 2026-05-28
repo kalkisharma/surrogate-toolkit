@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_cleaning.js
-// Version: 0.9.10
+// Version: 0.10.0
 // Description: Data cleaning step — lets users handle missing values, remove
 //              duplicates, and flag/drop outliers before column designation.
 //              Sends POST /api/data/clean/* endpoints. Calls onClean() after
@@ -83,9 +83,16 @@ export async function initCleaning(containerEl, onClean) {
   const grid = el("div", { cls: "cleaning-grid" });
   containerEl.appendChild(grid);
 
-  grid.appendChild(_buildNullCard(cs.null_rows, nRows, onClean));
+  // Extract per-column null counts from column stats
+  const nullPerCol = {};
+  const rawStats = summaryResp.stats || {};
+  for (const [col, s] of Object.entries(rawStats)) {
+    if (s.null_count > 0) nullPerCol[col] = s.null_count;
+  }
+
+  grid.appendChild(_buildNullCard(cs.null_rows, nRows, onClean, nullPerCol));
   grid.appendChild(_buildDuplicatesCard(cs.duplicate_rows, onClean));
-  grid.appendChild(_buildTransformCard(summaryResp.stats || {}, onClean));
+  grid.appendChild(_buildTransformCard(rawStats, onClean));
   grid.appendChild(await _buildOutlierCard(cs.outlier_rows, nRows, onClean));
 
   // ── Undo all ─────────────────────────────────────────────────────────────────
@@ -190,7 +197,7 @@ function _renderCleaningSummary() {
 
 // ── Null card ─────────────────────────────────────────────────────────────────
 
-function _buildNullCard(nullRows, nRows, onClean) {
+function _buildNullCard(nullRows, nRows, onClean, nullPerCol) {
   const card = el("div", { cls: "cleaning-item-card" });
 
   const hasNulls = nullRows > 0;
@@ -210,6 +217,27 @@ function _buildNullCard(nullRows, nRows, onClean) {
   if (!hasNulls) {
     card.appendChild(el("p", { cls: "cleaning-item-none", text: "No action needed." }));
     return card;
+  }
+
+  // Per-column breakdown
+  if (nullPerCol && Object.keys(nullPerCol).length > 0) {
+    const colEntries = Object.entries(nullPerCol).sort((a, b) => b[1] - a[1]);
+    const details = document.createElement("details");
+    details.className = "null-col-details";
+    details.open = true;
+    const summary = document.createElement("summary");
+    summary.className = "null-col-summary";
+    summary.textContent = `Affected columns (${colEntries.length})`;
+    details.appendChild(summary);
+    const list = el("div", { cls: "null-col-list" });
+    for (const [col, count] of colEntries) {
+      const row = el("div", { cls: "null-col-row" });
+      row.appendChild(el("span", { cls: "null-col-name", text: col }));
+      row.appendChild(el("span", { cls: "null-col-count cleaning-badge cleaning-badge--warn", text: `${count} null${count !== 1 ? "s" : ""}` }));
+      list.appendChild(row);
+    }
+    details.appendChild(list);
+    card.appendChild(details);
   }
 
   const strategies = [
@@ -401,6 +429,9 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
   });
   card.appendChild(applyBtn);
 
+  const statusEl = el("p", { cls: "outlier-status-line" });
+  card.appendChild(statusEl);
+
   applyBtn.addEventListener("click", async () => {
     const strategy = card.querySelector("#outlier-strategy").value;
     const checked  = [...checklistDetails.querySelectorAll("input[type=checkbox]:checked")].map(c => c.value);
@@ -416,8 +447,22 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
       } else {
         const colNote = columns ? ` (${columns.length} column${columns.length !== 1 ? "s" : ""})` : "";
         const label   = `Drop outlier rows${colNote}`;
-        showSuccess(`Dropped ${resp.rows_affected.toLocaleString()} outlier row(s). ${resp.rows_after.toLocaleString()} remain.`);
         _recordOp(label, resp.rows_affected, resp.rows_after);
+        // Re-fetch counts to show how many are still flagged
+        const newCounts = await get("/api/data/clean/outlier_counts");
+        const stillFlagged = newCounts.success
+          ? Object.values(newCounts.counts).reduce((s, v) => s + v, 0)
+          : 0;
+        if (stillFlagged > 0) {
+          statusEl.textContent = `${resp.rows_affected} row(s) removed — ${stillFlagged} still flagged. Click Apply to continue.`;
+          statusEl.className = "outlier-status-line outlier-status-line--warn";
+          checklistSummary.textContent = `Columns (${Object.values(newCounts.counts).filter(v => v > 0).length} with outliers)`;
+        } else {
+          statusEl.textContent = `${resp.rows_affected} row(s) removed — no outliers remaining.`;
+          statusEl.className = "outlier-status-line outlier-status-line--ok";
+          checklistSummary.textContent = "Columns (0 with outliers)";
+        }
+        showSuccess(`Dropped ${resp.rows_affected.toLocaleString()} outlier row(s). ${resp.rows_after.toLocaleString()} remain.`);
         onClean();
       }
     } else {

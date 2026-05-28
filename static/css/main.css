@@ -695,6 +695,19 @@ input, select, textarea { font-family: inherit; }
 .outlier-checklist-details:not([open]) .outlier-checklist-summary::before { content: "▶ "; font-size: 0.6em; vertical-align: middle; }
 .outlier-checklist-details[open] .outlier-checklist-summary::before { content: "▼ "; font-size: 0.6em; vertical-align: middle; }
 
+/* ── Outlier status line (shown after each drop) ─────────────────────────────── */
+.outlier-status-line { font-size: var(--text-xs); margin-top: var(--space-2); min-height: 1em; }
+.outlier-status-line--warn { color: var(--color-warning); }
+.outlier-status-line--ok   { color: var(--color-success); }
+
+/* ── Per-column null breakdown ───────────────────────────────────────────────── */
+.null-col-details { margin: var(--space-2) 0; }
+.null-col-summary { font-size: var(--text-xs); color: var(--color-text-secondary); cursor: pointer; user-select: none; }
+.null-col-list { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-2); }
+.null-col-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.null-col-name { font-size: var(--text-xs); color: var(--color-text-primary); font-family: var(--font-mono); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.null-col-count { font-size: 11px; flex-shrink: 0; }
+
 /* ── Hyperparameter section ──────────────────────────────────────────────────── */
 .hyperparam-section {
   border-top: 1px solid var(--color-border-subtle);
