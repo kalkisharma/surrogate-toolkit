@@ -349,7 +349,7 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
   `;
 
   const strategies = [
-    { value: "keep",      label: "Keep (flag only)", desc: "Outliers remain in the data. They are highlighted in the scatter matrix but not removed." },
+    { value: "keep",      label: "Keep (reviewed, no action)", desc: "No rows removed. Use this to confirm you have reviewed the outliers and intentionally kept them — outliers are already visible in the scatter matrix by default." },
     { value: "drop_rows", label: "Drop outlier rows", desc: "Removes every row that contains an IQR outlier in the selected columns." },
   ];
 

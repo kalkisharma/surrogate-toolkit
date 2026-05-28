@@ -533,6 +533,16 @@ async function _renderExploration(uploadResponse) {
       // Invalidate explore so it re-fetches fresh data on next visit
       panelDone["explore"] = false;
       clearEl(_panelContent["explore"]);
+      // Sync meta.null_counts and meta.n_rows so Assign panel shows live values
+      const freshSummary = await get("/api/data/summary");
+      if (freshSummary.success && freshSummary.stats) {
+        const freshNulls = {};
+        for (const [col, s] of Object.entries(freshSummary.stats)) {
+          freshNulls[col] = s.null_count ?? 0;
+        }
+        meta.null_counts = freshNulls;
+        meta.n_rows = freshSummary.n_rows ?? meta.n_rows;
+      }
       // Refresh clean panel itself to show updated stats
       await _initCleanPanel(container, key);
     };
