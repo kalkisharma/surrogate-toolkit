@@ -212,7 +212,7 @@ All constants live in `config/settings.py`. Never hardcode values elsewhere.
 This project uses an internal convention inspired by Semantic Versioning.
 It is **not** strict SemVer — there are no API compatibility guarantees.
 
-The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full phase definitions.
+The project uses 24 phases across 4 milestones. See `docs/PHASES.md` for full phase definitions.
 
 ### Milestone map
 
@@ -221,7 +221,7 @@ The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full ph
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–20 | Team deployment, auth, HPC integration | 🔲 In progress |
+| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In definition |
 
 ### Phase → version map
 
@@ -235,19 +235,22 @@ The project uses 16 phases across 3 milestones. See `docs/PHASES.md` for full ph
 | Phase 6 | Design Space Optimization | v1.5.0 | ✅ Complete |
 | Phase 7 | Session Persistence | v1.2.0 | ✅ Complete |
 | Phase 8 | Model Interpretation | v1.1.0 | ✅ Complete |
-| Phase 9 | Active Learning | v1.3.0 | ✅ Complete |
+| Phase 9 | Active Learning | v3.4.6 | ✅ Complete |
 | Phase 10 | Multi-Dataset Comparison | v1.6.0 | ✅ Complete |
 | Phase 11 | Export & Compliance | v1.4.0 | ✅ Complete |
 | Phase 12 | Experience Levels | v2.4.0 | ✅ Complete |
-| Phase 13 | Guided Learning & Reference Content | v3.0.0 | ✅ Complete (Phase 13A); 13B deferred to M4 |
+| Phase 13 | Guided Learning & Reference Content | v3.0.0 | ✅ Complete (Phase 13A) |
 | Phase 14 | Advanced Surrogate Models | v2.1.0 | ✅ Complete |
 | Phase 15 | Multi-Fidelity Modeling | v2.3.0 | ✅ Complete |
 | Phase 16 | Ensemble Surrogates | v2.2.0 | ✅ Complete |
 | Phase 17 | Guided Exercises | v3.1.0 | ✅ Complete |
 | Phase 18 | Input Filtering | v3.2.0 – v3.3.0 | ✅ Complete |
-| Phase 19 | Authentication | v3.4.0 | 🔲 Not started |
-| Phase 20 | Surrogate Export & Sharing | v3.5.0 | 🔲 Not started |
-| Phase 21 | HPC Integration | v4.0.0 | 🔲 Not started |
+| Phase 19 | Model Export Bundle | v3.4.0 | ✅ Complete |
+| Phase 20 | Design Space Explorer | v3.4.1 | ✅ Complete |
+| Phase 21 | Exercise Walkthrough Polish & Training Guardrails | v3.5.0 | 🔲 Not started |
+| Phase 22 | Authentication | v3.6.0 | 🔲 Not started |
+| Phase 23 | Surrogate Export & Sharing | v3.7.0 | 🔲 Not started |
+| Phase 24 | HPC Integration | v4.0.0 | 🔲 Not started |
 
 ### Files to update on every version bump
 
