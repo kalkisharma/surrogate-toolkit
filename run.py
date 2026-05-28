@@ -6,8 +6,8 @@ PURPOSE: Development entry point. Reads HOST/PORT/DEBUG from .env and starts
          the Flask development server.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.2.0
+LAST MODIFIED: 2026-05-27
+VERSION: 0.2.1
 ================================================================================
 """
 
@@ -36,13 +36,10 @@ if __name__ == "__main__":
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
     border = "-" * 42
-    import sys
-    def _print(s=""):
-        sys.stdout.buffer.write((s + "\n").encode("utf-8"))
-    _print(f"\n{border}")
-    _print(f"  Surrogate Toolkit  v{VERSION}")
-    _print(f"  http://{host}:{port}")
-    _print(f"  Debug: {'on' if debug else 'off'}")
-    _print(f"{border}\n")
+    print(f"\n{border}", flush=True)
+    print(f"  Surrogate Toolkit  v{VERSION}", flush=True)
+    print(f"  http://{host}:{port}", flush=True)
+    print(f"  Debug: {'on' if debug else 'off'}", flush=True)
+    print(f"{border}\n", flush=True)
 
     app.run(host=host, port=port, debug=debug)
