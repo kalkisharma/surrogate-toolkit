@@ -16,9 +16,9 @@
     {
       "step_num": 2,
       "target_panel": "explore",
-      "instruction": "Open the scatter matrix. Look at the x1 vs y plot — you should see a sinusoidal pattern. Look at x3 vs y — that should look more linear.",
+      "instruction": "Open the scatter matrix. The x1 vs y and x2 vs y plots will look noisy — that is because all three inputs affect y at once, hiding each individual trend. Look carefully at x1 vs y for a faint curved, wave-like pattern. The x3 vs y plot should show a clearer upward trend. You will compare three models on this data: Linear (assumes straight-line relationships only), Random Forest (builds many decision trees, handles curves and interactions), and GPR — Gaussian Process Regression (learns correlation between nearby data points, works well on smooth responses with limited data).",
       "quiz": {
-        "question": "Given a mix of nonlinear (sinusoidal) and linear relationships in the same dataset, which model type would you expect to struggle most?",
+        "question": "Given that x1 and x2 have a curved, wave-like relationship with y, which model type would you expect to struggle most?",
         "options": [
           "GPR",
           "Random Forest",
@@ -26,7 +26,7 @@
           "All models perform equally"
         ],
         "correct_index": 2,
-        "explanation": "A linear model assumes all inputs relate to the output through a straight line. It cannot capture the sin(x1)·cos(x2) term here without feature engineering. GPR and RF can fit nonlinear patterns directly."
+        "explanation": "A linear model can only draw a straight line through the data. It has no way to capture a wave-shaped pattern without manually adding transformed features. GPR and Random Forest can both fit curved responses directly, which is why they will outperform Linear on this dataset."
       }
     },
     {
@@ -44,33 +44,33 @@
     {
       "step_num": 5,
       "target_panel": "configure",
-      "instruction": "First run: configure as Linear model, test split 0.2, 5-fold CV. Train and note the R² score.",
+      "instruction": "First run: configure as Linear model, test split 0.2, 5-fold CV. Train and note the R² score. The Results panel will show two R² values — Test Set Performance and CV (cross-validation). They measure slightly different things.",
       "quiz": {
-        "question": "Cross-validation R² measures model fit on the training data (k-fold held-out folds). Why is CV R² more informative than the training R²?",
+        "question": "The Results panel shows both Test Set R² and CV R². What does CV R² measure that makes it more reliable than simply measuring accuracy on the training data?",
         "options": [
-          "Training R² is always 1.0 so it is useless",
-          "CV R² estimates how well the model generalises to unseen data, not just how well it memorised the training set",
-          "CV R² uses more data points",
-          "Training R² only measures speed"
+          "Accuracy on the 20% held-out test rows",
+          "Average accuracy across 5 rounds where a different portion of the training data is held out each time — the model never trains on those rows",
+          "How fast the model trains",
+          "Accuracy on all rows including training"
         ],
         "correct_index": 1,
-        "explanation": "A model can achieve R²=1.0 on training data simply by memorising every point (overfitting). CV holds out a different fold each iteration and measures accuracy on data the model never saw — a much better proxy for real-world performance."
+        "explanation": "CV R² splits the training data into 5 groups. Each time, it trains on 4 groups and tests on the 5th — repeating until every group has been the test set once. The average score is more reliable than a single split because it tests the model on more varied data. A model that simply memorises the training data would score high on training accuracy but low on CV."
       }
     },
     {
       "step_num": 6,
       "target_panel": "results",
-      "instruction": "Note the test R² for Linear. Now go back to Configure, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
+      "instruction": "Note the test R² for Linear. Now go back to Step 8 — Model, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
       "quiz": {
-        "question": "For this 150-row, 3-input, nonlinear dataset, what is the most likely ranking of models by test R²?",
+        "question": "For this 150-row, 3-input, smooth nonlinear dataset, what is the most likely ranking of models by test R²?",
         "options": [
           "Linear > RF > GPR",
-          "GPR ≈ RF > Linear",
+          "GPR > RF > Linear",
           "RF > Linear > GPR",
           "All three are equivalent"
         ],
         "correct_index": 1,
-        "explanation": "GPR and RF both capture nonlinearity. GPR typically wins on smooth, small datasets where its kernel perfectly models correlation structure. RF wins on noisy, high-dimensional, or irregular data. Both soundly outperform Linear on sinusoidal responses."
+        "explanation": "GPR wins on smooth, small datasets where its correlation-based kernel fits the underlying pattern precisely. Random Forest is more general and handles noise well but is less efficient on smooth low-dimensional data. Linear cannot represent the curved response at all, so it scores lowest. Both GPR and RF far outperform Linear here."
       }
     },
     {
