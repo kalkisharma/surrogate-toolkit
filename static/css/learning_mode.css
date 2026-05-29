@@ -37,6 +37,16 @@
   color: var(--color-text-secondary);
   line-height: var(--leading-relaxed);
 }
+.primer__body ul,
+.primer__body ol {
+  margin: var(--space-2) 0 var(--space-2) var(--space-5);
+  padding: 0;
+}
+.primer__body li {
+  margin-bottom: var(--space-1);
+}
+.primer__body p { margin-bottom: var(--space-2); }
+.primer__body p:last-child { margin-bottom: 0; }
 
 /* ── Expanded tooltips ───────────────────────────────────────────────────────── */
 .tooltip-expanded {

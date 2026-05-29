@@ -8,8 +8,8 @@ PURPOSE: Blueprint for /api/learning/* — serves static learning content from
          in STATE.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-19
-LAST MODIFIED: 2026-05-26
-VERSION: 3.1.1
+LAST MODIFIED: 2026-05-29
+VERSION: 3.2.0
 ================================================================================
 """
 
@@ -70,6 +70,20 @@ def glossary():
 def models():
     """Return model guide entries."""
     data = _load_json("models.json")
+    return jsonify({"success": True, **data}), 200
+
+
+@bp.route("/symbols", methods=["GET"])
+def symbols():
+    """Return symbol and abbreviation reference table."""
+    data = _load_json("symbols.json")
+    return jsonify({"success": True, **data}), 200
+
+
+@bp.route("/equations", methods=["GET"])
+def equations():
+    """Return curated equation reference."""
+    data = _load_json("equations.json")
     return jsonify({"success": True, **data}), 200
 
 

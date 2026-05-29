@@ -3576,3 +3576,123 @@ body[data-experience="expert"] #learning-toggle {
 .ex-quiz__explain--wrong   { background: var(--color-error-soft);   color: #b91c1c; }
 [data-theme="dark"] .ex-quiz__explain--correct { color: var(--color-success); }
 [data-theme="dark"] .ex-quiz__explain--wrong   { color: var(--color-error); }
+
+/* ── Symbols tab ───────────────────────────────────────────────────────────── */
+.lg-symbols-body { display: flex; flex-direction: column; gap: var(--space-5); }
+.lg-sym-section {}
+.lg-sym-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-top: var(--space-2);
+}
+.lg-sym-table thead tr {
+  border-bottom: 2px solid var(--color-border);
+}
+.lg-sym-table th {
+  text-align: left;
+  font-weight: var(--font-semi);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2) var(--space-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lg-sym-table tbody tr {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.lg-sym-table tbody tr:last-child { border-bottom: none; }
+.lg-sym-table td {
+  padding: var(--space-2);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.lg-sym-col-sym  { width: 80px; }
+.lg-sym-col-name { width: 160px; }
+.lg-sym-cell-sym {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: var(--font-semi);
+  color: var(--color-accent);
+}
+.lg-sym-cell-name {
+  font-weight: var(--font-medium);
+  color: var(--color-text-primary);
+}
+.lg-sym-cell-meaning { color: var(--color-text-secondary); }
+
+/* ── Equations tab ─────────────────────────────────────────────────────────── */
+.lg-eq-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-4);
+  background: var(--color-bg-surface);
+}
+.lg-eq-name {
+  font-weight: var(--font-semi);
+  color: var(--color-text-primary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+.lg-eq-formula {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  background: var(--color-bg-base);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  line-height: 2;
+  overflow-x: auto;
+}
+.eq-frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+  margin: 0 2px;
+  font-size: 0.9em;
+}
+.eq-num {
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+  text-align: center;
+}
+.eq-den {
+  padding-top: 1px;
+  text-align: center;
+}
+.eq-sqrt {
+  font-size: 1.3em;
+  vertical-align: middle;
+}
+.eq-sqrt-body {
+  border-top: 1px solid currentColor;
+  padding: 0 2px;
+  vertical-align: middle;
+}
+.lg-eq-where {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+.lg-eq-where-label {
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+}
+.lg-eq-where-list {
+  margin: var(--space-1) 0 0 var(--space-4);
+  padding: 0;
+  line-height: 1.7;
+}
+.lg-eq-note {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border-subtle);
+  padding-top: var(--space-2);
+  margin-top: var(--space-2);
+  line-height: 1.5;
+  font-style: italic;
+}

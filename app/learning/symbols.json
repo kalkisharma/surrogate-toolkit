@@ -1,0 +1,72 @@
+{
+  "categories": [
+    {
+      "name": "Greek Letters",
+      "entries": [
+        { "symbol": "σ",  "name": "sigma",   "meaning": "Standard deviation of a distribution; also the GPR posterior standard deviation (uncertainty at a prediction point)." },
+        { "symbol": "μ",  "name": "mu",      "meaning": "Mean of a distribution; also the GPR posterior mean (the point prediction)." },
+        { "symbol": "ε",  "name": "epsilon", "meaning": "Residual or model error: ε = y − ŷ." },
+        { "symbol": "α",  "name": "alpha",   "meaning": "GPR noise regularisation (nugget). Added to the diagonal of the covariance matrix to improve numerical stability and allow noisy observations." },
+        { "symbol": "ρ",  "name": "rho",     "meaning": "Multi-fidelity scaling factor (Kennedy–O'Hagan). Scales the low-fidelity prediction before adding the correction term." },
+        { "symbol": "δ",  "name": "delta",   "meaning": "Multi-fidelity correction term. A GP trained on the residuals between high-fidelity and scaled low-fidelity predictions." },
+        { "symbol": "ν",  "name": "nu",      "meaning": "Matérn kernel smoothness parameter. ν = 3/2 → once differentiable; ν = 5/2 → twice differentiable; ν → ∞ → RBF (infinitely smooth)." }
+      ]
+    },
+    {
+      "name": "Mathematical Notation",
+      "entries": [
+        { "symbol": "ŷ",    "name": "y-hat",         "meaning": "Predicted output value from the surrogate model." },
+        { "symbol": "ȳ",    "name": "y-bar",         "meaning": "Mean of the observed output values in the dataset." },
+        { "symbol": "y",    "name": "y",             "meaning": "True (observed) output value." },
+        { "symbol": "X",    "name": "X (matrix)",    "meaning": "Input matrix. Rows are data points; columns are input variables." },
+        { "symbol": "x*",   "name": "x-star",        "meaning": "A new input point where a prediction is requested (not in the training set)." },
+        { "symbol": "R²",   "name": "R-squared",     "meaning": "Coefficient of determination. Fraction of output variance explained by the model. Range: −∞ to 1; 1 = perfect." },
+        { "symbol": "S₁",   "name": "S-one",         "meaning": "Sobol first-order sensitivity index. Fraction of output variance due to one input acting independently." },
+        { "symbol": "Sₜ",   "name": "S-total",       "meaning": "Sobol total-order sensitivity index. Total contribution including all interaction effects with other inputs." },
+        { "symbol": "Q1",   "name": "Q1",            "meaning": "First quartile (25th percentile) of a column's distribution." },
+        { "symbol": "Q3",   "name": "Q3",            "meaning": "Third quartile (75th percentile) of a column's distribution." },
+        { "symbol": "IQR",  "name": "IQR",           "meaning": "Interquartile range = Q3 − Q1. Measures the spread of the middle 50% of data." },
+        { "symbol": "k",    "name": "k (folds)",     "meaning": "Number of folds in k-fold cross-validation." },
+        { "symbol": "n",    "name": "n",             "meaning": "Number of data points (rows) in the dataset or training set." },
+        { "symbol": "K",    "name": "K (kernel)",    "meaning": "Covariance (kernel) matrix in GPR. Entry K(xᵢ, xⱼ) encodes the similarity between points xᵢ and xⱼ." }
+      ]
+    },
+    {
+      "name": "Subscripts & Superscripts",
+      "entries": [
+        { "symbol": "·₁",      "name": "subscript 1",      "meaning": "First-order (e.g. S₁ = first-order Sobol index)." },
+        { "symbol": "·ₜ",      "name": "subscript t",      "meaning": "Total-order (e.g. Sₜ = total-order Sobol index)." },
+        { "symbol": "·ᵢ",      "name": "subscript i",      "meaning": "Index of the i-th data point or i-th input variable." },
+        { "symbol": "·²",      "name": "superscript 2",    "meaning": "Squared (e.g. R² = R-squared)." },
+        { "symbol": "·*",      "name": "superscript *",    "meaning": "Optimal value or prediction point (e.g. x* = query point, μ* = posterior mean)." },
+        { "symbol": "·̂",       "name": "hat (circumflex)", "meaning": "Estimated or predicted quantity (e.g. ŷ = predicted output)." },
+        { "symbol": "·̄",       "name": "bar (macron)",    "meaning": "Mean value (e.g. ȳ = mean of y)." },
+        { "symbol": "·_train",  "name": "subscript train",  "meaning": "Refers to the training subset (e.g. R²_train = training R²)." },
+        { "symbol": "·_test",   "name": "subscript test",   "meaning": "Refers to the held-out test subset (e.g. R²_test = test R²)." },
+        { "symbol": "·_LF",    "name": "subscript LF",     "meaning": "Low-fidelity model output (multi-fidelity context)." },
+        { "symbol": "·_HF",    "name": "subscript HF",     "meaning": "High-fidelity model output (multi-fidelity context)." }
+      ]
+    },
+    {
+      "name": "Abbreviations",
+      "entries": [
+        { "symbol": "GPR",   "name": "Gaussian Process Regression",              "meaning": "Probabilistic surrogate that provides both predictions and uncertainty estimates." },
+        { "symbol": "RF",    "name": "Random Forest",                            "meaning": "Ensemble of decision trees. Robust to non-linear, non-smooth responses." },
+        { "symbol": "RBF",   "name": "Radial Basis Function",                   "meaning": "Interpolating surrogate. Always passes through training points exactly." },
+        { "symbol": "PCE",   "name": "Polynomial Chaos Expansion",              "meaning": "Polynomial surrogate with free sensitivity indices as a byproduct." },
+        { "symbol": "CV",    "name": "Cross-Validation",                        "meaning": "Technique to estimate model accuracy on held-out folds of the training set." },
+        { "symbol": "LHS",   "name": "Latin Hypercube Sampling",                "meaning": "Space-filling design: one sample per equal-width interval per dimension." },
+        { "symbol": "EI",    "name": "Expected Improvement",                    "meaning": "Active learning acquisition function balancing exploitation and exploration." },
+        { "symbol": "MAE",   "name": "Mean Absolute Error",                     "meaning": "Average absolute prediction error. Robust to outliers; same units as output." },
+        { "symbol": "RMSE",  "name": "Root Mean Squared Error",                 "meaning": "Square root of mean squared error. Penalises large errors more than MAE." },
+        { "symbol": "OAT",   "name": "One-at-a-Time",                           "meaning": "Sensitivity method that sweeps one input while holding all others at median." },
+        { "symbol": "PCA",   "name": "Principal Component Analysis",            "meaning": "Dimensionality reduction projecting correlated inputs into uncorrelated components." },
+        { "symbol": "VIF",   "name": "Variance Inflation Factor",               "meaning": "Multicollinearity diagnostic. VIF ≥ 10 flags near-redundant inputs." },
+        { "symbol": "SS",    "name": "Sum of Squares",                          "meaning": "SS_res = sum of squared residuals; SS_tot = total sum of squares (relative to mean)." },
+        { "symbol": "CUI",   "name": "Controlled Unclassified Information",     "meaning": "Data classification level. Restricts handling and sharing of the session." },
+        { "symbol": "ITAR",  "name": "International Traffic in Arms Regulations", "meaning": "Export control classification. Applies to defence-related technical data." },
+        { "symbol": "EAR",   "name": "Export Administration Regulations",       "meaning": "Export control classification. Applies to dual-use commercial technology." }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "equations": [
+    {
+      "name": "Coefficient of Determination (R²)",
+      "html": "R² = 1 − <span class='eq-frac'><span class='eq-num'>Σ(yᵢ − ŷᵢ)²</span><span class='eq-den'>Σ(yᵢ − ȳ)²</span></span> = 1 − <span class='eq-frac'><span class='eq-num'>SS<sub>res</sub></span><span class='eq-den'>SS<sub>tot</sub></span></span>",
+      "where": [
+        "yᵢ = true output for point i",
+        "ŷᵢ = predicted output for point i",
+        "ȳ = mean of all true outputs",
+        "SS<sub>res</sub> = residual sum of squares",
+        "SS<sub>tot</sub> = total sum of squares"
+      ],
+      "note": "R² = 1 is perfect. R² = 0 means the model performs no better than predicting the mean. R² < 0 means the model is actively worse than predicting the mean."
+    },
+    {
+      "name": "Root Mean Squared Error (RMSE)",
+      "html": "RMSE = <span class='eq-sqrt'>√</span><span class='eq-sqrt-body'><span class='eq-frac'><span class='eq-num'>1</span><span class='eq-den'>n</span></span> Σ(yᵢ − ŷᵢ)²</span>",
+      "where": [
+        "n = number of test points",
+        "yᵢ = true output",
+        "ŷᵢ = predicted output"
+      ],
+      "note": "RMSE is in the same units as the output. It penalises large individual errors more than MAE."
+    },
+    {
+      "name": "Mean Absolute Error (MAE)",
+      "html": "MAE = <span class='eq-frac'><span class='eq-num'>1</span><span class='eq-den'>n</span></span> Σ |yᵢ − ŷᵢ|",
+      "where": [
+        "n = number of test points",
+        "yᵢ = true output",
+        "ŷᵢ = predicted output"
+      ],
+      "note": "MAE is the average absolute error in output units. More robust to outliers than RMSE."
+    },
+    {
+      "name": "Min-Max Normalisation",
+      "html": "x′ = <span class='eq-frac'><span class='eq-num'>x − x<sub>min</sub></span><span class='eq-den'>x<sub>max</sub> − x<sub>min</sub></span></span>",
+      "where": [
+        "x = original value",
+        "x<sub>min</sub>, x<sub>max</sub> = column minimum and maximum (from training data)",
+        "x′ = scaled value ∈ [0, 1]"
+      ],
+      "note": "Scales every input column to [0, 1]. Sensitive to outliers that extend the range."
+    },
+    {
+      "name": "Z-Score Normalisation",
+      "html": "x′ = <span class='eq-frac'><span class='eq-num'>x − μ</span><span class='eq-den'>σ</span></span>",
+      "where": [
+        "x = original value",
+        "μ = column mean (from training data)",
+        "σ = column standard deviation (from training data)",
+        "x′ = standardised value with mean 0 and std 1"
+      ],
+      "note": "More robust to outliers than min-max. Preferred for GPR."
+    },
+    {
+      "name": "IQR Outlier Bounds",
+      "html": "Flag if x &lt; Q1 − k·IQR &nbsp; or &nbsp; x &gt; Q3 + k·IQR",
+      "where": [
+        "Q1 = 25th percentile",
+        "Q3 = 75th percentile",
+        "IQR = Q3 − Q1",
+        "k = multiplier (default 1.5)"
+      ],
+      "note": "Resistant to extreme values because Q1 and Q3 are not affected by the outliers being detected."
+    },
+    {
+      "name": "GPR Posterior Mean",
+      "html": "μ*(x*) = K(x*, X) · [K(X, X) + αI]<sup>−1</sup> · y",
+      "where": [
+        "x* = query input point",
+        "X = training input matrix",
+        "y = training output vector",
+        "K(x*, X) = covariance vector between x* and all training points",
+        "K(X, X) = training covariance matrix",
+        "α = noise regularisation (nugget)",
+        "I = identity matrix"
+      ],
+      "note": "This is the prediction. The model weights each training point's contribution by how similar it is to x* (via the kernel K)."
+    },
+    {
+      "name": "GPR Posterior Variance",
+      "html": "σ²*(x*) = k(x*, x*) − K(x*, X) · [K(X, X) + αI]<sup>−1</sup> · K(X, x*)",
+      "where": [
+        "k(x*, x*) = prior variance at x* (from the kernel)",
+        "Second term = variance reduction from observing training data"
+      ],
+      "note": "This is the uncertainty estimate. Large σ²* means the prediction is less reliable — the point is far from training data."
+    },
+    {
+      "name": "Sobol First-Order Index (S₁)",
+      "html": "S₁<sub>i</sub> = <span class='eq-frac'><span class='eq-num'>Var[E[Y | X<sub>i</sub>]]</span><span class='eq-den'>Var[Y]</span></span>",
+      "where": [
+        "Y = model output",
+        "X<sub>i</sub> = input variable i",
+        "E[Y | X<sub>i</sub>] = expected output when X<sub>i</sub> is fixed",
+        "Var[·] = variance operator"
+      ],
+      "note": "Fraction of output variance explained by X<sub>i</sub> acting alone. S₁ ≤ Sₜ always. Large gap (Sₜ − S₁) indicates strong interactions."
+    },
+    {
+      "name": "Kennedy–O'Hagan Multi-Fidelity",
+      "html": "ŷ<sub>HF</sub>(x) = ρ · ŷ<sub>LF</sub>(x) + δ(x)",
+      "where": [
+        "ŷ<sub>HF</sub>(x) = final high-fidelity prediction",
+        "ŷ<sub>LF</sub>(x) = low-fidelity surrogate prediction",
+        "ρ = scaling factor (fitted by OLS on HF data)",
+        "δ(x) = GP correction term trained on residuals HF − ρ·LF"
+      ],
+      "note": "Combines many cheap low-fidelity runs with few expensive high-fidelity runs. Uncertainty estimate propagates through both the LF surrogate and the correction GP."
+    }
+  ]
+}

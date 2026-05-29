@@ -2,11 +2,11 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/learning_guide.js
-// Version: 3.1.1
-// Description: Learning Guide modal — four tabs: Glossary, Model Guide,
-//              Topics, Exercises. Opens via the "? Guide" header button.
-//              Exercises tab auto-injects datasets and shows step-by-step
-//              guidance with advisory quiz cards.
+// Version: 3.2.0
+// Description: Learning Guide modal — six tabs: Glossary, Model Guide,
+//              Topics, Exercises, Symbols, Equations. Opens via the "Guide"
+//              header button. Exercises tab auto-injects datasets and shows
+//              step-by-step guidance with advisory quiz cards.
 // =============================================================================
 
 import { get, post } from "../api.js";
@@ -61,8 +61,8 @@ function _buildOverlay(initialTab) {
   modal.appendChild(header);
 
   // Tabs
-  const tabs = ["glossary", "models", "topics", "exercises"];
-  const tabLabels = { glossary: "Glossary", models: "Model Guide", topics: "Topics", exercises: "Exercises" };
+  const tabs = ["glossary", "models", "topics", "exercises", "symbols", "equations"];
+  const tabLabels = { glossary: "Glossary", models: "Model Guide", topics: "Topics", exercises: "Exercises", symbols: "Symbols", equations: "Equations" };
 
   const tabBar = el("div", { cls: "lg-tab-bar", role: "tablist" });
   const tabBtns = {};
@@ -106,10 +106,12 @@ async function _loadTab(container, tab) {
   clearEl(container);
   container.innerHTML = `<div class="lg-spinner">Loading…</div>`;
 
-  if (tab === "glossary")   await _renderGlossary(container);
-  else if (tab === "models")    await _renderModelGuide(container);
-  else if (tab === "topics")    await _renderTopics(container);
-  else if (tab === "exercises") await _renderExercises(container);
+  if (tab === "glossary")        await _renderGlossary(container);
+  else if (tab === "models")     await _renderModelGuide(container);
+  else if (tab === "topics")     await _renderTopics(container);
+  else if (tab === "exercises")  await _renderExercises(container);
+  else if (tab === "symbols")    await _renderSymbols(container);
+  else if (tab === "equations")  await _renderEquations(container);
 }
 
 // ── Glossary ──────────────────────────────────────────────────────────────────
@@ -144,7 +146,7 @@ async function _renderGlossary(container) {
       for (const t of catTerms) {
         const item = el("div", { cls: "lg-term-item" });
         item.innerHTML = `<span class="lg-term-name">${escHtml(t.term)}</span>
-          <span class="lg-term-def">${escHtml(t.definition)}</span>`;
+          <span class="lg-term-def">${t.definition}</span>`;
         catEl.appendChild(item);
       }
       body.appendChild(catEl);
@@ -176,19 +178,19 @@ async function _renderModelGuide(container) {
       <span class="lg-chevron">▸</span>`;
     const body = el("div", { cls: "lg-model-body hidden" });
     body.innerHTML = `
-      <p class="lg-model-desc">${escHtml(m.description)}</p>
+      <p class="lg-model-desc">${m.description}</p>
       <div class="lg-model-cols">
         <div>
           <h4 class="lg-list-head">Strengths</h4>
-          <ul class="lg-list">${m.strengths.map(s => `<li>${escHtml(s)}</li>`).join("")}</ul>
+          <ul class="lg-list">${m.strengths.map(s => `<li>${s}</li>`).join("")}</ul>
         </div>
         <div>
           <h4 class="lg-list-head">Weaknesses</h4>
-          <ul class="lg-list lg-list--weak">${m.weaknesses.map(w => `<li>${escHtml(w)}</li>`).join("")}</ul>
+          <ul class="lg-list lg-list--weak">${m.weaknesses.map(w => `<li>${w}</li>`).join("")}</ul>
         </div>
       </div>
-      <p class="lg-model-best"><strong>Best for:</strong> ${escHtml(m.best_for)}</p>
-      <p class="lg-model-avoid"><strong>Avoid when:</strong> ${escHtml(m.avoid_when)}</p>`;
+      <p class="lg-model-best"><strong>Best for:</strong> ${m.best_for}</p>
+      <p class="lg-model-avoid"><strong>Avoid when:</strong> ${m.avoid_when}</p>`;
 
     toggle.addEventListener("click", () => {
       const open = !body.classList.contains("hidden");
@@ -262,7 +264,7 @@ async function _showTopic(contentArea, topic, nav, activeBtn) {
   for (const section of resp.sections) {
     const sec = el("div", { cls: "lg-section" });
     sec.innerHTML = `<h3 class="lg-section-title">${escHtml(section.title)}</h3>
-      <p class="lg-section-body">${escHtml(section.body)}</p>`;
+      <p class="lg-section-body">${section.body}</p>`;
     contentArea.appendChild(sec);
   }
 }
@@ -484,7 +486,7 @@ function _showExerciseOverlay() {
       <div class="ex-dots">${dots}</div>
       <button class="ex-overlay__close" aria-label="Close exercise">✕</button>
     </div>
-    <div class="ex-overlay__instruction">${escHtml(step.instruction)}</div>`;
+    <div class="ex-overlay__instruction">${step.instruction}</div>`;
 
   // Quiz card (if present)
   if (step.quiz) {
@@ -522,11 +524,12 @@ function _buildQuizCard(step, ex) {
   const saved = ex.progress?.quiz_answers?.[String(step.step_num)];
 
   const card = el("div", { cls: "ex-quiz" });
-  card.innerHTML = `<p class="ex-quiz__q">${escHtml(quiz.question)}</p>`;
+  card.innerHTML = `<p class="ex-quiz__q">${quiz.question}</p>`;
 
   const opts = el("div", { cls: "ex-quiz__opts" });
   quiz.options.forEach((opt, i) => {
-    const btn = el("button", { cls: "ex-quiz__opt", text: opt });
+    const btn = el("button", { cls: "ex-quiz__opt" });
+    btn.innerHTML = opt;
     if (saved !== undefined) {
       btn.disabled = true;
       if (i === quiz.correct_index) btn.classList.add("ex-quiz__opt--correct");
@@ -568,7 +571,7 @@ function _appendExplanation(card, quiz, chosenIdx) {
   if (existing) existing.remove();
   const correct = chosenIdx === quiz.correct_index;
   const explain = el("div", { cls: `ex-quiz__explain${correct ? " ex-quiz__explain--correct" : " ex-quiz__explain--wrong"}` });
-  explain.innerHTML = `<strong>${correct ? "Correct." : "Not quite."}</strong> ${escHtml(quiz.explanation)}`;
+  explain.innerHTML = `<strong>${correct ? "Correct." : "Not quite."}</strong> ${quiz.explanation}`;
   card.appendChild(explain);
 }
 
@@ -614,6 +617,108 @@ function _navigateToStep(step) {
 
 function _removeExerciseOverlay() {
   document.getElementById("ex-overlay")?.remove();
+}
+
+// ── Symbols ───────────────────────────────────────────────────────────────────
+
+async function _renderSymbols(container) {
+  const resp = await _fetch("/api/learning/symbols");
+  clearEl(container);
+  if (!resp.success) { container.innerHTML = `<p class="lg-error">Could not load symbols.</p>`; return; }
+
+  const intro = el("p", { cls: "lg-section-intro",
+    text: "Reference table of symbols, notation, subscripts, superscripts, and abbreviations used throughout the toolkit." });
+  container.appendChild(intro);
+
+  const searchWrap = el("div", { cls: "lg-search-wrap" });
+  const searchInput = el("input", { cls: "lg-search", type: "text", placeholder: "Search symbols…", "aria-label": "Search symbols" });
+  searchWrap.appendChild(searchInput);
+  container.appendChild(searchWrap);
+
+  const body = el("div", { cls: "lg-symbols-body" });
+  container.appendChild(body);
+
+  function renderSymbols(filter) {
+    clearEl(body);
+    const lc = filter.toLowerCase();
+    let anyVisible = false;
+    for (const cat of resp.categories) {
+      const entries = filter
+        ? cat.entries.filter(e =>
+            e.symbol.toLowerCase().includes(lc) ||
+            e.name.toLowerCase().includes(lc) ||
+            e.meaning.toLowerCase().includes(lc))
+        : cat.entries;
+      if (!entries.length) continue;
+      anyVisible = true;
+
+      const section = el("div", { cls: "lg-sym-section" });
+      section.innerHTML = `<h3 class="lg-cat-heading">${escHtml(cat.name)}</h3>`;
+
+      const table = document.createElement("table");
+      table.className = "lg-sym-table";
+      table.innerHTML = `<thead><tr>
+        <th class="lg-sym-col-sym">Symbol</th>
+        <th class="lg-sym-col-name">Name</th>
+        <th class="lg-sym-col-meaning">Meaning</th>
+      </tr></thead>`;
+      const tbody = document.createElement("tbody");
+      for (const e of entries) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td class="lg-sym-cell-sym">${escHtml(e.symbol)}</td>
+          <td class="lg-sym-cell-name">${escHtml(e.name)}</td>
+          <td class="lg-sym-cell-meaning">${e.meaning}</td>`;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      section.appendChild(table);
+      body.appendChild(section);
+    }
+    if (!anyVisible) {
+      body.innerHTML = `<p class="lg-empty">No symbols match "${escHtml(filter)}".</p>`;
+    }
+  }
+
+  renderSymbols("");
+  searchInput.addEventListener("input", () => renderSymbols(searchInput.value));
+}
+
+// ── Equations ─────────────────────────────────────────────────────────────────
+
+async function _renderEquations(container) {
+  const resp = await _fetch("/api/learning/equations");
+  clearEl(container);
+  if (!resp.success) { container.innerHTML = `<p class="lg-error">Could not load equations.</p>`; return; }
+
+  const intro = el("p", { cls: "lg-section-intro",
+    text: "Key equations used in surrogate modeling. Symbols are defined in the Symbols tab." });
+  container.appendChild(intro);
+
+  for (const eq of resp.equations) {
+    const card = el("div", { cls: "lg-eq-card" });
+
+    const nameEl = el("div", { cls: "lg-eq-name", text: eq.name });
+    card.appendChild(nameEl);
+
+    const formulaEl = el("div", { cls: "lg-eq-formula" });
+    formulaEl.innerHTML = eq.html;
+    card.appendChild(formulaEl);
+
+    if (eq.where?.length) {
+      const whereEl = el("div", { cls: "lg-eq-where" });
+      whereEl.innerHTML = `<span class="lg-eq-where-label">Where:</span>
+        <ul class="lg-eq-where-list">${eq.where.map(w => `<li>${w}</li>`).join("")}</ul>`;
+      card.appendChild(whereEl);
+    }
+
+    if (eq.note) {
+      const noteEl = el("div", { cls: "lg-eq-note" });
+      noteEl.innerHTML = eq.note;
+      card.appendChild(noteEl);
+    }
+
+    container.appendChild(card);
+  }
 }
 
 // ── Decision-tree renderer ────────────────────────────────────────────────────
