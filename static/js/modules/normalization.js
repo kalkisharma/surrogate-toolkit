@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/normalization.js
-// Version: 0.9.10
+// Version: 0.9.11
 // Description: Normalization step — lets users pick a scaling method for input
 //              columns and applies it via POST /api/data/normalize.
 //              Gated: rendered only after column designation is confirmed.
@@ -263,8 +263,9 @@ function _renderSampleTable(parentEl, sampleRows, inputCols, method) {
  * @param {HTMLElement} containerEl    - Target card element.
  * @param {string}      currentMethod  - Current normalization method from metadata (null if none applied).
  * @param {number}      nInputs        - Number of designated input columns.
+ * @param {Function}    [onApplied]    - Called with (method) when normalization succeeds.
  */
-export function initNormalization(containerEl, currentMethod, nInputs) {
+export function initNormalization(containerEl, currentMethod, nInputs, onApplied) {
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
     <h2 class="section-title">Step 6 — Normalization</h2>
@@ -343,6 +344,7 @@ export function initNormalization(containerEl, currentMethod, nInputs) {
 
     const label = METHODS.find(m => m.value === selectedMethod)?.label ?? selectedMethod;
     showSuccess(`${label} normalization applied to ${resp.n_columns} input column${resp.n_columns !== 1 ? "s" : ""}.`);
+    if (onApplied) onApplied(selectedMethod);
 
     // Refresh the status display inline
     const existing = containerEl.querySelector(".norm-status");

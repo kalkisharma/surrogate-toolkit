@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-27
-VERSION: 2.8.0
+LAST MODIFIED: 2026-05-28
+VERSION: 2.8.1
 ================================================================================
 """
 
@@ -514,6 +514,24 @@ def train():
     # ── Build feature / target arrays ─────────────────────────────────────────
     X = df[input_cols].values
     y = df[output_cols].values
+
+    # ── Guard: reject NaN / Inf before sklearn sees them ─────────────────────
+    nan_input_cols  = [c for c, col in zip(input_cols,  X.T) if not np.all(np.isfinite(col))]
+    nan_output_cols = [c for c, col in zip(output_cols, y.T) if not np.all(np.isfinite(col))]
+    if nan_input_cols or nan_output_cols:
+        bad = nan_input_cols + nan_output_cols
+        return (
+            jsonify({
+                "success": False, "error_code": "NAN_IN_DATA",
+                "message": (
+                    f"Training data contains missing or infinite values in: "
+                    f"{', '.join(bad)}. "
+                    "Clean your data (Step 4) before training."
+                ),
+                "detail": "", "recoverable": True, "allowed_actions": ["clean"],
+            }),
+            422,
+        )
 
     # ── Train/test split ──────────────────────────────────────────────────────
     X_train, X_test, y_train, y_test = train_test_split(

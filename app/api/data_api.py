@@ -7,8 +7,8 @@ PURPOSE: Blueprint and route handlers for /api/data/*. Wires the ingestion
          JSON responses.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-25
-VERSION: 1.0.1
+LAST MODIFIED: 2026-05-28
+VERSION: 1.0.2
 ================================================================================
 """
 
@@ -904,9 +904,20 @@ def normalize():
         "before": {col: sample_clean[col].dropna().tolist() for col in input_columns},
         "after":  {col: sample_norm[col].dropna().tolist()  for col in input_columns},
     }
+    def _sanitize_records(records):
+        """Replace float NaN/Inf with None so jsonify produces valid JSON."""
+        import math
+        sanitized = []
+        for row in records:
+            sanitized.append({
+                k: (None if isinstance(v, float) and (math.isnan(v) or math.isinf(v)) else v)
+                for k, v in row.items()
+            })
+        return sanitized
+
     sample_rows = {
-        "before": sample_clean[input_columns].head(5).to_dict(orient="records"),
-        "after":  sample_norm[input_columns].head(5).to_dict(orient="records"),
+        "before": _sanitize_records(sample_clean[input_columns].head(5).to_dict(orient="records")),
+        "after":  _sanitize_records(sample_norm[input_columns].head(5).to_dict(orient="records")),
     }
 
     return jsonify({
