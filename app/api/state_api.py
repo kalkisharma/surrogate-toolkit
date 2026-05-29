@@ -7,8 +7,8 @@ PURPOSE: Blueprint for /api/state/* — exposes the live STATE dict to the
          POST.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 1.2.0
+LAST MODIFIED: 2026-05-29
+VERSION: 1.3.0
 ================================================================================
 """
 
@@ -42,8 +42,14 @@ def get_state():
     Future:
         Support ETag-based conditional GET to skip sending unchanged STATE.
     """
+    import os
     from config.settings import VERSION
-    return jsonify({"success": True, "version": VERSION, "state": get_state_json_safe()})
+    return jsonify({
+        "success":         True,
+        "version":         VERSION,
+        "available_cores": os.cpu_count() or 1,
+        "state":           get_state_json_safe(),
+    })
 
 
 @bp.route("/session", methods=["PUT"])

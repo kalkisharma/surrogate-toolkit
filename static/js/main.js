@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.3.2
+// Version: 3.5.4
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 14 lazy-init panels).
@@ -10,7 +10,7 @@
 
 import { initLearningMode, registerPrimer } from "./learning_mode.js";
 import { get, post, put } from "./api.js";
-import { refreshState, getPath } from "./state.js";
+import { refreshState, getPath, getAvailableCores } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
 import { initExploration, updateColumnSelectorRoles, notifyExploreVisible } from "./modules/data_explorer.js";
@@ -67,6 +67,7 @@ function _applyExperienceLevel(level) {
   initLearningMode(learningToggle);
   _initGlobalHeader();
   await refreshState();
+  _updateCoresDisplay();
   _applyExperienceLevel(getPath("session.experience_level") || "beginner");
 
   // If STATE already has datasets (e.g. after loading a .surrogate file),
@@ -991,19 +992,16 @@ function _initGlobalHeader() {
   }
 
   const coresInput = document.getElementById("cores-input");
-  const cpuCount   = navigator.hardwareConcurrency || 8;
-  coresInput.max         = cpuCount;
-  coresInput.placeholder = cpuCount;
-  coresInput.title       = `Detected: ${cpuCount} logical processors`;
 
   coresInput.addEventListener("input", () => {
     const count = parseInt(coresInput.value, 10);
     if (!count || count < 1) return;
-    const over = count > 4;
+    const avail = getAvailableCores();
+    const over  = count > 4;
     coresInput.classList.toggle("input-caution", over);
     coresInput.title = over
       ? "⚠ More than 4 processors may violate head-node policies"
-      : `Detected: ${cpuCount} logical processors`;
+      : `${avail} logical processors available on server`;
   });
 
   coresInput.addEventListener("change", async () => {
@@ -1014,7 +1012,19 @@ function _initGlobalHeader() {
       processor_mode:  count > 1 ? "parallel" : "serial",
     });
     await refreshState();
+    _updateCoresDisplay();
   });
+}
+
+function _updateCoresDisplay() {
+  const avail      = getAvailableCores();
+  const coresInput = document.getElementById("cores-input");
+  const availSpan  = document.getElementById("cores-avail");
+  if (!coresInput) return;
+  coresInput.max         = avail;
+  coresInput.placeholder = avail;
+  coresInput.title       = `${avail} logical processors available on server`;
+  if (availSpan) availSpan.textContent = `of ${avail} available`;
 }
 
 /** Build an uploadMeta object from a dataset entry returned by GET /api/data/datasets. */

@@ -3,7 +3,7 @@
   "title": "Sensitivity Analysis — Ishigami Function",
   "difficulty": "intermediate",
   "estimated_minutes": 25,
-  "description": "The Ishigami function is a classic benchmark for sensitivity analysis. It has 5 inputs: x1, x2, x3 drive the output (with x1 dominant), and x4, x5 are pure noise. You will train a GPR and use Sobol sensitivity analysis to identify which inputs matter.",
+  "description": "The Ishigami function is a classic benchmark for sensitivity analysis. It has 5 inputs: x1, x2, x3 drive the output (with x1 dominant), and x4, x5 are pure noise. You will train a GPR surrogate and use Sobol sensitivity analysis to confirm which inputs matter.",
   "tags": ["sensitivity analysis"],
   "dataset": "ishigami_5d.csv",
   "steps": [
@@ -12,15 +12,15 @@
       "target_panel": "preview",
       "instruction": "The dataset has 5 inputs (x1–x5) and 1 output (y). The true function is y = sin(x1) + 7·sin²(x2) + 0.1·x3⁴·sin(x1). Inputs x4 and x5 were added as pure noise — they have zero true sensitivity.",
       "quiz": {
-        "question": "Before running any analysis, which inputs do you expect Sobol analysis to flag as important based on the true function?",
+        "question": "The true function is y = sin(x1) + 7·sin²(x2) + 0.1·x3⁴·sin(x1). Based on this equation alone, which inputs do you expect to have the most influence on y?",
         "options": [
-          "x1 and x2 (strongest; x3 has a weak interaction term)",
-          "x4 and x5 (they have more data points by chance)",
-          "All inputs equally",
-          "x3 only (highest-order term)"
+          "x1 and x2 — x1 drives two terms, x2 has a large coefficient (7); x3 only contributes through an interaction",
+          "x4 and x5 — they appear in more data points by chance",
+          "All five inputs equally",
+          "x3 only — it has the highest exponent (x3⁴)"
         ],
         "correct_index": 0,
-        "explanation": "x1 appears in the sin() term and the interaction term. x2 has a large coefficient (7). x3 contributes via an interaction with x1. x4 and x5 are decorrelated noise — their true S₁ and Sₜ are both zero."
+        "explanation": "x1 appears in both the sin(x1) term and the interaction term 0.1·x3⁴·sin(x1), making it the most influential input. x2 has a large independent coefficient (7). x3 only contributes through its interaction with x1 — it has near-zero independent effect. x4 and x5 do not appear in the equation at all; they are pure noise added to test whether analysis can detect irrelevant inputs."
       }
     },
     {
@@ -44,7 +44,7 @@
     {
       "step_num": 5,
       "target_panel": "results",
-      "instruction": "Check the R² score. For a 200-row 5-input dataset with a nonlinear-but-smooth response, R² > 0.90 is achievable with GPR.",
+      "instruction": "Check the R² score. For a 300-row 5-input dataset with a nonlinear response, GPR should achieve R² > 0.85 on the test set. If R² is lower, try Kriging — the Matérn kernel handles oscillatory functions better than the RBF kernel used by GPR.",
       "quiz": null
     },
     {
@@ -89,7 +89,7 @@
           "Remove x4 and x5 from future experiments to reduce cost and dimensionality",
           "Keep all inputs — small sensitivity values can still be important",
           "Re-run analysis with more samples first, then decide",
-          "A and C are both valid approaches"
+          "Options 1 and 3 are both valid approaches"
         ],
         "correct_index": 3,
         "explanation": "Both removing low-Sₜ inputs and verifying with more samples are valid. The decision depends on the cost of running extra experiments vs. the risk of discarding a marginally important variable. In practice, re-run with 1024+ samples first to tighten confidence intervals, then remove if Sₜ stays near zero."

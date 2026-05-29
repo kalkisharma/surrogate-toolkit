@@ -10,6 +10,7 @@
 import { get } from "./api.js";
 
 let _state = {};
+let _availableCores = 1;
 
 /**
  * Returns the current local STATE cache.
@@ -28,9 +29,13 @@ export async function refreshState() {
   const data = await get("/api/state/");
   if (data.success && data.state) {
     _state = data.state;
+    if (data.available_cores) _availableCores = data.available_cores;
   }
   return _state;
 }
+
+/** Return server-reported CPU count (set on first refreshState call). */
+export function getAvailableCores() { return _availableCores; }
 
 /**
  * Return a nested value from the local STATE by dot-path.

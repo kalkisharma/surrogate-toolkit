@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.0
+// Version: 2.5.1
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -803,11 +803,12 @@ export function renderOATGrid(gridEl, oatData, sortedCols, options = {}) {
     const layout = {
       height:        cellHeight,
       title:         { text: col, font: { size: fontSize, color: _fc }, x: 0.05 },
-      margin:        { t: 32, b: 52, l: 56, r: 8 },
+      margin:        { t: 32, b: 52, l: 64, r: 8 },
       xaxis:         { title: { text: col, font: { size: fontSize - 1 } },
                        color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
       yaxis:         { title: outputCol ? { text: outputCol, font: { size: fontSize - 1 } } : undefined,
-                       color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)" },
+                       color: _fc, tickfont: { size: fontSize - 2 }, gridcolor: "rgba(128,128,128,0.15)",
+                       automargin: true, exponentformat: "e" },
       font:          { size: fontSize, color: _fc },
       plot_bgcolor:  _pb,
       paper_bgcolor: _ppb,

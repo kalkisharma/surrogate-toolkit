@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-28
-VERSION: 2.8.1
+LAST MODIFIED: 2026-05-29
+VERSION: 2.8.2
 ================================================================================
 """
 
@@ -1635,11 +1635,13 @@ def _make_model(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
         return GPRModel(
             kernel=hp.get("kernel", "rbf"),
             alpha=hp.get("alpha"),
+            n_jobs=n_jobs,
         )
     if model_type == "kriging":
         return KrigingModel(
             kernel=hp.get("kernel", "matern25"),
             alpha=hp.get("alpha"),
+            n_jobs=n_jobs,
         )
     if model_type == "rf":
         return RFModel(

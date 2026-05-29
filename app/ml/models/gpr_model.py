@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-27
-VERSION: 1.0.2
+LAST MODIFIED: 2026-05-29
+VERSION: 1.2.0
 ================================================================================
 """
 
@@ -22,32 +22,23 @@ from sklearn.multioutput import MultiOutputRegressor
 from app.ml.models.base_model import BaseSurrogateModel
 from config.settings import DEFAULT_RANDOM_STATE, GPR_DEFAULT_ALPHA
 
-_KERNELS = {
-    "matern15": Matern(nu=1.5),
-    "matern25": Matern(nu=2.5),
-}
-
-
 class GPRModel(BaseSurrogateModel):
     """Gaussian Process Regression wrapped in MultiOutputRegressor.
 
     scikit-learn's GaussianProcessRegressor is single-output only. The
     MultiOutputRegressor wrapper trains one independent GPR per output column,
     which makes multi-output prediction transparent to the rest of the system.
+
+    The kernel is built in fit() with ARD length scales (one per input
+    dimension) so irrelevant inputs can be suppressed automatically.
     """
 
-    def __init__(self, kernel: str = "rbf", alpha: float = None):
+    def __init__(self, kernel: str = "rbf", alpha: float = None, n_jobs: int = 1):
         super().__init__("gpr")
-        k = _KERNELS.get(kernel, RBF())
-        single_gpr = GaussianProcessRegressor(
-            kernel=k,
-            alpha=float(alpha) if alpha is not None else GPR_DEFAULT_ALPHA,
-            normalize_y=True,
-            n_restarts_optimizer=5,
-            random_state=DEFAULT_RANDOM_STATE,
-        )
-        # MultiOutputRegressor clones single_gpr internally for each output.
-        self._model = MultiOutputRegressor(single_gpr)
+        self._kernel_name = kernel
+        self._alpha = float(alpha) if alpha is not None else GPR_DEFAULT_ALPHA
+        self._n_jobs = int(n_jobs)
+        self._model = None  # built in fit() once n_features is known
 
     def fit(
         self,
@@ -82,6 +73,26 @@ class GPRModel(BaseSurrogateModel):
         y = np.asarray(y, dtype=float)
         if y.ndim == 1:
             y = y.reshape(-1, 1)
+
+        # Build ARD kernel now that n_features is known.
+        n_features = X.shape[1]
+        ls = np.ones(n_features)
+        if self._kernel_name == "matern15":
+            k = Matern(length_scale=ls, nu=1.5)
+        elif self._kernel_name == "matern25":
+            k = Matern(length_scale=ls, nu=2.5)
+        else:
+            k = RBF(length_scale=ls)
+
+        single_gpr = GaussianProcessRegressor(
+            kernel=k,
+            alpha=self._alpha,
+            normalize_y=True,
+            n_restarts_optimizer=10,
+            random_state=DEFAULT_RANDOM_STATE,
+        )
+        self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)
+
         self._model.fit(X, y)
         self._input_columns = list(input_columns)
         self._output_columns = list(output_columns)
