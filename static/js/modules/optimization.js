@@ -13,6 +13,7 @@ import { showError } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { renderParetoFront } from "../charts.js";
 import { el, clearEl, escHtml } from "../utils.js";
+import { getAvailableCores } from "../state.js";
 
 export async function initOptimization(containerEl) {
   clearEl(containerEl);
@@ -50,6 +51,19 @@ export async function initOptimization(containerEl) {
     <p><strong>Multi-objective:</strong> When two or more outputs trade off against each other (e.g., lower drag vs. higher lift), there is no single "best" solution — instead there is a <em>Pareto front</em>: the set of solutions where improving one objective requires sacrificing another. NSGA-II discovers this front in one run.</p>
     <p>Input bounds default to your training data range. You can tighten them to focus the search on a feasible flight envelope or manufacturing constraint.</p>
   `);
+
+  // ── Cores prompt ─────────────────────────────────────────────────────────
+  const avail = getAvailableCores() || "?";
+  const current = parseInt(document.getElementById("cores-input")?.value || "1", 10);
+  const optCoresPrompt = el("div", { cls: "cores-prompt" });
+  optCoresPrompt.innerHTML = `
+    <span class="cores-prompt__icon">⚡</span>
+    <div class="cores-prompt__body">
+      <p class="cores-prompt__title">Optimization — parallel candidate evaluation</p>
+      <p class="cores-prompt__line">Ideal: <strong>4–8 cores</strong> — each candidate solution is evaluated against the surrogate in parallel per generation</p>
+      <p class="cores-prompt__line">Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine</p>
+    </div>`;
+  containerEl.appendChild(optCoresPrompt);
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   const tabBar = el("div", { cls: "al-tab-bar" });

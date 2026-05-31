@@ -414,7 +414,7 @@ async function _buildOutlierCard(outlierRows, nRows, onClean) {
     });
   }
 
-  const iqrRow = el("div", { cls: "hyperparam-row level-expert-only" });
+  const iqrRow = el("div", { cls: "hyperparam-row" });
   iqrRow.innerHTML = `
     <span class="hyperparam-label">IQR multiplier</span>
     <input id="iqr-multiplier-input" type="number" class="hyperparam-input"

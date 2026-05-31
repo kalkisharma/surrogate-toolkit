@@ -40,16 +40,17 @@
   <header id="global-header" role="banner" aria-label="Application header">
     <div class="global-header__brand">
       <span class="global-header__name">Surrogate Toolkit</span>
-      <span class="global-header__version">v3.5.4</span>
+      <span class="global-header__version">v3.5.11</span>
     </div>
     <nav class="global-header__controls" aria-label="Session controls">
 
-      <!-- Level selector — inline, always visible -->
-      <select id="level-select" class="global-header__select" aria-label="Experience level" title="Experience level">
-        <option value="beginner" selected>Beginner</option>
-        <option value="intermediate">Intermediate</option>
-        <option value="expert">Expert</option>
-      </select>
+      <!-- Cores — always visible in header -->
+      <div class="global-header__control-group">
+        <span class="global-header__control-label">Cores</span>
+        <input id="cores-input" type="number" class="global-header__input"
+               min="1" value="1" aria-label="Processor count">
+        <span id="cores-avail" class="global-header__cores-avail"></span>
+      </div>
 
       <div class="global-header__sep" aria-hidden="true"></div>
 
@@ -77,13 +78,6 @@
             </select>
           </div>
           <div class="global-header__control-group">
-            <span class="global-header__control-label">Cores</span>
-            <input id="cores-input" type="number" class="global-header__input"
-                   min="1" value="1" aria-label="Processor count">
-            <span id="cores-avail" class="global-header__cores-avail"></span>
-          </div>
-          <p class="global-header__cores-hint">Parallelizes RF training, Auto-Tune &amp; multi-output GPR/Kriging — 1 = head-node safe</p>
-          <div class="global-header__control-group level-expert-only">
             <button id="state-viewer-btn" class="global-header__btn global-header__btn--full"
                     aria-label="View raw session STATE" title="View raw session STATE">{ } View STATE</button>
           </div>

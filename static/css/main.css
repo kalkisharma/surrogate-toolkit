@@ -1062,11 +1062,6 @@ input, select, textarea { font-family: inherit; }
 .global-header__input:hover { border-color: var(--color-border-focus); }
 .global-header__input:focus { outline: none; border-color: var(--color-border-focus); box-shadow: var(--shadow-accent); }
 .global-header__input.input-caution { border-color: var(--color-warning); color: var(--color-warning); }
-.global-header__cores-hint {
-  font-size: var(--text-xs);
-  color: var(--color-text-muted);
-  margin: calc(var(--space-3) * -1) 0 0;
-}
 .global-header__cores-avail {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
@@ -3003,26 +2998,51 @@ details[open] .al-history-summary::before { content: "▼ "; }
 #model-compare-results { margin-top: var(--space-4); }
 
 
-/* ── Experience level — conditional visibility ─────────────────────────────── */
-/* Intermediate/Expert elements hidden in Beginner */
-body:not([data-experience="intermediate"]):not([data-experience="expert"]) .level-intermediate-up {
-  display: none !important;
+
+/* ── Cores recommendation prompt (inline in training + optimize panels) ──────── */
+.cores-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  margin-top: var(--space-4);
 }
-/* Expert-only elements hidden in Beginner and Intermediate */
-body:not([data-experience="expert"]) .level-expert-only {
-  display: none !important;
+.cores-prompt__icon {
+  font-size: var(--text-base);
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 2px;
 }
-/* Intermediate: show primers regardless of learning mode toggle */
-body[data-experience="intermediate"] .primer.hidden {
-  display: block;
+.cores-prompt__body {
+  flex: 1;
+  min-width: 0;
 }
-/* Expert: primers and learning toggle always hidden */
-body[data-experience="expert"] .primer,
-body[data-experience="expert"] #learning-toggle {
-  display: none !important;
+.cores-prompt__title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semi);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-1);
+}
+.cores-prompt__line {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+.cores-prompt__line strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-semi);
+}
+.cores-prompt--na {
+  border-left-color: var(--color-border);
+  opacity: 0.7;
 }
 
-/* ── STATE viewer modal (Expert) ───────────────────────────────────────────── */
+/* ── STATE viewer modal ───────────────────────────────────────────── */
 .state-viewer-overlay {
   position: fixed;
   inset: 0;

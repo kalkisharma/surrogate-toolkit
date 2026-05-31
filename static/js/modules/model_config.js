@@ -18,6 +18,7 @@ import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
 import { renderModelComparisonTable } from "../charts.js";
 import { runDecisionTree } from "./learning_guide.js";
+import { getPath, getAvailableCores } from "../state.js";
 
 const HYPERPARAM_DEFAULTS = {
   gpr:     { kernel: "rbf", alpha: 0.1 },
@@ -166,8 +167,8 @@ export async function initModelConfig(containerEl, onTrain) {
   typeSection.appendChild(typeOptions);
   form.appendChild(typeSection);
 
-  // ── Model selection guide (Intermediate/Expert) ───────────────────────────────
-  const guideSection = el("div", { cls: "model-config-section level-intermediate-up" });
+  // ── Model selection guide ─────────────────────────────────────────────────────
+  const guideSection = el("div", { cls: "model-config-section" });
   const guideToggle  = el("button", { cls: "model-guide-toggle", text: "▸ Help me choose — interactive guide" });
   const guideBody    = el("div", { cls: "model-guide-body hidden" });
   let   _guideLoaded = false;
@@ -481,6 +482,58 @@ export async function initModelConfig(containerEl, onTrain) {
   );
   cvSection.appendChild(cvRow);
   form.appendChild(cvSection);
+
+  // ── Cores recommendation prompt ───────────────────────────────────────────────
+  const coresPrompt = el("div", { cls: "cores-prompt", id: "train-cores-prompt" });
+  form.appendChild(coresPrompt);
+
+  function _updateCoresPrompt() {
+    const avail   = getAvailableCores() || "?";
+    const current = parseInt(document.getElementById("cores-input")?.value || "1", 10);
+    const activeKey = getPath("datasets.active_dataset_key");
+    const outCols   = getPath(`datasets._datasets.${activeKey}.metadata.output_columns`, []);
+    const nOut      = outCols.length;
+
+    let title, lines, na = false;
+
+    if (selectedModel === "gpr" || selectedModel === "kriging") {
+      if (nOut > 1) {
+        title = `${selectedModel.toUpperCase()} — ${nOut} outputs detected`;
+        lines = [
+          `Ideal: <strong>${nOut} cores</strong> — each output trains as an independent model in parallel`,
+          `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
+        ];
+      } else {
+        title = `${selectedModel.toUpperCase()} — single output`;
+        lines = [
+          `Ideal: <strong>1 core</strong> — single-output GP fitting does not parallelise`,
+          `<strong>${avail}</strong> available on this machine`,
+        ];
+      }
+    } else if (selectedModel === "rf") {
+      title = "Random Forest";
+      lines = [
+        `Ideal: <strong>up to 8 cores</strong> — trees are built in parallel across all estimators`,
+        `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
+      ];
+    } else {
+      title = `${selectedModel ? selectedModel.toUpperCase() : "This model type"} — no parallelism`;
+      lines = [`Cores do not affect training speed for this model type`];
+      na = true;
+    }
+
+    coresPrompt.className = `cores-prompt${na ? " cores-prompt--na" : ""}`;
+    coresPrompt.innerHTML = `
+      <span class="cores-prompt__icon">⚡</span>
+      <div class="cores-prompt__body">
+        <p class="cores-prompt__title">${title}</p>
+        ${lines.map(l => `<p class="cores-prompt__line">${l}</p>`).join("")}
+      </div>`;
+  }
+
+  typeOptions.addEventListener("click", _updateCoresPrompt);
+  document.getElementById("cores-input")?.addEventListener("change", _updateCoresPrompt);
+  _updateCoresPrompt();
 
   // ── Save button ───────────────────────────────────────────────────────────────
   const saveBtn = el("button", {

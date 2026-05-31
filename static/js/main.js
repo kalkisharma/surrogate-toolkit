@@ -47,19 +47,6 @@ document.addEventListener("exercise:loaded", async (e) => {
 
 // ── Experience level ──────────────────────────────────────────────────────────
 
-/**
- * Apply an experience level to the document — sets data-experience on <body>
- * and syncs the level selector value.
- * @param {string} level  "beginner" | "intermediate" | "expert"
- */
-function _applyExperienceLevel(level) {
-  const valid = ["beginner", "intermediate", "expert"];
-  const safe  = valid.includes(level) ? level : "beginner";
-  document.body.dataset.experience = safe;
-  const sel = document.getElementById("level-select");
-  if (sel) sel.value = safe;
-}
-
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 (async () => {
@@ -68,8 +55,6 @@ function _applyExperienceLevel(level) {
   _initGlobalHeader();
   await refreshState();
   _updateCoresDisplay();
-  _applyExperienceLevel(getPath("session.experience_level") || "beginner");
-
   // If STATE already has datasets (e.g. after loading a .surrogate file),
   // restore the exploration view without requiring a new upload.
   const datasetsResp = await get("/api/data/datasets");
@@ -878,10 +863,9 @@ async function _refreshDatasetSwitcher() {
   nav.insertBefore(switcher, themeBtn);
 }
 
-/** Wire global header controls: theme, level, classification, cores, clear, load-file. */
+/** Wire global header controls: theme, classification, cores, clear, load-file. */
 function _initGlobalHeader() {
   const themeBtn = document.getElementById("theme-toggle");
-  const levelSel = document.getElementById("level-select");
   const classSel = document.getElementById("classification-select");
 
   // ── Settings gear dropdown ────────────────────────────────────────────────────
@@ -960,12 +944,6 @@ function _initGlobalHeader() {
     localStorage.setItem("theme", next);
   });
 
-  levelSel.addEventListener("change", async () => {
-    _applyExperienceLevel(levelSel.value);
-    await put("/api/state/session", { experience_level: levelSel.value });
-    await refreshState();
-  });
-
   const guideBtn = document.getElementById("guide-btn");
   if (guideBtn) {
     guideBtn.addEventListener("click", () => openGuide("glossary"));
@@ -997,11 +975,11 @@ function _initGlobalHeader() {
     const count = parseInt(coresInput.value, 10);
     if (!count || count < 1) return;
     const avail = getAvailableCores();
-    const over  = count > 4;
+    const over  = count > avail;
     coresInput.classList.toggle("input-caution", over);
     coresInput.title = over
-      ? "⚠ More than 4 processors may violate head-node policies"
-      : `${avail} logical processors available on server`;
+      ? `⚠ Exceeds ${avail} available processors`
+      : `${avail} logical processors available`;
   });
 
   coresInput.addEventListener("change", async () => {
