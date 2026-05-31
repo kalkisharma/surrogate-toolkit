@@ -8,8 +8,8 @@ PURPOSE: Kriging surrogate model — GPR with Matérn or Rational Quadratic kern
          differentiability (e.g. sharp transonic gradients, contact discontinuities).
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-18
-LAST MODIFIED: 2026-05-29
-VERSION: 1.2.0
+LAST MODIFIED: 2026-05-31
+VERSION: 1.3.0
 ================================================================================
 """
 
@@ -40,11 +40,12 @@ class KrigingModel(BaseSurrogateModel):
     95% CI error bars on parity plots and active learning.
     """
 
-    def __init__(self, kernel: str = "matern25", alpha: float = None, n_jobs: int = 1):
+    def __init__(self, kernel: str = "matern25", alpha: float = None, n_jobs: int = 1, n_restarts: int = 10):
         super().__init__("kriging")
         self._kernel_name = kernel
         self._alpha = float(alpha) if alpha is not None else GPR_DEFAULT_ALPHA
         self._n_jobs = int(n_jobs)
+        self._n_restarts = int(n_restarts)
         self._model = None  # built in fit() once n_features is known
 
     def fit(
@@ -89,12 +90,12 @@ class KrigingModel(BaseSurrogateModel):
         else:
             k = Matern(length_scale=ls, nu=2.5)
 
-        # sklearn's GaussianProcessRegressor does not accept n_jobs.
+        # Same parallelism constraint as GPRModel — see gpr_model.py for details.
         single_gpr = GaussianProcessRegressor(
             kernel=k,
             alpha=self._alpha,
             normalize_y=True,
-            n_restarts_optimizer=10,
+            n_restarts_optimizer=self._n_restarts,
             random_state=DEFAULT_RANDOM_STATE,
         )
         self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)

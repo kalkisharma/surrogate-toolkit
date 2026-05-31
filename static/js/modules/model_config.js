@@ -21,8 +21,8 @@ import { runDecisionTree } from "./learning_guide.js";
 import { getPath, getAvailableCores } from "../state.js";
 
 const HYPERPARAM_DEFAULTS = {
-  gpr:     { kernel: "rbf", alpha: 0.1 },
-  kriging: { kernel: "matern25", alpha: 0.1 },
+  gpr:     { kernel: "rbf", alpha: 0.1, n_restarts: 10 },
+  kriging: { kernel: "matern25", alpha: 0.1, n_restarts: 10 },
   rf:      { n_estimators: 100, max_depth: null, min_samples_leaf: 1, max_features: "sqrt" },
   rbf:     { kernel: "thin_plate_spline", smoothing: 0.001 },
   pce:     { order: 3 },
@@ -219,6 +219,11 @@ export async function initModelConfig(containerEl, onTrain) {
             <input id="hp-alpha" type="number" class="hyperparam-input" step="any" min="0.0001" max="10" value="${merged.alpha ?? 0.1}">
             <span class="hyperparam-hint">0.0001 – 10 — higher = more noise tolerance</span>
           </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Optimizer restarts</span>
+            <input id="hp-restarts" type="number" class="hyperparam-input" min="1" max="50" step="1" value="${merged.n_restarts ?? 10}">
+            <span class="hyperparam-hint">1 – 50 — more restarts find better kernel parameters, slower training</span>
+          </div>
         </div>`;
     } else if (modelType === "kriging") {
       hyperparamOuter.innerHTML = `
@@ -239,6 +244,11 @@ export async function initModelConfig(containerEl, onTrain) {
             <span class="hyperparam-label">Noise level (alpha)</span>
             <input id="hp-alpha" type="number" class="hyperparam-input" step="any" min="0.0001" max="10" value="${merged.alpha ?? 0.1}">
             <span class="hyperparam-hint">0.0001 – 10 — higher = more noise tolerance</span>
+          </div>
+          <div class="hyperparam-row">
+            <span class="hyperparam-label">Optimizer restarts</span>
+            <input id="hp-restarts" type="number" class="hyperparam-input" min="1" max="50" step="1" value="${merged.n_restarts ?? 10}">
+            <span class="hyperparam-hint">1 – 50 — more restarts find better kernel parameters, slower training</span>
           </div>
         </div>`;
     } else if (modelType === "rf") {
@@ -376,13 +386,17 @@ export async function initModelConfig(containerEl, onTrain) {
     if (selectedModel === "gpr") {
       const k = hyperparamOuter.querySelector("#hp-kernel");
       const a = hyperparamOuter.querySelector("#hp-alpha");
-      if (k) hp.kernel = k.value;
-      if (a) hp.alpha  = parseFloat(a.value) || 0.1;
+      const r = hyperparamOuter.querySelector("#hp-restarts");
+      if (k) hp.kernel    = k.value;
+      if (a) hp.alpha     = parseFloat(a.value) || 0.1;
+      if (r) hp.n_restarts = parseInt(r.value, 10) || 10;
     } else if (selectedModel === "kriging") {
       const k = hyperparamOuter.querySelector("#hp-kernel");
       const a = hyperparamOuter.querySelector("#hp-alpha");
-      if (k) hp.kernel = k.value;
-      if (a) hp.alpha  = parseFloat(a.value) || 0.1;
+      const r = hyperparamOuter.querySelector("#hp-restarts");
+      if (k) hp.kernel    = k.value;
+      if (a) hp.alpha     = parseFloat(a.value) || 0.1;
+      if (r) hp.n_restarts = parseInt(r.value, 10) || 10;
     } else if (selectedModel === "rf") {
       const n  = hyperparamOuter.querySelector("#hp-n-est");
       const d  = hyperparamOuter.querySelector("#hp-max-depth");

@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-29
-VERSION: 1.2.0
+LAST MODIFIED: 2026-05-31
+VERSION: 1.3.0
 ================================================================================
 """
 
@@ -33,11 +33,12 @@ class GPRModel(BaseSurrogateModel):
     dimension) so irrelevant inputs can be suppressed automatically.
     """
 
-    def __init__(self, kernel: str = "rbf", alpha: float = None, n_jobs: int = 1):
+    def __init__(self, kernel: str = "rbf", alpha: float = None, n_jobs: int = 1, n_restarts: int = 10):
         super().__init__("gpr")
         self._kernel_name = kernel
         self._alpha = float(alpha) if alpha is not None else GPR_DEFAULT_ALPHA
         self._n_jobs = int(n_jobs)
+        self._n_restarts = int(n_restarts)
         self._model = None  # built in fit() once n_features is known
 
     def fit(
@@ -84,14 +85,18 @@ class GPRModel(BaseSurrogateModel):
         else:
             k = RBF(length_scale=ls)
 
-        # sklearn's GaussianProcessRegressor does not accept n_jobs — restarts
-        # are always sequential. n_jobs on MultiOutputRegressor parallelises
-        # across output columns; for single-output models it has no effect.
+        # sklearn's GaussianProcessRegressor does not expose n_jobs for its
+        # internal optimizer restarts — each restart runs the same L-BFGS-B
+        # solver sequentially (ARD optimises all N length-scales jointly in one
+        # call, so restarts can't be split per-input either). Parallelism via
+        # n_jobs on MultiOutputRegressor is the only available path; it applies
+        # only when n_outputs > 1. Future: use joblib.Parallel to run restarts
+        # in parallel ourselves, bypassing sklearn's sequential loop.
         single_gpr = GaussianProcessRegressor(
             kernel=k,
             alpha=self._alpha,
             normalize_y=True,
-            n_restarts_optimizer=10,
+            n_restarts_optimizer=self._n_restarts,
             random_state=DEFAULT_RANDOM_STATE,
         )
         self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)
