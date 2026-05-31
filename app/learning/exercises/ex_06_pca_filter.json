@@ -3,7 +3,7 @@
   "title": "Input Filtering — VIF and PCA on Correlated Aerodynamic Inputs",
   "difficulty": "intermediate",
   "estimated_minutes": 25,
-  "description": "A wing aerodynamic dataset has 6 inputs: velocity, dynamic pressure, and Mach number are three ways to measure the same flight condition — highly correlated. Span and aspect ratio measure wing geometry — also correlated. You will use the Filter step to identify multicollinearity via VIF, then apply PCA to reduce 6 correlated inputs to 3 uncorrelated components before training. Read the 'Input Filtering & Dimensionality Reduction' topic in the Guide before starting.",
+  "description": "A wing aerodynamic dataset has 6 inputs: velocity, dynamic pressure, and Mach number are three ways to measure the same flight condition — highly correlated. Span and aspect ratio are geometrically related (aspect ratio scales with span in this dataset). You will use the Filter step to identify multicollinearity via VIF, then apply PCA to reduce 6 correlated inputs to 3 uncorrelated components before training. Read the 'Input Filtering & Dimensionality Reduction' topic in the Guide before starting.",
   "tags": ["input filtering", "PCA"],
   "dataset": "pca_correlated_6d.csv",
   "steps": [
@@ -64,17 +64,17 @@
     {
       "step_num": 5,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter. Click 'Analyze →'. Look at the VIF table. You should see very high VIF (> 100) for velocity, dynamic_q, and mach — confirming severe multicollinearity. span and aspect_ratio should show moderate VIF (5–15).",
+      "instruction": "Open Step 7 — Filter. Click 'Analyze →'. Look at the VIF table. You should see: velocity and mach with VIF > 1000 (nearly perfectly collinear — mach = velocity / speed_of_sound); dynamic_q with VIF ~40 (high, but lower because the V² relationship is nonlinear, so linear VIF underestimates it); span and aspect_ratio with VIF ~20 (aspect_ratio ≈ 2.5 × span in this dataset); aoa near 1 (independent).",
       "quiz": {
-        "question": "VIF = 145 for dynamic_q means:",
+        "question": "VIF = 40 for dynamic_q means:",
         "options": [
-          "dynamic_q explains 145% of the output variance",
-          "dynamic_q can be predicted from the other inputs with R² ≈ 0.993 — it is almost entirely redundant",
-          "The model trained with dynamic_q will have 145× more error",
+          "dynamic_q explains 40% of the output variance",
+          "dynamic_q can be predicted from the other inputs with R² ≈ 0.975 — it carries very little independent information",
+          "The model trained with dynamic_q will have 40× more error",
           "You should always remove inputs with VIF > 10"
         ],
         "correct_index": 1,
-        "explanation": "VIF = 1/(1 − R²), where R² is how well that input is predicted by all others. VIF = 145 means R² ≈ 1 − 1/145 ≈ 0.993. Nearly 99% of dynamic_q's variance is explained by the other inputs — it contributes almost nothing new. High VIF inputs are candidates for removal or PCA. The decision to remove is still yours — the tool flags, you decide."
+        "explanation": "VIF = 1/(1 − R²), where R² measures how well that input is predicted by all other inputs — not by the output. VIF = 40 means R² ≈ 1 − 1/40 = 0.975: 97.5% of dynamic_q's variance is already explained by the other inputs (mainly velocity and mach). It contributes almost nothing new. Note: the decision to remove or use PCA is yours — the tool flags, you decide."
       }
     },
     {
@@ -82,15 +82,15 @@
       "target_panel": "screen",
       "instruction": "Scroll to the bottom of the Filter panel and open the 'PCA Dimensionality Reduction' section. Set Components to 3 and click 'Preview PCA →'. Look at the explained-variance chart. PC1 and PC2 should capture the two correlated groups (speed and geometry). PC3 adds aoa's contribution.",
       "quiz": {
-        "question": "The PCA preview shows that 3 components explain 94% of variance. The suggested auto-threshold (≥90%) is also 3. What does this tell you?",
+        "question": "The PCA preview shows that 3 components explain >99% of variance. The suggested auto-threshold (≥90%) is also 3. What does this tell you?",
         "options": [
           "3 inputs contain all the information; the other 3 can be dropped safely",
-          "There are approximately 3 independent sources of variation in the 6 inputs — the correlated groups collapse into single components",
+          "There are exactly 3 independent sources of variation in the 6 inputs — the three correlated groups each collapse into one component",
           "The model will train 3× faster with 3 components",
           "You must use exactly 3 components or the model will be wrong"
         ],
         "correct_index": 1,
-        "explanation": "PCA reveals the intrinsic dimensionality of the input space. 6 correlated inputs contain only ~3 independent sources of information. PC1 captures the flight-speed cluster (velocity, q, Mach all vary together), PC2 captures the geometry cluster (span, aspect_ratio), and PC3 captures the remaining variation (mainly aoa). 94% retained means only 6% of total input variance is discarded."
+        "explanation": "PCA reveals the intrinsic dimensionality of the input space. 6 inputs with 3 internal correlation groups contain only ~3 independent sources of information. PC1 captures the flight-speed cluster (velocity, dynamic_q, mach all vary together). PC2 captures the geometry cluster (span, aspect_ratio). PC3 captures aoa, which is independent of both groups. >99% retained means the original 6 inputs genuinely reduce to 3 degrees of freedom."
       }
     },
     {

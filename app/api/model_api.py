@@ -586,7 +586,7 @@ def train():
         "source_filename":      meta.get("filename"),
         "input_columns":        input_cols,
         "output_columns":       output_cols,
-        "input_means":          {col: float((_clean if _clean is not None else df)[col].mean()) for col in input_cols},
+        "input_means":          {col: float(df[col].mean()) for col in input_cols},
         "input_mins":           {col: float(df[col].min()) for col in input_cols},
         "input_maxs":           {col: float(df[col].max()) for col in input_cols},
         "test_metrics":         test_metrics,
