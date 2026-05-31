@@ -6,8 +6,8 @@ PURPOSE: Blueprint and routes for /api/predict/*. Single-point and batch
          prediction against a trained surrogate model stored in STATE.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 0.9.2
+LAST MODIFIED: 2026-05-30
+VERSION: 1.0.0
 ================================================================================
 """
 
@@ -100,6 +100,41 @@ def _normalize_df_cols(df, input_cols: list, method: str, params: dict):
     return df
 
 
+# ─── PCA TRANSFORM HELPERS ────────────────────────────────────────────────────
+
+
+def _get_predict_cols(state) -> tuple:
+    """Return (input_cols_for_user, use_pca, pca_state) for the current session.
+
+    When PCA was applied, input_cols_for_user are the original physical column
+    names (velocity, mach, …).  The caller should accept these from the user,
+    normalize them, then call _pca_transform_row / _pca_transform_df.
+    """
+    meta      = state["datasets"]["primary"]["metadata"]
+    pca_state = state["surrogate_sessions"]["primary"].get("pca")
+    use_pca   = bool(meta.get("pca_applied", False)) and pca_state is not None
+    if use_pca:
+        return pca_state["original_inputs"], True, pca_state
+    results = state["surrogate_sessions"]["primary"]["models"].get("results", {})
+    return results.get("input_columns", []), False, None
+
+
+def _pca_transform_row(row: list, original_cols: list, norm_method: str,
+                       norm_params: dict, pca_model) -> list:
+    """Normalize one row then apply PCA — returns PC-coordinate list."""
+    row_norm = _normalize_row(row, original_cols, norm_method, norm_params)
+    X_pca    = pca_model.transform(np.array([row_norm]))
+    return X_pca[0].tolist()
+
+
+def _pca_transform_df(df, original_cols: list, norm_method: str,
+                      norm_params: dict, pca_model) -> np.ndarray:
+    """Normalize DataFrame columns then apply PCA — returns (n, n_components) array."""
+    df_scaled = _normalize_df_cols(df, original_cols, norm_method, norm_params)
+    X         = df_scaled[original_cols].values.astype(float)
+    return pca_model.transform(X)
+
+
 # ─── ROUTES ───────────────────────────────────────────────────────────────────
 
 
@@ -144,17 +179,19 @@ def predict_single():
             404,
         )
 
-    input_cols  = results["input_columns"]
     output_cols = results["output_columns"]
     meta        = state["datasets"]["primary"]["metadata"]
     norm_method = meta.get("normalization_method", "none")
     norm_params = meta.get("normalization_params", {})
 
+    # Resolve which columns the user must supply (original physical names when PCA applied)
+    user_cols, use_pca, pca_state = _get_predict_cols(state)
+
     data   = request.get_json(silent=True) or {}
     inputs = data.get("inputs", {})
 
     # ── Validate all input columns present ────────────────────────────────────
-    missing = [c for c in input_cols if c not in inputs]
+    missing = [c for c in user_cols if c not in inputs]
     if missing:
         return (
             jsonify({
@@ -167,7 +204,7 @@ def predict_single():
 
     # ── Parse values ──────────────────────────────────────────────────────────
     try:
-        row = [float(inputs[c]) for c in input_cols]
+        row = [float(inputs[c]) for c in user_cols]
     except (TypeError, ValueError) as exc:
         return (
             jsonify({
@@ -178,8 +215,12 @@ def predict_single():
             422,
         )
 
-    # ── Apply normalization (must match transform used during training) ────────
-    row = _normalize_row(row, input_cols, norm_method, norm_params)
+    # ── Apply normalization + optional PCA ────────────────────────────────────
+    if use_pca:
+        row = _pca_transform_row(row, user_cols, norm_method, norm_params,
+                                 pca_state["model"])
+    else:
+        row = _normalize_row(row, user_cols, norm_method, norm_params)
 
     # ── Predict ───────────────────────────────────────────────────────────────
     X     = np.array([row])                 # shape (1, n_inputs)
@@ -243,12 +284,15 @@ def predict_batch():
             404,
         )
 
-    input_cols     = results["input_columns"]
     output_cols    = results["output_columns"]
     classification = state["session"].get("classification", "Unclassified")
     meta           = state["datasets"]["primary"]["metadata"]
     norm_method    = meta.get("normalization_method", "none")
     norm_params    = meta.get("normalization_params", {})
+
+    # Resolve which columns the CSV must supply (original physical names when PCA applied)
+    user_cols, use_pca, pca_state = _get_predict_cols(state)
+    input_cols = results["input_columns"]   # PC names (or original if no PCA) — for output only
 
     # ── Validate file present ─────────────────────────────────────────────────
     if "file" not in request.files:
@@ -274,14 +318,14 @@ def predict_batch():
             422,
         )
 
-    # ── Validate required columns ─────────────────────────────────────────────
-    missing = [c for c in input_cols if c not in df.columns]
+    # ── Validate required columns (use user_cols — original names when PCA) ────
+    missing = [c for c in user_cols if c not in df.columns]
     if missing:
         return (
             jsonify({
                 "success": False, "error_code": "MISSING_CSV_COLUMNS",
                 "message": f"CSV is missing required input column(s): {', '.join(missing)}.",
-                "detail": f"Required: {', '.join(input_cols)}",
+                "detail": f"Required: {', '.join(user_cols)}",
                 "recoverable": True, "allowed_actions": ["retry"],
             }),
             422,
@@ -289,8 +333,12 @@ def predict_batch():
 
     # ── Build feature matrix ──────────────────────────────────────────────────
     try:
-        df_scaled = _normalize_df_cols(df, input_cols, norm_method, norm_params)
-        X = df_scaled[input_cols].values.astype(float)
+        if use_pca:
+            X = _pca_transform_df(df, user_cols, norm_method, norm_params,
+                                  pca_state["model"])
+        else:
+            df_scaled = _normalize_df_cols(df, user_cols, norm_method, norm_params)
+            X = df_scaled[user_cols].values.astype(float)
     except (ValueError, TypeError) as exc:
         return (
             jsonify({
@@ -306,12 +354,12 @@ def predict_batch():
 
     rows = []
     for i in range(len(df)):
-        row = {c: df.at[i, c] for c in input_cols}
+        row = {c: df.at[i, c] for c in user_cols}
         for j, col in enumerate(output_cols):
             row[col] = float(y_hat[i, j])
         rows.append(row)
 
-    all_cols = input_cols + output_cols
+    all_cols = user_cols + output_cols
 
     append_audit_event(state, "predict_batch", {
         "n_rows":         len(df),
@@ -325,7 +373,7 @@ def predict_batch():
         "success":        True,
         "rows":           rows,
         "columns":        all_cols,
-        "input_columns":  input_cols,
+        "input_columns":  user_cols,
         "output_columns": output_cols,
         "n_rows":         len(df),
         "model_type":     results["model_type"],

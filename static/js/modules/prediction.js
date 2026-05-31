@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/prediction.js
-// Version: 0.9.1
+// Version: 1.0.0
 // Description: Step 9 — Prediction & Inference. Single-point prediction
 //              (form → POST /api/predict/single) and batch prediction
 //              (CSV upload → POST /api/predict/batch → CSV download).
@@ -46,9 +46,14 @@ export async function initPrediction(containerEl) {
 function _render(containerEl, r) {
   clearEl(containerEl);
 
-  const inputCols  = r.input_columns;
+  // When PCA was applied, show original physical column names (not PC1/PC2/…).
+  // The backend accepts original values and applies the stored PCA transform internally.
+  const pcaApplied = r.pca_applied && r.pca_original_inputs?.length > 0;
+  const inputCols  = pcaApplied ? r.pca_original_inputs : r.input_columns;
+  const inputMeans = pcaApplied ? (r.pca_original_input_means || {}) : (r.input_means || {});
+  const inputMins  = pcaApplied ? (r.pca_original_input_mins  || {}) : (r.input_mins  || {});
+  const inputMaxs  = pcaApplied ? (r.pca_original_input_maxs  || {}) : (r.input_maxs  || {});
   const outputCols = r.output_columns;
-  const inputMeans = r.input_means || {};
   const modelLabel = r.model_type.toUpperCase();
 
   // ── Header ──────────────────────────────────────────────────────────────────
@@ -71,6 +76,14 @@ function _render(containerEl, r) {
      CSV with predicted outputs appended. This is the production use case: evaluating
      the surrogate across a full design grid in seconds.</p>`
   );
+
+  // ── PCA notice ───────────────────────────────────────────────────────────────
+  if (pcaApplied) {
+    const notice = el("div", { cls: "prediction-pca-notice" });
+    notice.innerHTML = `<strong>PCA active</strong> — enter original physical inputs below.
+      The ${r.input_columns.length}-component PCA transform is applied automatically before prediction.`;
+    containerEl.appendChild(notice);
+  }
 
   // ── Single-point section ─────────────────────────────────────────────────────
   const spSection = el("div", { cls: "results-section" });
@@ -117,6 +130,10 @@ function _render(containerEl, r) {
     });
     const mean = inputMeans[col];
     if (mean !== undefined) inp.value = parseFloat(mean.toPrecision(4));
+    const lo = inputMins[col], hi = inputMaxs[col];
+    if (lo !== undefined && hi !== undefined) {
+      inp.title = `Training range: ${parseFloat(lo.toPrecision(4))} – ${parseFloat(hi.toPrecision(4))}`;
+    }
     inputs[col] = inp;
     row.appendChild(label);
     row.appendChild(inp);

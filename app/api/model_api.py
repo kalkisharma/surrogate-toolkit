@@ -574,29 +574,41 @@ def train():
     if model_type in ("gpr", "kriging"):
         test_stds = model.predict_std(X_test).tolist()
 
+    # ── PCA metadata (for predict panel reverse mapping) ─────────────────────
+    _pca_state = state["surrogate_sessions"]["primary"].get("pca")
+    _pca_applied = bool(meta.get("pca_applied", False)) and _pca_state is not None
+    _orig_inputs = _pca_state["original_inputs"] if _pca_applied else None
+    _orig_df     = _clean if _clean is not None else df
+
     # ── Persist to STATE ──────────────────────────────────────────────────────
     results = {
-        "model_type":           model_type,
-        "hyperparams":          hyperparams,
-        "n_train":              int(len(X_train)),
-        "n_test":               int(len(X_test)),
-        "test_split":           float(test_split),
-        "cv_folds":             int(cv_folds),
-        "normalization_warning": _norm is None,
-        "source_filename":      meta.get("filename"),
-        "input_columns":        input_cols,
-        "output_columns":       output_cols,
-        "input_means":          {col: float(df[col].mean()) for col in input_cols},
-        "input_mins":           {col: float(df[col].min()) for col in input_cols},
-        "input_maxs":           {col: float(df[col].max()) for col in input_cols},
-        "test_metrics":         test_metrics,
-        "cv_results":           cv_results,
-        "warnings":             warnings,
+        "model_type":                model_type,
+        "hyperparams":               hyperparams,
+        "n_train":                   int(len(X_train)),
+        "n_test":                    int(len(X_test)),
+        "test_split":                float(test_split),
+        "cv_folds":                  int(cv_folds),
+        "normalization_warning":     _norm is None,
+        "source_filename":           meta.get("filename"),
+        "input_columns":             input_cols,
+        "output_columns":            output_cols,
+        "input_means":               {col: float(df[col].mean()) for col in input_cols},
+        "input_mins":                {col: float(df[col].min()) for col in input_cols},
+        "input_maxs":                {col: float(df[col].max()) for col in input_cols},
+        # PCA reverse-mapping fields — populated only when PCA was applied.
+        "pca_applied":               _pca_applied,
+        "pca_original_inputs":       _orig_inputs,
+        "pca_original_input_means":  {col: float(_orig_df[col].mean()) for col in _orig_inputs} if _orig_inputs else None,
+        "pca_original_input_mins":   {col: float(_orig_df[col].min())  for col in _orig_inputs} if _orig_inputs else None,
+        "pca_original_input_maxs":   {col: float(_orig_df[col].max())  for col in _orig_inputs} if _orig_inputs else None,
+        "test_metrics":              test_metrics,
+        "cv_results":                cv_results,
+        "warnings":                  warnings,
         # Raw arrays for parity and residual plots (shape: n_test × n_outputs).
-        "test_actuals":         y_test.tolist(),
-        "test_predictions":     y_pred_test.tolist(),
-        "test_inputs":          X_test.tolist(),
-        "test_stds":            test_stds,
+        "test_actuals":              y_test.tolist(),
+        "test_predictions":          y_pred_test.tolist(),
+        "test_inputs":               X_test.tolist(),
+        "test_stds":                 test_stds,
     }
     models_dict = state["surrogate_sessions"]["primary"]["models"]
     models_dict.pop("interpretation", None)

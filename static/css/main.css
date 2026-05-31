@@ -1985,6 +1985,16 @@ body,
 }
 
 /* ── Prediction (Step 9) ─────────────────────────────────────────────────────── */
+.prediction-pca-notice {
+  background: var(--color-accent-subtle, rgba(99,102,241,0.08));
+  border: 1px solid var(--color-accent, #6366f1);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-4);
+}
+.prediction-pca-notice strong { color: var(--color-text); }
 .prediction-form {
   display: flex;
   flex-direction: column;
