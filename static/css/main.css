@@ -2654,6 +2654,12 @@ details.screen-pca-wrap[open] .screen-pca-toggle::before { content: "▼"; }
 }
 .al-scatter-wrap { margin-bottom: var(--space-4); }
 .al-scatter-plot { width: 100%; }
+.al-scatter-loading {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  font-style: italic;
+  text-align: center;
+}
 .al-axis-row {
   display: flex;
   gap: var(--space-3);

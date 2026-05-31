@@ -129,6 +129,9 @@ export async function initActiveLearning(containerEl) {
 
   renderControls();
 
+  // Restore last result if the user navigated away and came back.
+  if (_lastResult) _renderResults(resultsDiv, _lastResult, inputCols);
+
   // Load history on init
   _loadHistory(historyDiv, inputCols);
 }
@@ -296,6 +299,7 @@ function _renderResults(container, resp, inputCols) {
     }
 
     const scatterEl = el("div", { cls: "al-scatter-plot" });
+    scatterEl.innerHTML = `<p class="al-scatter-loading">Loading scatter…</p>`;
     scatterWrap.appendChild(scatterEl);
     section.appendChild(scatterWrap);
 
