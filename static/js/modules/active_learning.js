@@ -282,14 +282,15 @@ function _renderResults(container, resp, inputCols) {
   // Scatter plot (with axis selectors if > 2 inputs)
   if (inputCols.length >= 2) {
     const scatterWrap = el("div", { cls: "al-scatter-wrap" });
+    let _cachedXTrain = null;
 
     if (inputCols.length > 2) {
       const axisRow = el("div", { cls: "al-axis-row" });
       axisRow.appendChild(_makeAxisSelector("X axis:", inputCols, _axisX, (i) => {
-        _axisX = i; _rerenderScatter(scatterEl, resp, inputCols);
+        _axisX = i; _rerenderScatter(scatterEl, resp, inputCols, _cachedXTrain);
       }));
       axisRow.appendChild(_makeAxisSelector("Y axis:", inputCols, _axisY, (i) => {
-        _axisY = i; _rerenderScatter(scatterEl, resp, inputCols);
+        _axisY = i; _rerenderScatter(scatterEl, resp, inputCols, _cachedXTrain);
       }));
       scatterWrap.appendChild(axisRow);
     }
@@ -298,9 +299,9 @@ function _renderResults(container, resp, inputCols) {
     scatterWrap.appendChild(scatterEl);
     section.appendChild(scatterWrap);
 
-    // Build X_train rows for scatter (we have bounds, reconstruct from resp.recommendations context)
-    // We need training data — fetch from model results
-    _fetchTrainAndRenderScatter(scatterEl, resp, inputCols);
+    _fetchTrainAndRenderScatter(scatterEl, resp, inputCols, (X_train) => {
+      _cachedXTrain = X_train;
+    });
   }
 
   // Recommendation table
@@ -309,15 +310,15 @@ function _renderResults(container, resp, inputCols) {
   container.appendChild(section);
 }
 
-async function _fetchTrainAndRenderScatter(scatterEl, resp, inputCols) {
+async function _fetchTrainAndRenderScatter(scatterEl, resp, inputCols, onFetched) {
   const modelResp = await get("/api/model/results");
   if (!modelResp.success) return;
 
-  // We need the raw training X values. Re-fetch from data endpoint.
   const dataResp = await get("/api/data/rows");
   if (!dataResp.success) return;
 
   const X_train = dataResp.rows.map(row => inputCols.map(col => row[col] ?? 0));
+  if (onFetched) onFetched(X_train);
   _rerenderScatter(scatterEl, resp, inputCols, X_train);
 }
 

@@ -38,7 +38,7 @@
     {
       "step_num": 4,
       "target_panel": "configure",
-      "instruction": "Configure a GPR model with test split 0.15 and 5 CV folds. Train it. GPR is preferred for active learning because its prediction variance directly quantifies uncertainty.",
+      "instruction": "Configure a GPR model with test split 0.15 and 5 CV folds. Train it. GPR is preferred for active learning because its prediction variance directly quantifies uncertainty. With only 50 rows in 4 dimensions, expect R² in the range 0.4–0.7 — this is normal for a sparse dataset and is exactly the motivation for running active learning to find where to sample next.",
       "quiz": {
         "question": "Why is GPR's uncertainty estimate particularly useful for active learning?",
         "options": [
