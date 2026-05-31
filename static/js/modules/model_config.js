@@ -513,12 +513,13 @@ export async function initModelConfig(containerEl, onTrain) {
 
     if (autoTuneOn) {
       // GridSearchCV parallelises param_combinations × CV_folds fits.
-      // GPR: 3 kernels × 4 alphas × 5 folds = 60. RF: much larger.
-      const gridFits = (selectedModel === "rf") ? "100+" : "60";
+      // GPR: 3 kernels × 4 alphas × 5 folds = 60. RF: ~360+.
+      // Ideal = all available cores; fits (60–360+) always exceed typical core count.
+      const gridFits = (selectedModel === "rf") ? "~360" : "~60";
       title = "Auto-Tune — GridSearchCV";
       lines = [
-        `Ideal: <strong>8–16 cores</strong> — each of the ~${gridFits} hyperparameter × fold combinations trains in parallel`,
-        `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
+        `Ideal: <strong>${avail} cores</strong> — ${gridFits} hyperparameter × fold combinations run in parallel`,
+        `Currently set to <strong>${current}</strong>`,
       ];
     } else if (selectedModel === "gpr" || selectedModel === "kriging") {
       const label = selectedModel.toUpperCase();

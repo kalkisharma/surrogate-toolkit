@@ -106,6 +106,25 @@ class GPRModel(BaseSurrogateModel):
         self._output_columns = list(output_columns)
         self._is_fitted = True
 
+    def build_estimator(self, n_features: int) -> None:
+        """Build self._model without fitting — required by the tune endpoint so
+        GridSearchCV receives a real estimator before fit() is ever called."""
+        ls = np.ones(n_features)
+        if self._kernel_name == "matern15":
+            k = Matern(length_scale=ls, nu=1.5)
+        elif self._kernel_name == "matern25":
+            k = Matern(length_scale=ls, nu=2.5)
+        else:
+            k = RBF(length_scale=ls)
+        single_gpr = GaussianProcessRegressor(
+            kernel=k,
+            alpha=self._alpha,
+            normalize_y=True,
+            n_restarts_optimizer=self._n_restarts,
+            random_state=DEFAULT_RANDOM_STATE,
+        )
+        self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)
+
     def predict(self, X: np.ndarray) -> np.ndarray:
         """Return point predictions for X.
 

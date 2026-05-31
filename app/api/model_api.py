@@ -280,7 +280,11 @@ def tune():
     y = df[output_cols].values
 
     # ── GridSearchCV ──────────────────────────────────────────────────────────
-    model      = _make_model(model_type, n_jobs=n_jobs)
+    model = _make_model(model_type, n_jobs=n_jobs)
+    # GPR/Kriging build self._model lazily in fit() once n_features is known.
+    # GridSearchCV needs the estimator object before any fit() call.
+    if hasattr(model, "build_estimator"):
+        model.build_estimator(X.shape[1])
     param_grid = model.get_param_grid()
 
     if not param_grid:
