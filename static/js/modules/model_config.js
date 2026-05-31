@@ -488,26 +488,37 @@ export async function initModelConfig(containerEl, onTrain) {
   form.appendChild(coresPrompt);
 
   function _updateCoresPrompt() {
-    const avail   = getAvailableCores() || "?";
-    const current = parseInt(document.getElementById("cores-input")?.value || "1", 10);
-    const activeKey = getPath("datasets.active_dataset_key");
-    const outCols   = getPath(`datasets._datasets.${activeKey}.metadata.output_columns`, []);
-    const nOut      = outCols.length;
+    const avail      = getAvailableCores() || "?";
+    const current    = parseInt(document.getElementById("cores-input")?.value || "1", 10);
+    const activeKey  = getPath("datasets.active_dataset_key");
+    const outCols    = getPath(`datasets._datasets.${activeKey}.metadata.output_columns`, []);
+    const nOut       = outCols.length;
+    const autoTuneOn = !!hyperparamOuter.querySelector("#hp-autotune")?.checked;
 
     let title, lines, na = false;
 
-    if (selectedModel === "gpr" || selectedModel === "kriging") {
+    if (autoTuneOn) {
+      // GridSearchCV parallelises param_combinations × CV_folds fits.
+      // GPR: 3 kernels × 4 alphas × 5 folds = 60. RF: much larger.
+      const gridFits = (selectedModel === "rf") ? "100+" : "60";
+      title = "Auto-Tune — GridSearchCV";
+      lines = [
+        `Ideal: <strong>8–16 cores</strong> — each of the ~${gridFits} hyperparameter × fold combinations trains in parallel`,
+        `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
+      ];
+    } else if (selectedModel === "gpr" || selectedModel === "kriging") {
+      const label = selectedModel.toUpperCase();
       if (nOut > 1) {
-        title = `${selectedModel.toUpperCase()} — ${nOut} outputs detected`;
+        title = `${label} — ${nOut} outputs detected`;
         lines = [
           `Ideal: <strong>${nOut} cores</strong> — each output trains as an independent model in parallel`,
           `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
         ];
       } else {
-        title = `${selectedModel.toUpperCase()} — single output`;
+        title = `${label} — single output, ARD kernel`;
         lines = [
-          `Ideal: <strong>1 core</strong> — single-output GP fitting does not parallelise`,
-          `<strong>${avail}</strong> available on this machine`,
+          `Ideal: <strong>up to 10 cores</strong> — each of the 10 optimizer restarts (used to find the best ARD length-scales) runs in parallel`,
+          `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
         ];
       }
     } else if (selectedModel === "rf") {
@@ -532,6 +543,7 @@ export async function initModelConfig(containerEl, onTrain) {
   }
 
   typeOptions.addEventListener("click", _updateCoresPrompt);
+  hyperparamOuter.addEventListener("change", _updateCoresPrompt);
   document.getElementById("cores-input")?.addEventListener("change", _updateCoresPrompt);
   _updateCoresPrompt();
 
@@ -583,10 +595,14 @@ export async function initModelConfig(containerEl, onTrain) {
   const compareLabelEl = el("div", { cls: "model-config-section-label" });
   compareLabelEl.textContent = "Compare all models";
   const compareDesc = el("p", { cls: "section-desc", text: "Train all 6 model types with default hyperparameters on the same data split and compare accuracy side-by-side." });
+  const compareNote = el("p", { cls: "cores-prompt__line", text: "" });
+  compareNote.innerHTML = `⚡ Trains 6 models sequentially — more cores speeds each individual model (GPR benefits most). Set Cores in the header before running.`;
+  compareNote.style.cssText = "font-size:var(--text-xs);color:var(--color-text-muted);margin:var(--space-1) 0 var(--space-2)";
   const compareBtn = el("button", { cls: "btn btn-secondary", text: "Compare All Models", id: "model-compare-btn" });
   const compareResultsDiv = el("div", { id: "model-compare-results" });
   compareSection.appendChild(compareLabelEl);
   compareSection.appendChild(compareDesc);
+  compareSection.appendChild(compareNote);
   compareSection.appendChild(compareBtn);
   compareSection.appendChild(compareResultsDiv);
   containerEl.appendChild(compareSection);
@@ -654,6 +670,11 @@ export async function initModelConfig(containerEl, onTrain) {
   stratRow.appendChild(stratLabel);
   stratRow.appendChild(stratSel);
   ensembleSection.appendChild(stratRow);
+
+  const ensNote = el("p", { cls: "" });
+  ensNote.innerHTML = `⚡ Each component model trains independently — more cores speeds each one (GPR/Kriging benefit most from 8–10 cores).`;
+  ensNote.style.cssText = "font-size:var(--text-xs);color:var(--color-text-muted);margin:var(--space-2) 0 var(--space-1)";
+  ensembleSection.appendChild(ensNote);
 
   const ensTrainBtn  = el("button", { cls: "btn btn-primary", text: "Train Ensemble →", id: "ens-train-btn" });
   const ensStatusDiv = el("div", { cls: "ens-status-note", id: "ens-status-note" });
@@ -881,6 +902,11 @@ export async function initModelConfig(containerEl, onTrain) {
     methodSel.addEventListener("change", () => {
       baseRow.style.display = methodSel.value === "bridge" ? "" : "none";
     });
+
+    const mfNote = el("p", { cls: "" });
+    mfNote.innerHTML = `⚡ Bridge trains an LF surrogate + an RF error model; Co-Kriging trains GPR models — both benefit from more cores. GPR/Kriging: up to 10 cores.`;
+    mfNote.style.cssText = "font-size:var(--text-xs);color:var(--color-text-muted);margin:var(--space-2) 0 var(--space-1)";
+    mfSection.appendChild(mfNote);
 
     const mfTrainBtn  = el("button", { cls: "btn btn-primary", text: "Train Multi-Fidelity →", id: "mf-train-btn" });
     const mfStatusDiv = el("div", { cls: "mf-status-note", id: "mf-status-note" });
