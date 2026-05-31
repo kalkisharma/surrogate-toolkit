@@ -13,9 +13,202 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete — Phases 12 & 13 delivered; 14, 15, 16 complete |
-| **M4** | v4.0.0 | 17–23 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17, 19, 20 complete |
+| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.5.10] — 2026-05-30
+
+### Active learning coverage scatter fixes
+
+#### Fixed
+
+- `active_learning.js` — `X_train` now cached in module closure so axis-selector re-renders retain all training dots and preserve the full coordinate range.
+- `active_learning.js` — Last coverage result restored on panel re-init so recommendation markers persist after navigating away and returning.
+- `active_learning.js` — Loading placeholder shown while scatter data fetches; prevents blank chart flash.
+- `main.css` — `.al-scatter-loading` style added.
+
+---
+
+## [3.5.9] — 2026-05-30
+
+### PCA visibility in results panel + predict NameError fix
+
+#### Fixed
+
+- `prediction_api.py` — NameError `'input_cols'` → `'user_cols'` in audit event after PCA predict refactor.
+
+#### Added
+
+- `results.js` — PCA info banner in Results metrics tab: lists original input column names and component count retained. Model Configuration card shows "Preprocessing: PCA — N components."
+- `main.css` — `.results-pca-notice` banner style (matches predict panel banner).
+
+---
+
+## [3.5.8] — 2026-05-30
+
+### Fix active learning scatter collapse after PCA
+
+#### Fixed
+
+- `data_api.py` — Added `?source=working` query parameter to `GET /api/data/rows`. When `source=working`, the endpoint returns the normalized + PCA-transformed DataFrame instead of the raw clean DataFrame. After PCA apply, `input_columns` contain PC names that are not present in the clean DataFrame, so training points were collapsing to (0,0). Active learning scatter now requests `?source=working` to align training-point coordinates with recommendation coordinates, which are also in PC space.
+- `active_learning.js` — `_fetchTrainAndRenderScatter` uses `?source=working` parameter.
+
+---
+
+## [3.5.7] — 2026-05-30
+
+### Predict panel uses original physical inputs after PCA
+
+#### Fixed / Changed
+
+- `prediction_api.py` — After PCA apply, the Predict panel previously exposed PC1/PC2/PC3 fields with no physical meaning to the engineer. Now `_get_predict_cols()` detects `pca_applied`; `_pca_transform_row()` / `_pca_transform_df()` apply normalization + PCA internally. Engineers enter original column names (velocity, mach, span…); the backend handles the full transform chain automatically.
+- `model_api.py` — Results dict extended with `pca_applied`, `pca_original_inputs`, `pca_original_input_means`, `pca_original_input_mins`, `pca_original_input_maxs` (all from the unnormalized clean DataFrame).
+- `prediction.js` — Uses `pca_original_inputs` when `pca_applied`; shows a PCA notice banner; adds training-range tooltip to each input field.
+- `main.css` — `.prediction-pca-notice` banner style.
+
+---
+
+## [3.5.6] — 2026-05-30
+
+### Exercise 6 fixes + PCA input_means KeyError
+
+#### Fixed
+
+- `model_api.py` `POST /api/model/train` — `input_means` was reading from `_clean` (original columns) instead of the current working DataFrame. After PCA apply, the working DataFrame has PC columns; reading from `_clean` raised `KeyError 'PC1'`. Fixed to read from `df` (PCA-transformed).
+- `pca_correlated_6d.csv` — Regenerated: `aspect_ratio = 2.5 × span + noise` so VIF for span/AR is ~20; velocity/mach dynamic_q group yields VIF > 1000. Previous generation had insufficient correlation structure.
+- `ex_06_pca_filter.json` — Quiz values corrected to match regenerated dataset (VIF ≈ 145 → 40, PCA variance claim 94% → >99%).
+
+---
+
+## [3.5.5] — 2026-05-30
+
+### Exercise 5 fixes — axis-change scatter bug + sparse R² warning
+
+#### Fixed
+
+- `active_learning.js` — X_train was not cached in the axis-selector closure; changing the scatter X-axis discarded training point data and collapsed all markers. `X_train` now captured once at load and reused on re-render.
+
+#### Changed
+
+- `ex_05_active_learning.json` step 4 — Instruction now explicitly warns that R² 0.4–0.7 is expected for a 50-row sparse dataset; prevents beginner confusion when the model appears to underperform.
+
+---
+
+## [3.5.4] — 2026-05-29
+
+### Exercise 4 fixes + GPR/Kriging ARD kernels + n_jobs multi-output parallelism
+
+#### Fixed
+
+- `app/learning/datasets/ishigami_5d.csv` — Regenerated with 300-row Latin Hypercube sample (was 200 random uniform rows); range corrected to [−π, π] per the Ishigami function definition.
+- `ex_04_sensitivity.json` — Quiz questions rewritten to remove forward references to steps not yet completed; R² acceptance threshold lowered to 0.85; OAT step wording clarified; answer indices A/C corrected to 1/3.
+
+#### Added
+
+- `gpr_model.py` / `kriging_model.py` — **ARD (Automatic Relevance Determination) kernels**: per-dimension length-scales are now built and fitted during `model.fit()`, allowing the GP to automatically down-weight uninformative inputs. `n_restarts_optimizer` raised to 10 for robust kernel optimization. `n_jobs` threaded through `MultiOutputRegressor` for parallel multi-output fitting.
+- `model_api.py` — Passes `n_jobs` (from session Cores setting) to `GPRModel` and `KrigingModel` constructors.
+- `state_api.py` — `GET /api/state/` response now includes `available_cores` (`os.cpu_count()`).
+- `state.js` — `getAvailableCores()` exported; updated by `refreshState`.
+- `main.js` — `_updateCoresDisplay()` reads server core count, shows "of N available" hint next to the Cores input.
+- `charts.js` — OAT y-axis: `automargin`, `exponentformat="e"`, left margin 64px.
+
+---
+
+## [3.5.3] — 2026-05-29
+
+### Learning Guide — Symbols tab, Equations tab, rich HTML rendering
+
+#### Added
+
+- **Symbols tab** in Learning Guide modal — `app/learning/symbols.json`; searchable reference table of Greek letters, math notation, subscripts/superscripts, and abbreviations. `GET /api/learning/symbols`.
+- **Equations tab** in Learning Guide modal — `app/learning/equations.json`; 10 curated equations with HTML-rendered formulas, where-clauses, and engineering notes. `GET /api/learning/equations`.
+- `learning_api.py` — Two new endpoints: `GET /api/learning/symbols`, `GET /api/learning/equations`.
+- `learning_guide.js` — Two new tabs wired up; tab switcher extended; `_renderSymbols()` and `_renderEquations()` renderers added with live search for Symbols tab.
+- `learning_mode.css` / `main.css` — Symbols table styles, Equations card styles, sub/sup/code inline styles for primer body.
+
+#### Fixed
+
+- Rich HTML rendering across all guide content: topic section bodies, glossary definitions, model descriptions, exercise instructions, and quiz content now render `<sub>`, `<sup>`, `<code>`, `<strong>` tags correctly instead of escaping them as plain text.
+- Primer bullet alignment — `ul`, `li`, `p` spacing added to `.primer__body` so multi-paragraph primers no longer collapse to a single run-on block.
+
+---
+
+## [3.5.2] — 2026-05-29
+
+### Normalize/train data-quality guards
+
+#### Fixed
+
+- `data_api.py` `POST /api/data/normalize` — NaN and Inf values in `sample_rows` are now sanitized to `null` before `jsonify`, preventing an "unreadable response (HTTP 200)" crash when the clean DataFrame contained infinite values from a log-transform on zero-valued columns.
+- `model_api.py` `POST /api/model/train` — X and y arrays are validated for NaN/Inf before being passed to sklearn. Returns a 422 with a list of offending column names instead of an unhandled 500.
+
+#### Added
+
+- `normalization.js` — `onApplied` callback fires after a successful normalize response.
+- `main.js` — `onApplied` wired to set `stepCompleted["normalize"]` and update `_currentNorm`, so the sidebar shows a green check immediately after normalization succeeds without requiring a page interaction.
+
+---
+
+## [3.5.1] — 2026-05-28
+
+### Clean step — fix stale null counts in Assign + clarify Keep option
+
+#### Fixed
+
+- `main.js` — `onClean` handler now re-fetches `GET /api/data/summary` after any cleaning operation and syncs `meta.null_counts` and `meta.n_rows` on the active dataset. The Assign panel (column designation) was previously showing pre-cleaning null counts when the user navigated there after applying null imputation.
+
+#### Changed
+
+- `data_cleaning.js` — "Keep (flag only)" strategy description rewritten to clarify it is a no-op: outliers are already visible in the scatter matrix by default and no rows are dropped. Removes prior ambiguous wording that implied visual highlighting was applied.
+
+---
+
+## [3.5.0] — 2026-05-27
+
+### Phase 21 (partial) — Clean panel: per-column null breakdown + outlier status line
+
+#### Added
+
+- `data_cleaning.js` — Null card now shows a per-column breakdown: which columns contain missing values and how many, so engineers know exactly where to focus before choosing a strategy.
+- `data_cleaning.js` — Outlier card shows a live "N rows still flagged — click Apply to continue" status line after each drop, updating the checklist count in place without a full panel reload.
+- `main.css` — `.clean-null-cols`, `.clean-outlier-status` styles.
+
+---
+
+## [3.4.9] — 2026-05-27
+
+### Exercise 2 fixes + quiz/config card contrast
+
+#### Fixed
+
+- `ex_02_model_selection.json` step 2 — Scatter instruction rewritten; model type primer added before the quiz question.
+- `ex_02_model_selection.json` step 5 — CV R² quiz rewritten to distinguish cross-validation R² from training R² (a common beginner confusion).
+- `ex_02_model_selection.json` step 6 — "Configure" step name corrected to "Model"; quiz correct answer updated to GPR > RF > Linear (was incorrectly GPR ≈ RF).
+- `main.css` — Quiz correct/incorrect colors darkened for light-mode contrast (`#15803d` / `#b91c1c`).
+- `main.css` — Results configuration card uses surface background + border; was invisible in light mode.
+
+---
+
+## [3.4.8] — 2026-05-27
+
+### Phase 21 — Exercise walkthrough polish & training guardrails
+
+#### Added
+
+- `results.js` — **Normalization warning banner**: yellow banner shown in Results when the trained model used raw (un-normalized) data. Message: "Normalization was not applied — results may be unreliable. Return to the Normalize step and click Apply, then retrain."
+- `results.js` — **Model configuration summary card** alongside metrics: model type, kernel, alpha, test split fraction, k-fold count. Gives engineers an at-a-glance record of what they trained.
+
+#### Changed
+
+- `ex_01_basic_gpr.json` step 5 (Normalize) — Instruction rewritten in plain language: explains why Min-Max is chosen over Z-Score for bounded inputs; adds explicit "Click Apply before moving to the next step" prompt.
+- `ex_01_basic_gpr.json` step 6 (Configure) — Beginner-friendly GPR preface added before the quiz: briefly explains what GPR is and why it suits smooth, low-sample datasets.
+- `ex_01_basic_gpr.json` step 7 (Results) — Overfitting/underfitting defined inline in learning-mode primer.
+- `notifications.css` — Light-mode toast variants added with high-contrast text on tinted backgrounds; green success toast text previously hard to read against the green background.
+- `gpr_model.py` — `n_restarts_optimizer` raised from 0 to 5 to reduce degenerate kernel fits on training sets with complex structure.
+- `docs/PHASES.md` — Phase 21 defined; Phases 22–24 (Authentication, Sharing, HPC) renumbered from 21–23.
 
 ---
 

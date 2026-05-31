@@ -1,6 +1,6 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-27 (Phase 21 added — exercise walkthrough polish & training guardrails)
+**Last updated:** 2026-05-31 (Phase 21 complete; ex_06/ex_07, ARD kernels, Symbols/Equations tabs documented)
 **Total phases:** 24 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
@@ -13,7 +13,7 @@
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In definition |
+| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
 
 ---
 
@@ -504,11 +504,11 @@
 ---
 
 ### Phase 13 — Guided Learning & Reference Content
-**Status:** ✅ Complete (Phase 13A) | **Version:** v3.0.0
+**Status:** ✅ Complete | **Version:** v3.0.0 (Phase 13A) + v3.5.3 (Phase 13B — Symbols, Equations)
 
 **Purpose:** Complete the teaching tool mandate with curated learning content, a searchable glossary, a model selection guide, and interactive decision trees for surrogate and CV choice.
 
-**Scope delivered (Phase 13A):**
+**Scope delivered (Phase 13A — v3.0.0):**
 
 *Learning Content (10 JSON files, all populated):*
 - `glossary.json` — 50 terms across 11 categories with plain-language definitions
@@ -529,25 +529,30 @@
 *Inline integration:*
 - Step 7 — Configure Training: collapsible "Help me choose" model selection decision tree (Intermediate/Expert only)
 
-**Deferred to M4 (Phase 13B):**
-- Exercise / quiz system — guided workflow scripts, synthetic datasets, quiz components, progress tracking
+**Scope delivered (Phase 13B — v3.5.3):**
+
+*Reference tabs (Symbols and Equations) added to Guide modal:*
+- **Symbols tab** — `app/learning/symbols.json`; searchable reference table of Greek letters, math notation, subscripts/superscripts, and abbreviations used throughout the toolkit. `GET /api/learning/symbols`.
+- **Equations tab** — `app/learning/equations.json`; 10 curated equations with HTML-rendered formulas, where-clauses, and engineering notes. `GET /api/learning/equations`.
+- Rich HTML rendering fixed across all guide tabs — sub/sup/code/strong tags now render in topic bodies, glossary definitions, model descriptions, exercise instructions, and quiz content.
 
 **Backend:**
-- `app/api/learning_api.py` — new; Blueprint at `/api/learning`
+- `app/api/learning_api.py` — new; Blueprint at `/api/learning`; `GET /symbols` and `GET /equations` added in v3.5.3
 
 **Frontend:**
-- `static/js/modules/learning_guide.js` — guide modal, decision tree runner
+- `static/js/modules/learning_guide.js` — guide modal, decision tree runner, Symbols and Equations tabs
 - `static/js/modules/model_config.js` — collapsible inline decision tree
 
 **Dependencies:** Phase 12 (experience levels gate inline guide to Intermediate/Expert).
 
-**Definition of done (Phase 13A):**
+**Definition of done:**
 - All 10 learning JSON files populated with accurate content
 - Glossary returns 50+ terms; search filters correctly
 - Model Guide shows all 7 model types with full detail
 - Decision trees walk to a recommendation in ≤ 5 clicks
 - "? Guide" button visible in all experience levels; modal opens and tab-switches correctly
 - Inline model selection guide visible in Intermediate/Expert; hidden in Beginner
+- Symbols tab returns searchable notation table; Equations tab renders HTML formulas correctly
 - All existing tests pass
 
 ---
@@ -564,6 +569,11 @@
 - Radial Basis Functions (RBF): thin-plate spline, multiquadric (scipy.interpolate.RBFInterpolator)
 - Polynomial Chaos Expansion (PCE): analytical representation with free sensitivity indices as a by-product (chaospy); best for smooth, well-behaved responses with known input distributions
 - New dependencies: `chaospy`
+
+*ARD kernels (added v3.5.4):*
+- GPR and Kriging now use **Automatic Relevance Determination** kernels — each input dimension gets its own length-scale, fitted during `model.fit()`. This lets the model automatically weight uninformative inputs down without requiring manual column removal.
+- `n_restarts_optimizer=10` for both GPR and Kriging to avoid degenerate kernel fits on complex response surfaces.
+- `n_jobs` wired from session Cores setting into `MultiOutputRegressor` for parallel multi-output fitting.
 
 *Model Selection Decision Tree:*
 - `decision_trees/model_selection.json` — conditional logic: dataset size, smoothness, interpretability needs, multi-output count, computational budget
@@ -681,16 +691,19 @@
 
 **Scope:**
 
-*Exercises (5):*
+*Exercises (7):*
 - `ex_01_basic_gpr` — 2-input smooth quadratic → full upload→predict workflow, beginner
 - `ex_02_model_selection` — 3-input nonlinear response, GPR vs RF vs Linear comparison, intermediate
 - `ex_03_data_cleaning` — dataset with deliberate nulls, outliers, skewed column → cleaning decision-making, beginner
 - `ex_04_sensitivity` — 5-input Ishigami function → Sobol S₁ vs Sₜ interpretation, intermediate
 - `ex_05_active_learning` — sparse 4-input dataset → coverage vs objective mode trade-off, intermediate
+- `ex_06_pca_filter` — 6-input correlated dataset → VIF identification + PCA apply + GPR in PC space, intermediate *(added during Phase 18 delivery)*
+- `ex_07_multifidelity` — LF/HF dataset pair → Bridge Correction in Compare step, intermediate *(added during Phase 18 delivery)*
 
-*Synthetic datasets (5 CSVs in `app/learning/datasets/`):*
+*Synthetic datasets (7 CSVs in `app/learning/datasets/`):*
 - Each generated analytically (NumPy); no real program data
-- Row counts: 50–200 rows, sized for fast training (<10 s GPR)
+- Row counts: 50–300 rows, sized for fast training (<10 s GPR)
+- `pca_correlated_6d.csv` and `multifidelity_lf.csv`/`multifidelity_hf.csv` added with Phase 18
 
 *Exercise JSON schema (`app/learning/exercises/<id>.json`):*
 ```json
@@ -925,7 +938,7 @@
 ---
 
 ### Phase 21 — Exercise Walkthrough Polish & Training Guardrails
-**Status:** 🔲 Not started | **Version:** v3.5.0
+**Status:** ✅ Complete | **Version:** v3.4.8 → v3.5.10
 
 **Purpose:** Fix beginner UX gaps and missing guardrails discovered during the first end-to-end walkthrough of Exercise 1. Eight targeted improvements across exercise instructions, learning-mode text, training results, and UI styling.
 
@@ -958,12 +971,29 @@
 
 **Dependencies:** Phase 17 (exercise JSON schema and runner). Phase 4 (training result envelope).
 
-**Definition of done:**
+**Extended scope delivered (v3.5.0 → v3.5.10):**
+- Clean panel: per-column null breakdown showing which columns have missing values and counts; outlier card shows "N still flagged" status after each drop without full panel reload
+- Clean step: `onClean` re-fetches `/api/data/summary` and syncs `meta.null_counts` and `meta.n_rows` so Assign panel always reflects post-cleaning state; "Keep (flag only)" option description rewritten for clarity
+- Normalize/train data-quality guards: normalize endpoint sanitizes NaN/Inf before jsonify; train endpoint validates X/y for NaN/Inf and returns 422 with column names instead of unhandled 500; normalization.js sidebar green check wired via `onApplied` callback
+- Learning Guide: Symbols tab (searchable notation reference), Equations tab (10 HTML-rendered equations) — see Phase 13B
+- Exercise 2: rewritten quiz questions for CV vs training R² distinction; correct answer ordering fixed
+- Exercise 4: Ishigami dataset regenerated (300-row LHS, correct [−π,π] range); quiz forward references removed; R² threshold corrected to 0.85
+- Exercise 5: sparse R² expectation (0.4–0.7) documented in step instruction; axis-change scatter bug fixed (X_train cached in closure)
+- Exercise 6 + PCA pipeline hardening (v3.5.6–v3.5.10):
+  - `pca_correlated_6d.csv` regenerated with correct VIF structure; exercise quiz values corrected
+  - `model_api.py`: `input_means` KeyError on PCA train fixed (read from PCA df, not clean df)
+  - `prediction_api.py`: predict panel uses original physical column names after PCA; backend applies PCA transform automatically
+  - `data_api.py`: `?source=working` param returns PCA-transformed df for active learning scatter alignment
+  - `results.js`: PCA info banner shows original inputs and component count; Model Configuration card shows preprocessing mode
+  - Coverage scatter: X_train cached in closure; last result restored on re-init; loading placeholder added
+
+**Definition of done:** ✅
 - Exercise 1 walkthrough completes without beginner confusion at Normalize, Configure, or Predict steps
 - Training without normalization shows yellow warning banner in Results
 - Model config (type, kernel, alpha, splits) visible in Results metrics tab
 - Green toast text readable in both light and dark mode
-- All existing 229 tests pass
+- After PCA apply: Predict panel shows physical column names; Results panel shows PCA banner; active learning scatter aligns training points with recommendations
+- All existing tests pass
 
 ---
 
