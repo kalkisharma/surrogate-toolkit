@@ -45,11 +45,13 @@ _TOPIC_FILES = {
     "input_filtering":      "input_filtering.json",
     "multifidelity":        "multifidelity.json",
     "model_troubleshooting": "model_troubleshooting.json",
+    "optimization":          "optimization.json",
 }
 
 _GUIDE_FILES = {
-    "model_selection": os.path.join("decision_trees", "model_selection.json"),
-    "cv_selection":    os.path.join("decision_trees", "cv_selection.json"),
+    "model_selection":   os.path.join("decision_trees", "model_selection.json"),
+    "cv_selection":      os.path.join("decision_trees", "cv_selection.json"),
+    "kernel_selection":  os.path.join("decision_trees", "kernel_selection.json"),
 }
 
 

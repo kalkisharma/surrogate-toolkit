@@ -1,0 +1,28 @@
+{
+  "sections": [
+    {
+      "title": "What the Optimizer Does",
+      "body": "The Optimization panel (Step 11) uses your trained surrogate as a fast stand-in for the expensive simulation. Instead of running the simulator thousands of times, the optimizer queries the surrogate — which evaluates in microseconds — to search the input space for the combination of inputs that minimises or maximises your chosen output. This is called surrogate-based optimization. The key requirement is a well-fitted surrogate (R² ≥ 0.90 on the test set) before running the optimizer. Optimizing on a poorly fitted surrogate will find the best input according to an inaccurate model, not the true best design."
+    },
+    {
+      "title": "Single-Objective vs. Multi-Objective",
+      "body": "Single-objective optimization finds the input combination that minimises or maximises one output column. The result is a single best point. Multi-objective optimization optimises two or more output columns simultaneously — but because improving one output often worsens another (e.g. reducing drag increases weight), there is no single best point. Instead, the optimizer finds the Pareto front: the set of designs where no output can be improved without degrading another. Multi-objective runs take longer because the optimizer must explore trade-off space rather than converging to a single point. Use single-objective when one output dominates the design goal; use multi-objective when trade-offs between competing outputs need to be visualised and communicated."
+    },
+    {
+      "title": "Reading the Pareto Front",
+      "body": "The Pareto front plot shows all non-dominated designs from the optimization run. A design is non-dominated if no other design is better on all objectives simultaneously. Points on the front represent optimal trade-offs — moving along the front always improves one objective at the expense of another. The shape of the front reveals the nature of the trade-off: a tight, steeply curved front means a small gain in one objective costs a large loss in the other; a nearly flat front means both objectives can improve together over a wide range of inputs. Designs far from the front (dominated solutions) were beaten by at least one Pareto-front design on all objectives and can be ignored."
+    },
+    {
+      "title": "Constraint Handling",
+      "body": "The optimizer supports inequality constraints — for example, requiring that predicted structural stress stays below a material yield limit, or that fuel burn does not exceed a mission budget. Constraints are specified per output column with a direction (≤ or ≥) and a threshold value. The optimizer penalises designs that violate constraints, excluding them from the Pareto front. If no feasible designs exist (the constraint cannot be satisfied anywhere in the input space), the optimizer will return an empty or near-empty Pareto front — a signal that either the constraint is too tight or the surrogate's predicted output range does not reach the threshold."
+    },
+    {
+      "title": "Parallelism and Cores",
+      "body": "The optimization loop evaluates many candidate solutions at each iteration. These candidate evaluations are independent and can run in parallel across multiple cores. The Cores setting in the header controls this — 4–8 cores is the recommended range for the optimizer, giving near-linear speedup up to the number of cores. Beyond that, the overhead of coordinating parallel workers outweighs the benefit. Because the surrogate itself is cheap to evaluate, the bottleneck is the acquisition function optimisation (finding the best candidate) rather than the surrogate calls — setting more than 8–10 cores yields diminishing returns."
+    },
+    {
+      "title": "When Not to Use the Optimizer",
+      "body": "Surrogate-based optimization is only as reliable as the surrogate it queries. Do not run the optimizer if: the surrogate test R² is below 0.85 (the model is too inaccurate to trust for optimization); the optimal design is expected to lie outside the training data range (the surrogate will extrapolate unreliably — use Active Learning to extend coverage first); or the response surface has sharp discontinuities (RF handles these better than GPR, but neither model is fully reliable near discontinuities). Also note that the optimizer finds a surrogate optimum, not a simulation optimum — always validate the top-ranked designs by running the actual simulation before making design decisions."
+    }
+  ]
+}

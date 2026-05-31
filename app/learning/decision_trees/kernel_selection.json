@@ -1,0 +1,190 @@
+{
+  "nodes": [
+    {
+      "id": "start",
+      "type": "question",
+      "text": "What do you need help configuring?",
+      "hint": "This guide covers GPR and Kriging hyperparameters only. For model selection between GPR, RF, RBF, and others — use the Model Selection Guide.",
+      "choices": [
+        { "label": "Choosing a kernel",            "next": "kernel_model" },
+        { "label": "Optimizer restarts (n_restarts)", "next": "restarts_situation" },
+        { "label": "Alpha (nugget / noise level)",  "next": "alpha_symptom" }
+      ]
+    },
+
+    {
+      "id": "kernel_model",
+      "type": "question",
+      "text": "Which model are you configuring?",
+      "choices": [
+        { "label": "GPR",     "next": "gpr_smoothness" },
+        { "label": "Kriging", "next": "kriging_smoothness" }
+      ]
+    },
+
+    {
+      "id": "gpr_smoothness",
+      "type": "question",
+      "text": "How would you describe the response surface?",
+      "hint": "Physical intuition: does the output change gradually and smoothly as inputs change, or does it have sharper curvature or possible regime transitions?",
+      "choices": [
+        { "label": "Very smooth — gradients change gently everywhere",       "next": "rec_rbf" },
+        { "label": "Moderate curvature — nonlinear but no sharp transitions", "next": "rec_matern25_gpr" },
+        { "label": "Rough, sharp gradients, or unsure",                       "next": "rec_gpr_to_kriging" }
+      ]
+    },
+
+    {
+      "id": "rec_rbf",
+      "type": "recommendation",
+      "text": "RBF kernel (default)",
+      "reason": "RBF assumes the response is infinitely smooth — every derivative exists. It is the right default for aerodynamic coefficients, structural displacements, heat transfer, and other physically smooth outputs. If R² remains below 0.90 after training, the response may be rougher than expected — try Matérn 2.5 next before switching model types."
+    },
+
+    {
+      "id": "rec_matern25_gpr",
+      "type": "recommendation",
+      "text": "Matérn 2.5 kernel",
+      "reason": "Matérn 2.5 is twice differentiable — less smooth than RBF but still continuous and well-behaved. It handles moderate curvature better than RBF on responses that have strong nonlinearities but no discontinuities. If Matérn 2.5 still gives poor R², consider switching to the Kriging model and using Matérn 1.5, which is more suited to rough responses."
+    },
+
+    {
+      "id": "rec_gpr_to_kriging",
+      "type": "recommendation",
+      "text": "Switch to Kriging — Matérn 1.5 kernel",
+      "reason": "For rough or uncertain responses, switch from GPR to the Kriging model and select the Matérn 1.5 kernel. Matérn 1.5 is only once differentiable — it fits well when the response has sharp curvature, transonic gradients, or contact/impact behavior that GPR's RBF kernel would over-smooth. Kriging with Matérn 1.5 is the standard choice for aerodynamic responses with regime transitions."
+    },
+
+    {
+      "id": "kriging_smoothness",
+      "type": "question",
+      "text": "How rough is the response?",
+      "hint": "Consider whether the output changes sharply or gradually. CFD drag near a shock wave is rough; structural tip deflection on a beam is smooth.",
+      "choices": [
+        { "label": "Smooth to moderately curved",                              "next": "rec_matern25_kriging" },
+        { "label": "Sharp gradients — transonic, contact, or flow separation", "next": "rec_matern15" },
+        { "label": "Multi-modal or different behavior at different scales",     "next": "rec_rq" }
+      ]
+    },
+
+    {
+      "id": "rec_matern25_kriging",
+      "type": "recommendation",
+      "text": "Matérn 2.5 kernel (default)",
+      "reason": "Matérn 2.5 is Kriging's default and the right starting point for most aerospace and structural responses. It is twice differentiable — smooth enough for well-behaved outputs, rough enough to avoid over-smoothing moderate curvature. If R² is below 0.90, check the parity plot: a systematic curve suggests under-fitting — try Matérn 1.5. Scattered residuals suggest data or dimensionality issues, not a kernel problem."
+    },
+
+    {
+      "id": "rec_matern15",
+      "type": "recommendation",
+      "text": "Matérn 1.5 kernel",
+      "reason": "Matérn 1.5 is once differentiable — the roughest kernel in the toolkit. It is well-suited to transonic CFD responses (shock-induced drag rise), contact mechanics (Hertzian contact pressure), or any output with a sharp but continuous transition. If R² is still poor after switching to Matérn 1.5, the issue is likely data quantity or dimensionality rather than kernel choice."
+    },
+
+    {
+      "id": "rec_rq",
+      "type": "recommendation",
+      "text": "Rational Quadratic kernel",
+      "reason": "The Rational Quadratic kernel is a scale mixture of RBF kernels — it models responses that behave differently at fine and coarse scales simultaneously. Use it when the response has both large-scale trends and small-scale local features. It adds one extra hyperparameter (scale mixture weight) which the optimizer fits automatically, but it requires more optimizer restarts to reliably find the global optimum — increase n_restarts to 20 or more when using RQ."
+    },
+
+    {
+      "id": "restarts_situation",
+      "type": "question",
+      "text": "What is your situation with optimizer restarts?",
+      "hint": "n_restarts controls how many independent starting points the kernel hyperparameter optimizer uses. More restarts = lower risk of a bad local optimum, but proportionally slower training.",
+      "choices": [
+        { "label": "First time training — what should I use?",     "next": "rec_restarts_default" },
+        { "label": "R² varies between runs or seems low",          "next": "rec_restarts_increase" },
+        { "label": "Training is too slow",                         "next": "restarts_slow_size" },
+        { "label": "Using Rational Quadratic kernel",              "next": "rec_restarts_rq" }
+      ]
+    },
+
+    {
+      "id": "rec_restarts_default",
+      "type": "recommendation",
+      "text": "Default: 10 restarts",
+      "reason": "10 restarts is a well-established default that balances reliability and training speed for most datasets. With 10 restarts, the optimizer has 10 independent chances to find good kernel length scales — sufficient for most responses with up to 10 inputs. No change needed unless you are seeing inconsistent R² across runs or using the Rational Quadratic kernel."
+    },
+
+    {
+      "id": "rec_restarts_increase",
+      "type": "recommendation",
+      "text": "Increase to 20 – 30 restarts",
+      "reason": "Inconsistent or unexpectedly low R² often means the optimizer is converging to a poor local optimum for the kernel length scales. Increasing n_restarts to 20–30 gives the optimizer more chances to find a better solution. Training time scales linearly with restarts — 30 restarts takes roughly 3× longer than 10. On GPR with a single output, restarts run sequentially (no parallelism), so this directly adds to wall-clock training time."
+    },
+
+    {
+      "id": "restarts_slow_size",
+      "type": "question",
+      "text": "How large is your dataset?",
+      "choices": [
+        { "label": "Under 500 rows",   "next": "rec_restarts_small_slow" },
+        { "label": "500 – 2,000 rows", "next": "rec_restarts_large_slow" }
+      ]
+    },
+
+    {
+      "id": "rec_restarts_small_slow",
+      "type": "recommendation",
+      "text": "Reduce to 5 restarts for speed",
+      "reason": "For small datasets (< 500 rows), the main training cost is the O(n³) Cholesky factorisation, not the restarts. If training is still slow at 5 restarts, the bottleneck is dataset size. Consider checking whether you need all input columns — removing low-information inputs reduces the dimensionality of the length-scale search and speeds up each restart."
+    },
+
+    {
+      "id": "rec_restarts_large_slow",
+      "type": "recommendation",
+      "text": "Reduce to 5 – 8 restarts and add cores",
+      "reason": "For larger datasets (500–2,000 rows), the O(n³) factorisation dominates training time. Reducing to 5–8 restarts cuts training time proportionally. If you have multiple output columns, set Cores > 1 — MultiOutputRegressor trains each output in parallel, which is the only source of parallelism available for GPR and Kriging (sklearn does not parallelise the restarts internally)."
+    },
+
+    {
+      "id": "rec_restarts_rq",
+      "type": "recommendation",
+      "text": "Increase to 20 – 30 restarts for Rational Quadratic",
+      "reason": "The Rational Quadratic kernel has an additional hyperparameter (scale mixture weight α) beyond the length scales. This makes the optimisation landscape more complex, with more local optima. Increase n_restarts to at least 20 when using RQ to give the optimizer enough attempts to find reliable length scales. Expect 2–3× longer training than with Matérn or RBF at the same restart count."
+    },
+
+    {
+      "id": "alpha_symptom",
+      "type": "question",
+      "text": "What symptom are you trying to address?",
+      "hint": "Alpha is a small diagonal term added to the covariance matrix — it controls how much observation noise the model tolerates. Default is 0.1.",
+      "choices": [
+        { "label": "Model fits training data well but test R² is low (overfitting)", "next": "rec_alpha_increase" },
+        { "label": "Both training and test R² are low (underfitting)",                "next": "rec_alpha_not_issue" },
+        { "label": "Numerical warning or training failure",                           "next": "rec_alpha_stability" },
+        { "label": "Error bars seem too narrow or too wide on parity plot",           "next": "rec_alpha_calibration" }
+      ]
+    },
+
+    {
+      "id": "rec_alpha_increase",
+      "type": "recommendation",
+      "text": "Increase alpha — try 0.5 to 1.0",
+      "reason": "High training R² with low test R² means the model is treating every training point as exact truth, bending the surface to pass through noise in the data. Increasing alpha tells the model that observations are noisy — it relaxes the requirement to interpolate exactly through training points, producing a smoother surface that generalises better. Try 0.5, retrain, and compare test R². If test R² improves, the training data has measurement noise or simulation discretisation error worth modelling explicitly."
+    },
+
+    {
+      "id": "rec_alpha_not_issue",
+      "type": "recommendation",
+      "text": "Alpha is not the issue — check kernel or data",
+      "reason": "When both training and test R² are low, the model is underfitting — it cannot represent the shape of the response regardless of alpha. Possible causes: wrong kernel (try Matérn 2.5 or 1.5 if using RBF); insufficient training data (see the Troubleshooting topic); or too many inputs causing the curse of dimensionality. Reducing alpha below the default will not help and may cause numerical instability. Check the Troubleshooting Guide topic for a step-by-step diagnosis."
+    },
+
+    {
+      "id": "rec_alpha_stability",
+      "type": "recommendation",
+      "text": "Increase alpha for numerical stability — try 0.1 to 1.0",
+      "reason": "Numerical warnings (e.g. 'matrix is not positive definite') or training failures in GPR/Kriging usually mean the covariance matrix is nearly singular — often caused by duplicate or near-duplicate input rows, or a very small alpha. Increase alpha to 0.1 (the default) or higher. Alpha adds a small positive value to every diagonal entry of the covariance matrix, guaranteeing invertibility. If warnings persist after alpha = 1.0, inspect the data for duplicate rows or near-constant inputs using the Filter step."
+    },
+
+    {
+      "id": "rec_alpha_calibration",
+      "type": "recommendation",
+      "text": "Alpha controls the noise model, not error bar width directly",
+      "reason": "Error bar width on the parity plot reflects posterior uncertainty — how far each test point is from its nearest training points, weighted by the kernel. Alpha primarily controls whether the model interpolates exactly (low alpha) or smooths through training points (high alpha). Narrow error bars despite large residuals typically indicate model mis-specification (wrong kernel) rather than an alpha issue. Wide error bars on training points suggest alpha is too high — the model thinks observations are noisier than they are. Try reducing alpha toward 0.01 if the training data is from accurate simulations with minimal noise."
+    }
+  ]
+}

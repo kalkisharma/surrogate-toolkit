@@ -29,7 +29,7 @@
       ],
       "weaknesses": [
         "Same O(n³) scaling as GPR",
-        "Rational Quadratic kernel (Intermediate/Expert mode) adds a length-scale mixture — more flexible but harder to interpret"
+        "Rational Quadratic kernel adds a length-scale mixture — more flexible but harder to interpret than Matérn"
       ],
       "best_for": "Aerodynamic or structural responses with moderate roughness. Good default when GPR with RBF kernel gives poor R².",
       "avoid_when": "Same constraints as GPR — large datasets or high-dimensional inputs."
@@ -105,6 +105,25 @@
       ],
       "best_for": "Approximately linear responses, or as a fast baseline model before investing in GPR or RF.",
       "avoid_when": "The response is known to be non-linear — this model will systematically underfit."
+    },
+    {
+      "type": "multifidelity",
+      "name": "Multi-Fidelity Surrogate",
+      "description": "Combines data from two or more simulation fidelity levels — many cheap low-fidelity (LF) runs for global coverage plus a small number of expensive high-fidelity (HF) runs for local accuracy. Two strategies are available: Bridge Correction trains an LF surrogate on all LF data, then trains a separate correction model on the discrepancy (HF − LF prediction) at HF points; final prediction is LF + correction. Kennedy-O'Hagan Co-Kriging models HF as ρ × f_LF + δ(x) where ρ is a scaling factor and δ is a Gaussian process correction, providing native prediction intervals.",
+      "strengths": [
+        "Achieves HF accuracy at a fraction of the HF simulation cost",
+        "LF data provides global coverage; HF data provides local corrections",
+        "Bridge Correction is non-parametric — no assumption about LF/HF relationship",
+        "Co-Kriging provides full uncertainty estimates propagating both LF and correction uncertainty"
+      ],
+      "weaknesses": [
+        "Requires two datasets with matching input column names",
+        "Degrades if LF and HF outputs are poorly correlated (R² < 0.70 between fidelities)",
+        "Co-Kriging is more expensive to train and sensitive to the ρ scaling assumption",
+        "Bridge Correction can overfit the correction model if the HF dataset is very small (< 10 points)"
+      ],
+      "best_for": "Aerospace and structural problems with an existing large LF dataset (CFD/FEA) and a budget for 20–50 HF runs. Most effective when HF simulations are at least 5–10× more expensive than LF.",
+      "avoid_when": "LF and HF outputs are poorly correlated, the LF dataset is smaller than the HF dataset, or the two fidelity levels use different input parameterisations."
     },
     {
       "type": "ensemble",

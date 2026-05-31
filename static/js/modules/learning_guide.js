@@ -216,11 +216,13 @@ const _TOPICS = [
   { key: "input_filtering",      label: "Input Filtering & Dimensionality Reduction" },
   { key: "multifidelity",        label: "Multi-Fidelity Modeling" },
   { key: "model_troubleshooting", label: "Poor Fit? Troubleshooting Guide" },
+  { key: "optimization",          label: "Surrogate-Based Optimization" },
 ];
 
 const _GUIDES = [
-  { key: "model_selection", label: "Model Selection Guide" },
-  { key: "cv_selection",    label: "CV Fold Selection Guide" },
+  { key: "model_selection",  label: "Model Selection Guide" },
+  { key: "cv_selection",     label: "CV Fold Selection Guide" },
+  { key: "kernel_selection", label: "Kernel & Hyperparameter Guide" },
 ];
 
 async function _renderTopics(container) {
