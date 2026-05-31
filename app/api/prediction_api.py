@@ -228,7 +228,7 @@ def predict_single():
 
     predictions = {col: float(y_hat[0, i]) for i, col in enumerate(output_cols)}
 
-    append_audit_event(state, "predict_single", {"n_inputs": len(input_cols)})
+    append_audit_event(state, "predict_single", {"n_inputs": len(user_cols)})
     current_app.logger.debug(f"Single prediction — inputs={row}, preds={list(predictions.values())}")
 
     return jsonify({

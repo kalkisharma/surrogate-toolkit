@@ -471,6 +471,16 @@ function _render(containerEl, r) {
      are shown alongside their standard deviations to indicate consistency.</p>`
   );
 
+  // PCA info banner
+  if (r.pca_applied && r.pca_original_inputs) {
+    const pcaInfo = el("div", { cls: "results-pca-notice" });
+    pcaInfo.innerHTML = `<strong>PCA active</strong> — ${r.input_columns.length} components trained on
+      ${r.pca_original_inputs.length} original inputs
+      (${r.pca_original_inputs.join(", ")}).
+      Predictions accept original physical inputs; the transform is applied automatically.`;
+    containerEl.appendChild(pcaInfo);
+  }
+
   // Normalization-not-applied warning
   if (r.normalization_warning) {
     const normWarn = el("div", { cls: "results-warning-box results-warning-box--norm" });
@@ -574,6 +584,7 @@ function _render(containerEl, r) {
   ];
   if (r.hyperparams?.kernel) configRows.splice(1, 0, ["Kernel", r.hyperparams.kernel]);
   if (r.hyperparams?.alpha  != null) configRows.splice(2, 0, ["Alpha (noise)", r.hyperparams.alpha]);
+  if (r.pca_applied) configRows.push(["Preprocessing", `PCA — ${r.input_columns.length} components`]);
   const configGrid = el("div", { cls: "results-config-grid" });
   for (const [label, value] of configRows) {
     const cell = el("div", { cls: "results-config-cell" });
