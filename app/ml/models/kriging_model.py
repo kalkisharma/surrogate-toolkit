@@ -89,21 +89,15 @@ class KrigingModel(BaseSurrogateModel):
         else:
             k = Matern(length_scale=ls, nu=2.5)
 
-        n_out = y.shape[1]
-        if n_out == 1:
-            single_gpr = GaussianProcessRegressor(
-                kernel=k, alpha=self._alpha, normalize_y=True,
-                n_restarts_optimizer=10, n_jobs=self._n_jobs,
-                random_state=DEFAULT_RANDOM_STATE,
-            )
-            self._model = MultiOutputRegressor(single_gpr, n_jobs=1)
-        else:
-            single_gpr = GaussianProcessRegressor(
-                kernel=k, alpha=self._alpha, normalize_y=True,
-                n_restarts_optimizer=10, n_jobs=1,
-                random_state=DEFAULT_RANDOM_STATE,
-            )
-            self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)
+        # sklearn's GaussianProcessRegressor does not accept n_jobs.
+        single_gpr = GaussianProcessRegressor(
+            kernel=k,
+            alpha=self._alpha,
+            normalize_y=True,
+            n_restarts_optimizer=10,
+            random_state=DEFAULT_RANDOM_STATE,
+        )
+        self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)
 
         self._model.fit(X, y)
         self._input_columns = list(input_columns)

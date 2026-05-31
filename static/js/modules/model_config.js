@@ -515,11 +515,12 @@ export async function initModelConfig(containerEl, onTrain) {
           `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
         ];
       } else {
-        title = `${label} — single output, ARD kernel`;
+        title = `${label} — single output`;
         lines = [
-          `Ideal: <strong>up to 10 cores</strong> — each of the 10 optimizer restarts (used to find the best ARD length-scales) runs in parallel`,
-          `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
+          `Ideal: <strong>1 core</strong> — sklearn's GPR runs optimizer restarts sequentially; cores only help when you have multiple output columns`,
+          `<strong>${avail}</strong> available on this machine`,
         ];
+        na = true;
       }
     } else if (selectedModel === "rf") {
       title = "Random Forest";
