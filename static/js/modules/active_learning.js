@@ -314,7 +314,8 @@ async function _fetchTrainAndRenderScatter(scatterEl, resp, inputCols, onFetched
   const modelResp = await get("/api/model/results");
   if (!modelResp.success) return;
 
-  const dataResp = await get("/api/data/rows");
+  // Use ?source=working so PC-transformed coordinates align with recommendations.
+  const dataResp = await get("/api/data/rows?source=working");
   if (!dataResp.success) return;
 
   const X_train = dataResp.rows.map(row => inputCols.map(col => row[col] ?? 0));

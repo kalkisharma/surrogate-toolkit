@@ -455,7 +455,16 @@ def rows():
         JSON 400: No data loaded yet.
     """
     state = current_app.config["STATE"]
-    df = state["datasets"]["primary"]["clean"]
+    primary = state["datasets"]["primary"]
+
+    # ?source=working returns normalized/PCA df — used by active learning scatter
+    # so training points are in the same coordinate space as recommendations.
+    from flask import request as _req
+    use_working = _req.args.get("source") == "working"
+    if use_working:
+        df = primary.get("normalized") or primary.get("clean")
+    else:
+        df = primary["clean"]
 
     if df is None:
         return (
