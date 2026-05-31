@@ -17,6 +17,8 @@ import { showSuccess, showError } from "../notifications.js";
 
 let _cache = {};           // keyed by endpoint string
 let _activeExercise = null; // { id, steps[], currentStep, progress{} }
+let _glossaryTermMap = null; // populated on first exercise start; { termName → {term, definition, category} }
+let _kwPopover       = null; // single shared keyword definition popover element
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -440,6 +442,14 @@ async function _startExercise(exerciseId, listContainer) {
     return;
   }
 
+  // Pre-load glossary for keyword annotation (served from cache after first call)
+  if (!_glossaryTermMap) {
+    const glossResp = await _fetch("/api/learning/glossary");
+    if (glossResp.success) {
+      _glossaryTermMap = Object.fromEntries(glossResp.terms.map(t => [t.term, t]));
+    }
+  }
+
   _activeExercise = {
     id:           exerciseId,
     steps:        exResp.exercise.steps,
@@ -513,7 +523,24 @@ function _showExerciseOverlay() {
   }
   panel.appendChild(nav);
 
+  // Annotate glossary keywords in instruction and quiz text
+  if (_glossaryTermMap && step.keywords?.length) {
+    const instructionEl = panel.querySelector(".ex-overlay__instruction");
+    if (instructionEl) _annotateKeywords(instructionEl, step.keywords, _glossaryTermMap);
+    const quizEl = panel.querySelector(".ex-quiz");
+    if (quizEl) _annotateKeywords(quizEl, step.keywords, _glossaryTermMap);
+  }
+
+  panel.addEventListener("click", (e) => {
+    const kw = e.target.closest(".kw-link");
+    if (kw && _glossaryTermMap) {
+      e.stopPropagation();
+      _showKwPopover(kw.dataset.term, kw);
+    }
+  });
+
   panel.querySelector(".ex-overlay__close").addEventListener("click", () => {
+    _hideKwPopover();
     _markStep(step.step_num);
     _removeExerciseOverlay();
   });
@@ -618,7 +645,116 @@ function _navigateToStep(step) {
 }
 
 function _removeExerciseOverlay() {
+  _hideKwPopover();
   document.getElementById("ex-overlay")?.remove();
+}
+
+// ── Keyword annotation ────────────────────────────────────────────────────────
+
+function _annotateKeywords(rootEl, keywords, termMap) {
+  // Build (matchText → termKey) lookup; longer patterns first to avoid substring conflicts
+  const entries = [];
+  for (const kw of keywords) {
+    if (!termMap[kw]) continue;
+    const m = kw.match(/^(.+?)\s*\(([^)]+)\)$/);
+    const texts = new Set([kw]);
+    if (m) { texts.add(m[1].trim()); texts.add(m[2].trim()); }
+    for (const t of texts) entries.push({ text: t, termKey: kw });
+  }
+  if (!entries.length) return;
+  entries.sort((a, b) => b.text.length - a.text.length);
+
+  const matchToTerm = {};
+  for (const e of entries) matchToTerm[e.text.toLowerCase()] = e.termKey;
+
+  const pattern = entries.map(e => _escRx(e.text)).join("|");
+  const rx = new RegExp(`(?<![a-zA-Z0-9_])(${pattern})(?![a-zA-Z0-9_])`, "gi");
+
+  // Collect text nodes first (modifying DOM during walk breaks the walker)
+  const nodes = [];
+  const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const p = node.parentElement;
+      if (!p) return NodeFilter.FILTER_REJECT;
+      if (p.classList?.contains("kw-link")) return NodeFilter.FILTER_REJECT;
+      if (["SCRIPT", "STYLE", "BUTTON"].includes(p.tagName)) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    if (!rx.test(text)) continue;
+    rx.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let last = 0, m;
+    while ((m = rx.exec(text)) !== null) {
+      if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const termKey = matchToTerm[m[1].toLowerCase()];
+      const span = document.createElement("span");
+      span.className = "kw-link";
+      span.dataset.term = termKey;
+      span.textContent = m[1];
+      frag.appendChild(span);
+      last = m.index + m[1].length;
+    }
+    if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  }
+}
+
+function _escRx(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function _getKwPopover() {
+  if (!_kwPopover) {
+    _kwPopover = document.createElement("div");
+    _kwPopover.className = "kw-popover hidden";
+    document.body.appendChild(_kwPopover);
+    document.addEventListener("click", (e) => {
+      if (_kwPopover && !_kwPopover.classList.contains("hidden") &&
+          !_kwPopover.contains(e.target) && !e.target.classList.contains("kw-link")) {
+        _hideKwPopover();
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") _hideKwPopover();
+    });
+  }
+  return _kwPopover;
+}
+
+function _showKwPopover(termKey, anchorEl) {
+  if (!_glossaryTermMap) return;
+  const entry = _glossaryTermMap[termKey];
+  if (!entry) return;
+  const pop = _getKwPopover();
+  pop.innerHTML = `
+    <div class="kw-popover__header">
+      <span class="kw-popover__term">${escHtml(entry.term)}</span>
+      <span class="kw-popover__cat">${escHtml(entry.category)}</span>
+      <button class="kw-popover__close" aria-label="Close definition">✕</button>
+    </div>
+    <p class="kw-popover__def">${escHtml(entry.definition)}</p>`;
+  pop.querySelector(".kw-popover__close").addEventListener("click", (e) => {
+    e.stopPropagation();
+    _hideKwPopover();
+  });
+  pop.classList.remove("hidden");
+
+  const rect = anchorEl.getBoundingClientRect();
+  const popW = 300;
+  let left = Math.min(rect.left, window.innerWidth - popW - 8);
+  let top  = rect.bottom + 6;
+  if (top + 200 > window.innerHeight) top = rect.top - 200 - 6;
+  pop.style.left = `${Math.max(8, left)}px`;
+  pop.style.top  = `${top}px`;
+}
+
+function _hideKwPopover() {
+  _kwPopover?.classList.add("hidden");
 }
 
 // ── Symbols ───────────────────────────────────────────────────────────────────

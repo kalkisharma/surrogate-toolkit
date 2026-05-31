@@ -27,6 +27,7 @@
       "step_num": 2,
       "target_panel": "explore",
       "instruction": "Open the scatter matrix. Look at the x2 distribution (x2 vs any other variable). You should see a few extreme data points far from the main cluster.",
+      "keywords": ["Skewness", "Log-Transform", "Outlier"],
       "quiz": {
         "question": "The x2 column has a long right tail (log-normal distribution). Why does skewness matter for surrogate modeling?",
         "options": [
@@ -43,6 +44,7 @@
       "step_num": 3,
       "target_panel": "clean",
       "instruction": "Open Step 4 — Clean. First, handle the missing values in x1: use median imputation (fills each missing value with the column median). The toolkit highlights columns with nulls.",
+      "keywords": ["IQR (Interquartile Range)", "Outlier"],
       "quiz": {
         "question": "When would you choose 'drop rows' over 'median impute' for missing values?",
         "options": [
@@ -59,6 +61,7 @@
       "step_num": 4,
       "target_panel": "clean",
       "instruction": "Now handle the outliers. The toolkit will show you how many rows would be removed. Choose 'Drop rows' to remove the three extreme outlier rows.",
+      "keywords": ["IQR (Interquartile Range)", "Outlier"],
       "quiz": {
         "question": "What does the IQR outlier rule detect?",
         "options": [
@@ -75,6 +78,7 @@
       "step_num": 5,
       "target_panel": "clean",
       "instruction": "Finally, apply a log(1+x) transform to x2 to reduce its skewness. The toolkit flags columns with |skew| > 1.0 as transform candidates.",
+      "keywords": ["Log-Transform", "Skewness"],
       "quiz": null
     },
     {
@@ -87,6 +91,7 @@
       "step_num": 7,
       "target_panel": "configure",
       "instruction": "Train a GPR model and check the R² score. Compare it to what you would get on the raw dirty data — cleaning should improve accuracy by 5–15%.",
+      "keywords": ["R² (Coefficient of Determination)", "Gaussian Process Regression (GPR)", "Overfitting"],
       "quiz": {
         "question": "Why does removing outliers typically improve R²?",
         "options": [

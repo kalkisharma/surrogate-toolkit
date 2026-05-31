@@ -12,6 +12,7 @@
       "step_num": 1,
       "target_panel": "preview",
       "instruction": "The LF dataset (currently active) has 200 rows — cheap, fast simulations. Three inputs x1, x2, x3 represent normalised design parameters. Output y is the quantity of interest from the coarse simulation. The dataset switcher in the sidebar shows both LF (200 rows) and HF (30 rows) are loaded.",
+      "keywords": ["Multi-Fidelity Modeling", "Bridge Correction"],
       "quiz": {
         "question": "In multi-fidelity modeling, why run expensive HF simulations at all if you already have 200 LF runs?",
         "options": [
@@ -34,12 +35,14 @@
       "step_num": 3,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to x1, x2, x3 for the LF dataset.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
       "step_num": 4,
       "target_panel": "configure",
       "instruction": "Configure a Random Forest model (test split 0.15, 5-fold CV). RF is a good choice for the LF dataset — it is robust on the larger, noisier LF runs. Train it.",
+      "keywords": ["Random Forest (RF)", "Test Split", "Cross-Validation (CV)"],
       "quiz": {
         "question": "Why is Random Forest often preferred over GPR for the low-fidelity surrogate in a multi-fidelity pipeline?",
         "options": [
@@ -56,6 +59,7 @@
       "step_num": 5,
       "target_panel": "results",
       "instruction": "Note the LF model's test R² — it should be around 0.90–0.94. The LF model captures the main effects (3x1 + 2x2² + 1.5x1·x3) well but underestimates the nonlinear interaction term 0.8·sin(π·x2·x3) present in the HF physics. The residual plot may show a slight systematic curve.",
+      "keywords": ["R² (Coefficient of Determination)", "Residual Plot"],
       "quiz": {
         "question": "The LF surrogate achieves R² = 0.91 on the LF test set. Does this mean it will also achieve R² ≈ 0.91 on the HF outputs?",
         "options": [
@@ -84,12 +88,14 @@
       "step_num": 8,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to the HF inputs. Use the same method as LF so both datasets are on the same scale.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
       "step_num": 9,
       "target_panel": "configure",
       "instruction": "Configure a GPR model (test split 0.2, 5-fold CV). GPR is the right choice for 30 accurate HF points — small dataset, smooth response, and native uncertainty estimates. Train it.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Latin Hypercube Sampling (LHS)"],
       "quiz": {
         "question": "The HF GPR is trained on only 30 points. Why does it still achieve reasonable accuracy compared to the 200-point LF RF?",
         "options": [
@@ -106,12 +112,14 @@
       "step_num": 10,
       "target_panel": "results",
       "instruction": "Note the HF GPR's test R² — it should be higher than the LF RF despite having far fewer data points, because the HF physics is more accurate and smoother. The parity plot should show tighter clustering along the diagonal.",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot"],
       "quiz": null
     },
     {
       "step_num": 11,
       "target_panel": "compare",
       "instruction": "Open Step 14 — Compare. Both datasets and their trained models are visible. Select 'Multi-Fidelity' mode, set LF dataset to multifidelity_lf and HF dataset to multifidelity_hf. Choose Bridge Correction method and click Train. The correction model learns the discrepancy (HF − LF_prediction) at the 30 HF points.",
+      "keywords": ["Bridge Correction", "Kennedy-O'Hagan Co-Kriging", "Multi-Fidelity Modeling"],
       "quiz": {
         "question": "Bridge Correction trains a discrepancy model: δ(x) = y_HF(x) − ŷ_LF(x). What does a large δ at a point indicate?",
         "options": [

@@ -11,6 +11,7 @@
       "step_num": 1,
       "target_panel": "preview",
       "instruction": "The dataset has 6 inputs: velocity (m/s), dynamic_q (Pa), mach (dimensionless), aoa (angle of attack, degrees), span (m), aspect_ratio. The output is cl (lift coefficient). Notice that velocity, dynamic_q, and mach all measure flight speed — they should be highly correlated.",
+      "keywords": ["Input Variable", "Multicollinearity", "Pearson Correlation"],
       "quiz": {
         "question": "If dynamic_q = 0.5 × ρ × velocity², what does that tell you about including both velocity and dynamic_q as model inputs?",
         "options": [
@@ -27,6 +28,7 @@
       "step_num": 2,
       "target_panel": "explore",
       "instruction": "Open the scatter matrix. Look at the velocity vs. dynamic_q and velocity vs. mach plots. You should see tight, nearly deterministic curves — confirming the physical relationship between these variables.",
+      "keywords": ["Pearson Correlation", "VIF (Variance Inflation Factor)"],
       "quiz": {
         "question": "In the scatter matrix, a curved but tight relationship between two inputs suggests:",
         "options": [
@@ -49,6 +51,7 @@
       "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to all 6 inputs. Normalization is especially important before PCA — PCA uses variance, and variables with large ranges would otherwise dominate the principal components regardless of their physical importance.",
+      "keywords": ["Normalization", "Min-Max Scaling", "Principal Component Analysis (PCA)"],
       "quiz": {
         "question": "Why must inputs be normalized before PCA?",
         "options": [
@@ -65,6 +68,7 @@
       "step_num": 5,
       "target_panel": "screen",
       "instruction": "Open Step 7 — Filter. Click 'Analyze →'. Look at the VIF table. You should see: velocity and mach with VIF > 1000 (nearly perfectly collinear — mach = velocity / speed_of_sound); dynamic_q with VIF ~40 (high, but lower because the V² relationship is nonlinear, so linear VIF underestimates it); span and aspect_ratio with VIF ~20 (aspect_ratio ≈ 2.5 × span in this dataset); aoa near 1 (independent).",
+      "keywords": ["VIF (Variance Inflation Factor)", "Multicollinearity"],
       "quiz": {
         "question": "VIF = 40 for dynamic_q means:",
         "options": [
@@ -81,6 +85,7 @@
       "step_num": 6,
       "target_panel": "screen",
       "instruction": "Scroll to the bottom of the Filter panel and open the 'PCA Dimensionality Reduction' section. Set Components to 3 and click 'Preview PCA →'. Look at the explained-variance chart. PC1 and PC2 should capture the two correlated groups (speed and geometry). PC3 adds aoa's contribution.",
+      "keywords": ["Principal Component Analysis (PCA)", "Explained Variance Ratio"],
       "quiz": {
         "question": "The PCA preview shows that 3 components explain >99% of variance. The suggested auto-threshold (≥90%) is also 3. What does this tell you?",
         "options": [
@@ -97,18 +102,21 @@
       "step_num": 7,
       "target_panel": "screen",
       "instruction": "Click 'Apply PCA →' to replace the 6 correlated inputs with 3 principal components. A success message will confirm. Note: the model and prediction steps will now use PC coordinates (PC1, PC2, PC3) — not the original physical variables.",
+      "keywords": ["Principal Component Analysis (PCA)"],
       "quiz": null
     },
     {
       "step_num": 8,
       "target_panel": "configure",
       "instruction": "Open Step 8 — Model. Configure a GPR with test split 0.2, 5-fold CV. Train. With only 3 uncorrelated inputs, GPR should fit efficiently.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)"],
       "quiz": null
     },
     {
       "step_num": 9,
       "target_panel": "results",
       "instruction": "Review the R² score and parity plot. A well-tuned PCA + GPR pipeline on this dataset should achieve R² > 0.90. If R² is lower, the discarded variance (6%) may include some aoa signal — try 4 components and retrain.",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Multicollinearity"],
       "quiz": {
         "question": "You applied PCA and achieved R² = 0.91, but the original 6-input GPR without filtering achieved R² = 0.89. What explains this?",
         "options": [
@@ -125,6 +133,7 @@
       "step_num": 10,
       "target_panel": "predict",
       "instruction": "Open Step 10 — Predict. Notice that the input fields now show PC1, PC2, PC3 instead of the original variable names. This is the trade-off of PCA: you gain a cleaner model but lose direct physical interpretation of individual inputs. Enter PC1=0.5, PC2=0.3, PC3=0.6 and observe the predicted cl.",
+      "keywords": ["Extrapolation", "Interpolation"],
       "quiz": {
         "question": "An engineer asks you: 'What lift coefficient would we get if we increase velocity from 100 to 150 m/s?' After PCA, you cannot answer directly because:",
         "options": [

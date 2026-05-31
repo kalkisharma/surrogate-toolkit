@@ -17,6 +17,7 @@
       "step_num": 2,
       "target_panel": "explore",
       "instruction": "Open the scatter matrix. The x1 vs y and x2 vs y plots will look noisy — that is because all three inputs affect y at once, hiding each individual trend. Look carefully at x1 vs y for a faint curved, wave-like pattern. The x3 vs y plot should show a clearer upward trend. You will compare three models on this data: Linear (assumes straight-line relationships only), Random Forest (builds many decision trees, handles curves and interactions), and GPR — Gaussian Process Regression (learns correlation between nearby data points, works well on smooth responses with limited data).",
+      "keywords": ["Gaussian Process Regression (GPR)", "Random Forest (RF)", "Ridge Regression (Linear)"],
       "quiz": {
         "question": "Given that x1 and x2 have a curved, wave-like relationship with y, which model type would you expect to struggle most?",
         "options": [
@@ -39,12 +40,14 @@
       "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to all three inputs.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
       "step_num": 5,
       "target_panel": "configure",
       "instruction": "First run: configure as Linear model, test split 0.2, 5-fold CV. Train and note the R² score. The Results panel will show two R² values — Test Set Performance and CV (cross-validation). They measure slightly different things.",
+      "keywords": ["R² (Coefficient of Determination)", "Test Split", "Cross-Validation (CV)", "K-Fold CV"],
       "quiz": {
         "question": "The Results panel shows both Test Set R² and CV R². What does CV R² measure that makes it more reliable than simply measuring accuracy on the training data?",
         "options": [
@@ -61,6 +64,7 @@
       "step_num": 6,
       "target_panel": "results",
       "instruction": "Note the test R² for Linear. Now go back to Step 8 — Model, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot"],
       "quiz": {
         "question": "For this 150-row, 3-input, smooth nonlinear dataset, what is the most likely ranking of models by test R²?",
         "options": [

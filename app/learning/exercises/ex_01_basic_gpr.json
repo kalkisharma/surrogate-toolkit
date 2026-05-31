@@ -11,6 +11,7 @@
       "step_num": 1,
       "target_panel": "preview",
       "instruction": "The dataset has been loaded. Review the 10-row preview. Notice the column names — x1 and x2 are your two input variables, y is the output you want to predict.",
+      "keywords": ["Input Variable", "Output Variable"],
       "quiz": null
     },
     {
@@ -28,6 +29,7 @@
       "step_num": 3,
       "target_panel": "clean",
       "instruction": "Open Step 4 — Clean. The dataset is already clean (no nulls, no outliers). You can skip to the next step. In real projects this step is where you handle missing values and outliers.",
+      "keywords": ["Outlier"],
       "quiz": null
     },
     {
@@ -50,6 +52,7 @@
       "step_num": 5,
       "target_panel": "normalize",
       "instruction": "Open Step 6 — Normalize. Select Min-Max and click Apply. Min-Max is chosen here because x1 and x2 have known, bounded ranges — it scales every input to [0, 1] so neither variable overshadows the other just because it has larger numbers. Z-Score (the alternative) is better suited when data may have outliers or an unbounded range. Once you see the green confirmation banner, you can move on.",
+      "keywords": ["Normalization", "Min-Max Scaling", "Z-Score Scaling"],
       "quiz": {
         "question": "What happens if you skip normalization before training?",
         "options": [
@@ -66,6 +69,7 @@
       "step_num": 6,
       "target_panel": "configure",
       "instruction": "Open Step 8 — Model. Select GPR as the model type. Leave the test split at 0.2 and CV folds at 5. GPR (Gaussian Process Regression) is a model that learns not just a prediction, but also how confident it is — useful when your data is limited and you need to know where the model might be wrong.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)", "K-Fold CV"],
       "quiz": {
         "question": "Why is GPR a good choice for this small, smooth 2-input dataset?",
         "options": [
@@ -82,6 +86,7 @@
       "step_num": 7,
       "target_panel": "results",
       "instruction": "Train the model (Step 9). After training, review the R² score and the parity plot. A well-fit model should have R² > 0.90 on this clean dataset. Overfitting means the model memorised the training data but fails on new data (high CV R², low test R²). Underfitting means the model is too simple to capture the pattern (low R² on both).",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Overfitting", "Underfitting"],
       "quiz": {
         "question": "On the parity plot, what does it mean if points cluster tightly along the diagonal?",
         "options": [
@@ -98,6 +103,7 @@
       "step_num": 8,
       "target_panel": "predict",
       "instruction": "Open Step 10 — Predict. Try a single prediction: set x1 = 1.5, x2 = -2.0. The expected output is approximately 1.5² + 0.5×(-2.0)² = 4.25.",
+      "keywords": ["Extrapolation", "Interpolation"],
       "quiz": {
         "question": "What does an extrapolation warning mean?",
         "options": [
