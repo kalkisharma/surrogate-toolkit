@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/learning_guide.js
-// Version: 3.2.0
+// Version: 3.5.22
 // Description: Learning Guide modal — six tabs: Glossary, Model Guide,
 //              Topics, Exercises, Symbols, Equations. Opens via the "Guide"
 //              header button. Exercises tab auto-injects datasets and shows
@@ -32,6 +32,11 @@ export function openGuide(initialTab = "glossary") {
 
 export function closeGuide() {
   _removeExisting();
+}
+
+export function resetExercise() {
+  _removeExerciseOverlay();
+  _activeExercise = null;
 }
 
 // ── Decision-tree runner (exported for inline use in model_config.js) ─────────

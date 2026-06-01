@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.4
+// Version: 3.5.22
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 14 lazy-init panels).
@@ -27,7 +27,7 @@ import { initOptimization } from "./modules/optimization.js";
 import { initComparison } from "./modules/comparison.js";
 import { initExport } from "./modules/export.js";
 import { el, clearEl, escHtml } from "./utils.js";
-import { openGuide } from "./modules/learning_guide.js";
+import { openGuide, closeGuide, resetExercise } from "./modules/learning_guide.js";
 
 // ── Exercise integration ──────────────────────────────────────────────────────
 // Mutable reference to the current activatePanel closure — updated every time
@@ -901,6 +901,10 @@ function _initGlobalHeader() {
     await post("/api/state/reset", {});
     const switcher = document.getElementById("dataset-switcher-group");
     if (switcher) switcher.remove();
+    settingsDropdown.classList.add("hidden");
+    settingsBtn.setAttribute("aria-expanded", "false");
+    resetExercise();
+    closeGuide();
     renderUploadView();
     showSuccess("Session cleared.");
   });
