@@ -3,25 +3,25 @@
   "title": "GPR vs Kriging vs RBF — Kernel Matters",
   "difficulty": "intermediate",
   "estimated_minutes": 25,
-  "description": "A 2-input dataset with a mixed smooth-and-oscillatory response (y = sin(3x₁) + cos(2.5x₂) + 0.4x₁x₂) challenges models that assume an infinitely smooth response. You will train GPR with RBF kernel, Kriging with Matérn2.5, and RBF surrogate on the same data, compare their accuracy, then show that switching the GPR kernel beats changing the model type entirely.",
+  "description": "A 2-input dataset with a high-frequency oscillatory response (y = sin(5x₁) + cos(4x₂) + 0.3x₁x₂, 80 samples) is sparse enough that the kernel smoothness assumption actively matters. You will train GPR with RBF kernel, GPR with Matérn2.5, Kriging with Matérn2.5, and RBF surrogate on the same data, compare their accuracy, then confirm that switching the GPR kernel produces as large a gain as switching model type entirely.",
   "tags": ["model selection", "GPR", "Kriging", "RBF", "kernel"],
   "dataset": "kernel_oscillatory_2d.csv",
   "steps": [
     {
       "step_num": 1,
       "target_panel": "preview",
-      "instruction": "The dataset has 2 inputs (x1, x2) in [−2, 2] and 1 output (y). The response is y = sin(3x₁) + cos(2.5x₂) + 0.4x₁x₂ — it oscillates in both input directions. GPR with a default RBF (Squared Exponential) kernel assumes the response is infinitely smooth and differentiable, which makes it struggle with oscillatory data.",
+      "instruction": "The dataset has 2 inputs (x1, x2) in [−2, 2] and 1 output (y). The response is y = sin(5x₁) + cos(4x₂) + 0.3x₁x₂ — about 3 full oscillation cycles in each input direction, sampled at only 80 points. With this few points relative to the oscillation frequency, the kernel smoothness assumption is the dominant factor in model quality. GPR with a default RBF (Squared Exponential) kernel assumes the response is infinitely smooth, which causes it to over-smooth the oscillations.",
       "keywords": ["Gaussian Process Regression (GPR)", "Kriging", "Radial Basis Function (RBF) Surrogate", "Kernel (Covariance Function)"],
       "quiz": {
-        "question": "The RBF (Squared Exponential) kernel assumes the response is C∞ — infinitely differentiable. What type of response would violate this assumption?",
+        "question": "The RBF (Squared Exponential) kernel assumes the response is C∞ — infinitely differentiable. What type of response would violate this assumption in practice?",
         "options": [
           "A smooth quadratic bowl y = x1² + x2²",
-          "An oscillatory response like sin(3x1) that has sharp curvature at each peak and trough",
+          "An oscillatory response like sin(5x1) that changes direction frequently — RBF assumes distant points are positively correlated, but oscillatory responses are anti-correlated at half a wavelength apart",
           "A monotonically increasing response",
           "Any response with more than 2 inputs"
         ],
         "correct_index": 1,
-        "explanation": "The RBF kernel's correlation decays as exp(−r²/2l²), which enforces very smooth interpolation between points. An oscillatory response changes direction frequently — its derivatives change sign at every peak. GPR with RBF will over-smooth these oscillations, producing a poor fit. The Matérn family of kernels (used by Kriging) makes weaker smoothness assumptions and handles oscillatory responses better."
+        "explanation": "The RBF kernel's correlation decays as exp(−r²/2l²), which is always positive — it assumes any two points are positively correlated. An oscillatory response like sin(5x₁) has points exactly half a wavelength apart that are anti-correlated (one is at a peak, the other at a trough). RBF cannot represent this anti-correlation, so it over-smooths the peaks and troughs. The Matérn family makes weaker smoothness assumptions and handles this better."
       }
     },
     {
@@ -41,13 +41,13 @@
     {
       "step_num": 4,
       "target_panel": "configure",
-      "instruction": "First run — GPR with RBF kernel: Open Step 8 — Model, select GPR, leave the kernel as RBF (default), test split 0.2, 5-fold CV. Train. Note the test R² and look at the residual plot — you should see a systematic wave pattern in the residuals, which is the model's fingerprint of underfitting an oscillatory response.",
+      "instruction": "First run — GPR with RBF kernel: Open Step 8 — Model, select GPR, leave the kernel as RBF (default), test split 0.2, 5-fold CV. Train. Note the test R² — expect it to be noticeably lower than 0.90. Open the residual plot and look for a systematic wave pattern, which is the model's fingerprint of missing the oscillatory signal.",
       "keywords": ["Gaussian Process Regression (GPR)", "Kernel (Covariance Function)", "R² (Coefficient of Determination)", "Test Split", "Cross-Validation (CV)"],
       "quiz": {
         "question": "The residual plot shows residuals that oscillate above and below zero in a wave pattern. What does this indicate?",
         "options": [
           "The model overfit the training data",
-          "The model is systematically missing the oscillatory pattern — it is underfitting the peaks and troughs",
+          "The model is systematically missing the oscillatory pattern — it is underfitting the peaks and troughs because the RBF kernel forces a smoother prediction than the data supports",
           "The test split was too small",
           "Normalization was applied incorrectly"
         ],
@@ -58,18 +58,18 @@
     {
       "step_num": 5,
       "target_panel": "results",
-      "instruction": "Note the GPR RBF test R². Now retrain with GPR but switch the kernel to Matérn2.5 (in the hyperparameter section). Retrain and compare R². The Matérn2.5 kernel assumes the response is only twice differentiable — a weaker smoothness assumption that fits oscillatory data better.",
+      "instruction": "Note the GPR RBF test R². Now retrain with GPR but switch the kernel to Matérn2.5 (in the hyperparameter section). Retrain and compare R² — expect a clear improvement. The Matérn2.5 kernel assumes the response is only twice differentiable (C²), a weaker smoothness assumption that fits oscillatory data better. Check whether the wave pattern in the residuals diminishes.",
       "keywords": ["Kernel (Covariance Function)", "R² (Coefficient of Determination)", "Optimizer Restarts"],
       "quiz": {
-        "question": "Matérn2.5 assumes the response is exactly twice differentiable (C²). RBF assumes it is infinitely smooth (C∞). For y = sin(3x₁) + cos(2.5x₂), which assumption is closer to the truth?",
+        "question": "Matérn2.5 assumes the response is exactly twice differentiable (C²). RBF assumes it is infinitely smooth (C∞). For y = sin(5x₁) + cos(4x₂), which assumption is closer to the truth?",
         "options": [
-          "RBF — trigonometric functions are smooth everywhere",
-          "Matérn2.5 — sin and cos are infinitely differentiable, but their oscillatory nature means the practical correlation between distant points decays faster than RBF predicts",
+          "RBF — trigonometric functions are mathematically C∞ everywhere",
+          "Matérn2.5 — sin and cos are infinitely differentiable, but their high-frequency oscillation means points half a wavelength apart are anti-correlated, which Matérn's faster-decaying correlation function can represent while RBF cannot",
           "Neither — oscillatory functions cannot be modeled by any GP kernel",
           "Both are equally correct because both kernels are stationary"
         ],
         "correct_index": 1,
-        "explanation": "sin and cos are mathematically C∞, but GPR's RBF kernel predicts that points far apart in input space are still somewhat correlated (the correlation decays slowly as exp(−r²)). For an oscillatory function, points that are half a wavelength apart are anti-correlated — the opposite of what RBF expects. Matérn2.5's faster-decaying correlation (exp(−√5·r)(1+√5·r+5r²/3)) better matches this physical behavior, improving fit."
+        "explanation": "sin and cos are mathematically C∞, but GPR's RBF kernel predicts that points far apart in input space are still somewhat correlated (the correlation decays slowly as exp(−r²)). For a high-frequency oscillatory function, points half a wavelength apart are anti-correlated — the opposite of what RBF expects. Matérn2.5's faster-decaying correlation (exp(−√5·r)(1+√5·r+5r²/3)) better matches this physical behavior, giving meaningfully higher R² on sparse oscillatory data."
       }
     },
     {
@@ -92,7 +92,7 @@
     {
       "step_num": 7,
       "target_panel": "configure",
-      "instruction": "Third run — RBF Surrogate: switch model type to RBF. This is not a Gaussian Process — it is a deterministic interpolating network of radial basis functions. It has no hyperparameter tuning and produces no uncertainty estimate. Train and note R². On oscillatory data it typically lands between GPR-RBF (worst) and Kriging Matérn2.5 (best).",
+      "instruction": "Third run — RBF Surrogate: switch model type to RBF. This is not a Gaussian Process — it is a deterministic interpolating network of radial basis functions. It has no kernel hyperparameter optimization and produces no uncertainty estimate. Train and note R². On sparse oscillatory data it typically falls between GPR-RBF (worst) and the Matérn GP models (best).",
       "keywords": ["Radial Basis Function (RBF) Surrogate", "R² (Coefficient of Determination)"],
       "quiz": {
         "question": "Unlike GPR and Kriging, the RBF surrogate produces no prediction uncertainty (σ²). When is this acceptable and when is it a problem?",
@@ -109,18 +109,18 @@
     {
       "step_num": 8,
       "target_panel": "results",
-      "instruction": "Compare all four runs: GPR-RBF, GPR-Matérn2.5, Kriging-Matérn2.5, RBF Surrogate. The expected ranking by R² is Kriging-Matérn2.5 ≈ GPR-Matérn2.5 > RBF Surrogate > GPR-RBF. The key takeaway: the kernel assumption matters more than the model name — switching GPR from RBF to Matérn2.5 gives as large a gain as switching from GPR to Kriging.",
+      "instruction": "Compare all four runs: GPR-RBF, GPR-Matérn2.5, Kriging-Matérn2.5, RBF Surrogate. The expected ranking by R² is Kriging-Matérn2.5 ≈ GPR-Matérn2.5 > RBF Surrogate > GPR-RBF, with a visible gap between the RBF-kernel models and the Matérn models. The key takeaway: the kernel assumption matters more than the model name — switching GPR from RBF to Matérn2.5 gives as large a gain as switching from GPR to Kriging.",
       "keywords": ["R² (Coefficient of Determination)", "Kernel (Covariance Function)", "Gaussian Process Regression (GPR)", "Kriging"],
       "quiz": {
-        "question": "You are modeling a structural vibration response (oscillatory, finite differentiability). Which configuration would you recommend?",
+        "question": "You are modeling a structural vibration response (oscillatory, sparse data). Which configuration would you recommend?",
         "options": [
           "GPR with RBF kernel — the default is always safest",
-          "GPR or Kriging with Matérn1.5 or Matérn2.5 kernel — the weaker smoothness assumption matches the oscillatory physics",
+          "GPR or Kriging with Matérn1.5 or Matérn2.5 kernel — the weaker smoothness assumption matches the oscillatory physics and performs clearly better on sparse oscillatory data",
           "RBF Surrogate — fast training avoids overfitting on oscillatory data",
           "Linear model — oscillatory data requires a simple baseline first"
         ],
         "correct_index": 1,
-        "explanation": "For oscillatory responses, Matérn kernels outperform RBF because they assume finite differentiability — closer to the true physics of vibration modes. Matérn1.5 (C¹) is appropriate for rough responses; Matérn2.5 (C²) for moderately smooth oscillations. The model label (GPR vs Kriging) is secondary — the kernel choice is the dominant factor. Consult the Kernel & Hyperparameter Guide in the Guide panel for a decision tree."
+        "explanation": "For oscillatory responses with sparse data, Matérn kernels outperform RBF because they assume finite differentiability — closer to the true physics of vibration modes. The anti-correlation between points at half a wavelength apart cannot be represented by RBF at all; Matérn handles it naturally. Matérn1.5 (C¹) suits rough responses; Matérn2.5 (C²) suits moderately smooth oscillations. The model label (GPR vs Kriging) is secondary — the kernel choice is the dominant factor."
       }
     }
   ]
