@@ -74,7 +74,7 @@
       "step_num": 6,
       "target_panel": "active",
       "instruction": "Now run Objective mode. Set the output y as the objective and select Maximize. This uses Expected Improvement (EI) to balance exploring uncertain regions with exploiting areas already known to be near the maximum.",
-      "keywords": ["Expected Improvement (EI)", "Acquisition Function", "Bayesian Optimization"],
+      "keywords": ["Expected Improvement (EI)", "UCB", "Acquisition Function", "Bayesian Optimization"],
       "quiz": {
         "question": "Expected Improvement (EI) balances exploration and exploitation. What is 'exploitation' in this context?",
         "options": [

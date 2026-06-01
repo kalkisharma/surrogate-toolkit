@@ -112,7 +112,7 @@
       "step_num": 10,
       "target_panel": "results",
       "instruction": "Note the HF GPR's test R² — it should be higher than the LF RF despite having far fewer data points, because the HF physics is more accurate and smoother. The parity plot should show tighter clustering along the diagonal.",
-      "keywords": ["R² (Coefficient of Determination)", "Parity Plot"],
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Gaussian Process Regression (GPR)"],
       "quiz": null
     },
     {

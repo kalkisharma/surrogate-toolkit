@@ -47,7 +47,7 @@
       "step_num": 5,
       "target_panel": "configure",
       "instruction": "First run: configure as Linear model, test split 0.2, 5-fold CV. Train and note the R² score. The Results panel will show two R² values — Test Set Performance and CV (cross-validation). They measure slightly different things.",
-      "keywords": ["R² (Coefficient of Determination)", "Test Split", "Cross-Validation (CV)", "K-Fold CV"],
+      "keywords": ["Ridge Regression (Linear)", "R² (Coefficient of Determination)", "Test Split", "Cross-Validation (CV)", "K-Fold CV"],
       "quiz": {
         "question": "The Results panel shows both Test Set R² and CV R². What does CV R² measure that makes it more reliable than simply measuring accuracy on the training data?",
         "options": [
@@ -64,7 +64,7 @@
       "step_num": 6,
       "target_panel": "results",
       "instruction": "Note the test R² for Linear. Now go back to Step 8 — Model, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
-      "keywords": ["R² (Coefficient of Determination)", "Parity Plot"],
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Gaussian Process Regression (GPR)", "Random Forest (RF)"],
       "quiz": {
         "question": "For this 150-row, 3-input, smooth nonlinear dataset, what is the most likely ranking of models by test R²?",
         "options": [

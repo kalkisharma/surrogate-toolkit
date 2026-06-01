@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/comparison.js
 // Version: 1.0.0
-// Description: Step 13 — Multi-Dataset Comparison panel.
+// Description: Step 14 — Multi-Dataset Comparison panel.
 //              Side-by-side metrics, bias analysis (Δ = B − A),
 //              prediction scatter, and linear error model fitting.
 // =============================================================================
@@ -59,7 +59,7 @@ export async function initComparison(containerEl) {
 function _renderPanel(containerEl, datasets, withModels) {
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 13 — Multi-Dataset Comparison</h2>
+    <h2 class="section-title">Step 14 — Multi-Dataset Comparison</h2>
     <p class="section-desc">Compare two trained surrogates side-by-side: accuracy metrics, prediction agreement, and bias (Δ = B − A).</p>
   `;
   containerEl.appendChild(header);
@@ -428,7 +428,7 @@ function _renderPrereqChecklist(containerEl, datasets) {
 
   containerEl.innerHTML = `
     <div class="section-header">
-      <h2 class="section-title">Step 13 — Multi-Dataset Comparison</h2>
+      <h2 class="section-title">Step 14 — Multi-Dataset Comparison</h2>
     </div>
     <div class="compare-prereq-card">
       <p class="compare-prereq-title">Complete these steps to enable comparison:</p>

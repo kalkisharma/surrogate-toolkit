@@ -1,0 +1,107 @@
+{
+  "id": "ex_10_optimization",
+  "title": "Design Space Optimization — Pareto Front",
+  "difficulty": "intermediate",
+  "estimated_minutes": 25,
+  "description": "An aerodynamic dataset with 2 inputs (angle of attack, aspect ratio) and 3 outputs (lift coefficient cl, drag coefficient cd, lift-to-drag ratio cl_cd) presents a real engineering trade-off: reducing drag degrades lift-to-drag ratio. You will train a GPR surrogate and use the Optimize step to find the Pareto front — the set of designs where you cannot improve one objective without worsening another.",
+  "tags": ["optimization", "Pareto front"],
+  "dataset": "aero_pareto_2d.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has 2 inputs: aoa (angle of attack in degrees, 0–15°) and ar (aspect ratio, 4–12), and 3 outputs: cl (lift coefficient), cd (drag coefficient), cl_cd (lift-to-drag ratio). Higher aoa generates more lift but also more drag. Higher aspect ratio improves lift-to-drag but has structural limits.",
+      "keywords": ["Input Variable", "Output Variable"],
+      "quiz": {
+        "question": "Increasing angle of attack increases both cl and cd. If your goal is to maximise cl_cd (lift efficiency), is the optimal aoa always the highest possible (15°)?",
+        "options": [
+          "Yes — more lift always means better efficiency",
+          "No — at high aoa, cd grows faster than cl (induced drag increases as aoa²), so cl_cd peaks at an intermediate aoa and then falls",
+          "Yes — cl_cd is always proportional to aoa",
+          "No — cl_cd depends only on aspect ratio, not aoa"
+        ],
+        "correct_index": 1,
+        "explanation": "Lift coefficient grows roughly linearly with aoa, but drag grows approximately as aoa² (induced drag dominates at high angles). So cl_cd = cl/cd rises, peaks, then falls. The optimal aoa for cl_cd is at an intermediate value — this is the classic aerodynamic maximum lift-to-drag angle, a well-known design point in wing design."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "designate",
+      "instruction": "Designate aoa and ar as inputs. Designate cl, cd, and cl_cd as outputs.",
+      "keywords": ["Input Variable", "Output Variable"],
+      "quiz": null
+    },
+    {
+      "step_num": 3,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to aoa and ar.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "configure",
+      "instruction": "Train a GPR model with test split 0.2, 5-fold CV. GPR is preferred here — it models all three outputs simultaneously and provides uncertainty estimates that the optimizer can use. With 160 data points on a smooth response, expect R² > 0.92 for all three outputs.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
+      "quiz": null
+    },
+    {
+      "step_num": 5,
+      "target_panel": "results",
+      "instruction": "Check R² for each output in the Results panel. All three should be high (> 0.90). cl and cl_cd should be easier to fit; cd may be slightly harder due to the quadratic drag term. If any output has R² < 0.85, try Kriging with Matérn2.5 before proceeding.",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Residual Plot"],
+      "quiz": null
+    },
+    {
+      "step_num": 6,
+      "target_panel": "optimize",
+      "instruction": "Open Step 11 — Design Space Optimization. First run single-objective: set objective to Minimize cd (drag). Run. The optimizer will find the input combination (aoa, ar) that minimises predicted cd. Note the recommended aoa and ar values — low aoa and moderate ar, as expected.",
+      "keywords": ["Surrogate-Based Optimization"],
+      "quiz": {
+        "question": "Single-objective optimization found a design that minimises cd. Is this the best design for an aircraft?",
+        "options": [
+          "Yes — minimum drag is always the design goal",
+          "Not necessarily — minimum cd may produce very low cl (insufficient lift). The practical goal is often maximum cl_cd or meeting a minimum cl while minimising cd. Single-objective optimization ignores competing goals",
+          "Yes — once drag is minimised, the designer can increase ar independently to add lift",
+          "It depends on the flight regime, but surrogates cannot capture this nuance"
+        ],
+        "correct_index": 1,
+        "explanation": "Minimum drag at zero lift is trivial (fly at zero angle of attack) but useless — the aircraft must generate enough lift to fly. Engineering optimization almost always involves trade-offs between competing objectives. Single-objective results are a useful reference point (the best possible value of one metric) but rarely the final answer. Multi-objective optimization makes the trade-off explicit."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "optimize",
+      "instruction": "Now run multi-objective optimization: set Objective 1 to Minimize cd, Objective 2 to Maximize cl_cd. Run. A Pareto front plot will appear showing all non-dominated designs. Each point on the front is a design where you cannot reduce cd without also reducing cl_cd.",
+      "keywords": ["Surrogate-Based Optimization"],
+      "quiz": {
+        "question": "On the Pareto front, what does it mean for a design to be 'non-dominated'?",
+        "options": [
+          "The design is the best at one objective and worst at the other",
+          "No other design in the set is better on both objectives simultaneously — improving either objective requires accepting a worse value on the other",
+          "The design is the global optimum",
+          "The design satisfies all engineering constraints"
+        ],
+        "correct_index": 1,
+        "explanation": "A design is dominated if another design is better (or equal) on every objective. Non-dominated designs cannot be improved on any objective without worsening at least one other. The Pareto front is the complete set of non-dominated designs — the efficient frontier of trade-offs. A designer picks a point on this front based on how they weigh the objectives, not purely from the data."
+      }
+    },
+    {
+      "step_num": 8,
+      "target_panel": "optimize",
+      "instruction": "Look at the Pareto front plot. Find the 'knee point' — the design where the curve bends most sharply. This is where the trade-off is steepest: moving further along the front costs a lot of cl_cd to gain a little cd reduction. The knee point is often the most balanced engineering choice.",
+      "keywords": ["Surrogate-Based Optimization"],
+      "quiz": {
+        "question": "The Pareto front has 20 non-dominated designs. Your customer requires cl_cd ≥ 7.0 and wants cd minimised within that constraint. How do you use the Pareto front to answer this?",
+        "options": [
+          "Pick the design with the lowest cd regardless of cl_cd",
+          "Filter the Pareto front to designs with cl_cd ≥ 7.0, then select the one with the lowest cd from that subset — this is constrained multi-objective optimization",
+          "Run a new single-objective optimization with cl_cd fixed at exactly 7.0",
+          "The Pareto front cannot incorporate constraints — rerun with a different optimizer"
+        ],
+        "correct_index": 1,
+        "explanation": "Constraints reduce the feasible region. From the Pareto front, filter to designs satisfying all constraints, then select the one with the best primary objective. This is the standard constrained-optimization workflow: the Pareto front shows all trade-off options; constraints eliminate infeasible ones; the user picks from what remains. The surrogate makes this fast — the full design space can be evaluated in milliseconds."
+      }
+    }
+  ]
+}

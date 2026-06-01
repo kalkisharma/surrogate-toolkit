@@ -132,7 +132,7 @@
     {
       "step_num": 10,
       "target_panel": "predict",
-      "instruction": "Open Step 9 — Predict. Notice that the input fields show the original physical variables (velocity, dynamic_q, mach, aoa, span, aspect_ratio) — not PC coordinates. A 'PCA active' banner confirms the transform is handled automatically: the toolkit normalizes your values, applies the stored 3-component PCA matrix, and passes the resulting PC coordinates to the GPR. The fields pre-fill with the training means — click 'Run Prediction' to observe the predicted cl.",
+      "instruction": "Open Step 10 — Predict. Notice that the input fields show the original physical variables (velocity, dynamic_q, mach, aoa, span, aspect_ratio) — not PC coordinates. A 'PCA active' banner confirms the transform is handled automatically: the toolkit normalizes your values, applies the stored 3-component PCA matrix, and passes the resulting PC coordinates to the GPR. The fields pre-fill with the training means — click 'Run Prediction' to observe the predicted cl.",
       "keywords": ["Extrapolation", "Interpolation"],
       "quiz": {
         "question": "The PCA + GPR pipeline accepts physical inputs and predicts correctly. What interpretability trade-off remains?",

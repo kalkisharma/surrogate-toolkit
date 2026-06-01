@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/prediction.js
 // Version: 1.0.0
-// Description: Step 9 — Prediction & Inference. Single-point prediction
+// Description: Step 10 — Prediction & Inference. Single-point prediction
 //              (form → POST /api/predict/single) and batch prediction
 //              (CSV upload → POST /api/predict/batch → CSV download).
 //              Reads trained model metadata from GET /api/model/results.
@@ -30,9 +30,9 @@ export async function initPrediction(containerEl) {
   if (!resp.success) {
     const header = el("div", { cls: "section-header" });
     header.innerHTML = `
-      <h2 class="section-title">Step 9 — Prediction</h2>
+      <h2 class="section-title">Step 10 — Prediction</h2>
       <p class="section-desc" style="color: var(--color-text-muted);">
-        No trained model yet. Complete Step 7 — Configure Training to use prediction here.
+        No trained model yet. Complete Step 8 — Model to use prediction here.
       </p>`;
     containerEl.appendChild(header);
     return;
@@ -59,7 +59,7 @@ function _render(containerEl, r) {
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 9 — Prediction</h2>
+    <h2 class="section-title">Step 10 — Prediction</h2>
     <p class="section-desc">Query the trained ${modelLabel} surrogate for new input values.</p>
   `;
   containerEl.appendChild(header);

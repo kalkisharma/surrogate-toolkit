@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
 // Version: 3.0.0
-// Description: Step 7 — Configure Training. Lets users choose a model type,
+// Description: Step 8 — Model. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Shows a per-model
 //              hyperparameter section (kernel/alpha for GPR, trees/depth/features
 //              for RF, regularization for Linear). Saves to POST /api/model/configure,
@@ -89,7 +89,7 @@ export async function initModelConfig(containerEl, onTrain) {
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 7 — Configure Training</h2>
+    <h2 class="section-title">Step 8 — Model</h2>
     <p class="section-desc">Choose a model type and evaluation strategy. You can change these any time before training.</p>
   `;
   containerEl.appendChild(header);
