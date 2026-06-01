@@ -108,11 +108,12 @@ class KrigingModel(BaseSurrogateModel):
     def build_estimator(self, n_features: int) -> None:
         """Build self._model without fitting — required by the tune endpoint so
         GridSearchCV receives a real estimator before fit() is ever called."""
+        self._n_features = n_features
         ls = np.ones(n_features)
         if self._kernel_name == "matern15":
             k = Matern(length_scale=ls, nu=1.5)
         elif self._kernel_name == "rq":
-            k = RationalQuadratic()
+            k = RationalQuadratic(length_scale=ls)
         else:
             k = Matern(length_scale=ls, nu=2.5)
         single_gpr = GaussianProcessRegressor(
@@ -168,10 +169,28 @@ class KrigingModel(BaseSurrogateModel):
         return np.column_stack(stds) if len(stds) > 1 else stds[0].reshape(-1, 1)
 
     def get_param_grid(self) -> dict:
+        ls = np.ones(getattr(self, "_n_features", 1))
         return {
-            "estimator__kernel": [Matern(nu=1.5), Matern(nu=2.5), RationalQuadratic()],
-            "estimator__alpha":  [0.001, 0.01, 0.1, 1.0],
+            "estimator__kernel": [
+                Matern(length_scale=ls, nu=1.5),
+                Matern(length_scale=ls, nu=2.5),
+                RationalQuadratic(length_scale=ls),
+            ],
+            "estimator__alpha": [0.001, 0.01, 0.1, 1.0],
         }
+
+    def get_kernel_info(self) -> dict | None:
+        """Return fitted ARD length scales per output column, or None if not fitted."""
+        if not self._is_fitted:
+            return None
+        out = {}
+        for col, est in zip(self._output_columns, self._model.estimators_):
+            ls = est.kernel_.length_scale
+            if hasattr(ls, "__len__"):
+                out[col] = {inp: round(float(v), 4) for inp, v in zip(self._input_columns, ls)}
+            else:
+                out[col] = {inp: round(float(ls), 4) for inp in self._input_columns}
+        return out
 
     def get_summary(self) -> dict:
         """Return a JSON-serializable summary of this model.

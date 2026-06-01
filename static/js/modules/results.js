@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 2.6.0
+// Version: 3.5.27
 // Description: Step 9 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -594,6 +594,35 @@ function _render(containerEl, r) {
   }
   configSection.appendChild(configGrid);
   metricsPane.appendChild(configSection);
+
+  // ── ARD kernel length scales (GPR/Kriging only) ──────────────────────────────
+  if (r.kernel_length_scales) {
+    const lsSection = el("div", { cls: "results-section results-config-card" });
+    const lsTitle = el("h3", { cls: "results-section-title", text: "ARD Kernel Length Scales" });
+    lsSection.appendChild(lsTitle);
+    const lsNote = el("small");
+    lsNote.textContent = "Smaller = input varies quickly relative to others (higher influence). Sorted ascending.";
+    lsSection.appendChild(lsNote);
+    const outputs = Object.keys(r.kernel_length_scales);
+    for (const outCol of outputs) {
+      if (outputs.length > 1) {
+        const outLabel = el("p", { cls: "results-config-label" });
+        outLabel.textContent = outCol;
+        outLabel.style.marginTop = "0.5rem";
+        lsSection.appendChild(outLabel);
+      }
+      const lsGrid = el("div", { cls: "results-config-grid" });
+      const sorted = Object.entries(r.kernel_length_scales[outCol]).sort((a, b) => a[1] - b[1]);
+      for (const [inp, val] of sorted) {
+        const cell = el("div", { cls: "results-config-cell" });
+        cell.appendChild(el("span", { cls: "results-config-label", text: inp }));
+        cell.appendChild(el("span", { cls: "results-config-value", text: Number(val).toFixed(4) }));
+        lsGrid.appendChild(cell);
+      }
+      lsSection.appendChild(lsGrid);
+    }
+    metricsPane.appendChild(lsSection);
+  }
 
   // ── Test-set metrics table ───────────────────────────────────────────────────
   const testSection = el("div", { cls: "results-section" });

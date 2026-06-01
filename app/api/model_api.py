@@ -578,6 +578,11 @@ def train():
     if model_type in ("gpr", "kriging"):
         test_stds = model.predict_std(X_test).tolist()
 
+    # GPR/Kriging fitted ARD length scales — one per input per output.
+    kernel_length_scales = None
+    if model_type in ("gpr", "kriging") and hasattr(model, "get_kernel_info"):
+        kernel_length_scales = model.get_kernel_info()
+
     # ── PCA metadata (for predict panel reverse mapping) ─────────────────────
     _pca_state = state["surrogate_sessions"]["primary"].get("pca")
     _pca_applied = bool(meta.get("pca_applied", False)) and _pca_state is not None
@@ -613,6 +618,7 @@ def train():
         "test_predictions":          y_pred_test.tolist(),
         "test_inputs":               X_test.tolist(),
         "test_stds":                 test_stds,
+        "kernel_length_scales":      kernel_length_scales,
     }
     models_dict = state["surrogate_sessions"]["primary"]["models"]
     models_dict.pop("interpretation", None)
