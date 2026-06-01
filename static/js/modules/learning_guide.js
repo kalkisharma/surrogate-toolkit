@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/learning_guide.js
-// Version: 3.5.22
+// Version: 3.5.26
 // Description: Learning Guide modal — six tabs: Glossary, Model Guide,
 //              Topics, Exercises, Symbols, Equations. Opens via the "Guide"
 //              header button. Exercises tab auto-injects datasets and shows
@@ -553,23 +553,45 @@ function _showExerciseOverlay() {
   document.body.appendChild(panel);
 }
 
+// Deterministic Fisher-Yates shuffle so option order is stable on reload
+// but different for each exercise step — breaks the "always B" pattern.
+function _shuffleOptions(options, correctIndex, stepNum, exId) {
+  let seed = stepNum * 2654435761;
+  for (let i = 0; i < exId.length; i++) seed ^= exId.charCodeAt(i) * (i + 1);
+  seed = seed >>> 0;
+
+  const indices = options.map((_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    const j = seed % (i + 1);
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return {
+    options:     indices.map(i => options[i]),
+    correctIdx:  indices.indexOf(correctIndex),
+    origIndices: [...indices],
+  };
+}
+
 function _buildQuizCard(step, ex) {
-  const quiz  = step.quiz;
-  const saved = ex.progress?.quiz_answers?.[String(step.step_num)];
+  const quiz     = step.quiz;
+  const saved    = ex.progress?.quiz_answers?.[String(step.step_num)];
+  const shuffled = _shuffleOptions(quiz.options, quiz.correct_index, step.step_num, ex.id);
 
   const card = el("div", { cls: "ex-quiz" });
   card.innerHTML = `<p class="ex-quiz__q">${quiz.question}</p>`;
 
   const opts = el("div", { cls: "ex-quiz__opts" });
-  quiz.options.forEach((opt, i) => {
+  shuffled.options.forEach((opt, j) => {
+    const origIdx = shuffled.origIndices[j];
     const btn = el("button", { cls: "ex-quiz__opt" });
     btn.innerHTML = opt;
     if (saved !== undefined) {
       btn.disabled = true;
-      if (i === quiz.correct_index) btn.classList.add("ex-quiz__opt--correct");
-      else if (i === saved)          btn.classList.add("ex-quiz__opt--wrong");
+      if (j === shuffled.correctIdx) btn.classList.add("ex-quiz__opt--correct");
+      else if (origIdx === saved)    btn.classList.add("ex-quiz__opt--wrong");
     }
-    btn.addEventListener("click", () => _answerQuiz(card, quiz, i, step, ex));
+    btn.addEventListener("click", () => _answerQuiz(card, quiz, origIdx, shuffled, step, ex));
     opts.appendChild(btn);
   });
   card.appendChild(opts);
@@ -581,20 +603,18 @@ function _buildQuizCard(step, ex) {
   return card;
 }
 
-function _answerQuiz(card, quiz, chosenIdx, step, ex) {
-  // Disable all buttons and colour correct/wrong
-  card.querySelectorAll(".ex-quiz__opt").forEach((btn, i) => {
+function _answerQuiz(card, quiz, chosenOrigIdx, shuffled, step, ex) {
+  card.querySelectorAll(".ex-quiz__opt").forEach((btn, j) => {
     btn.disabled = true;
-    if (i === quiz.correct_index) btn.classList.add("ex-quiz__opt--correct");
-    else if (i === chosenIdx)      btn.classList.add("ex-quiz__opt--wrong");
+    if (j === shuffled.correctIdx)                      btn.classList.add("ex-quiz__opt--correct");
+    else if (shuffled.origIndices[j] === chosenOrigIdx) btn.classList.add("ex-quiz__opt--wrong");
   });
-  _appendExplanation(card, quiz, chosenIdx);
+  _appendExplanation(card, quiz, chosenOrigIdx);
 
-  // Persist answer
   post("/api/learning/exercises/progress", {
     exercise_id: ex.id,
     step_num:    step.step_num,
-    quiz_answer: chosenIdx,
+    quiz_answer: chosenOrigIdx,
   }).then(resp => {
     if (resp.success) ex.progress = resp.progress;
   });
