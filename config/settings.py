@@ -17,7 +17,7 @@ VERSION: 3.5.7
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "3.5.24"                     # bumped in settings.py, all changed file headers, and index.html on every release
+VERSION = "3.5.25"                     # bumped in settings.py, all changed file headers, and index.html on every release
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 

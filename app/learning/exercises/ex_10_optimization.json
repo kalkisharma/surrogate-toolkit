@@ -41,14 +41,14 @@
     {
       "step_num": 4,
       "target_panel": "configure",
-      "instruction": "Train a GPR model with test split 0.2, 5-fold CV. GPR is preferred here — it models all three outputs simultaneously and provides uncertainty estimates that the optimizer can use. With 160 data points on a smooth response, expect R² > 0.92 for all three outputs.",
+      "instruction": "Train a GPR model with test split 0.2, 5-fold CV. GPR is preferred here — it models all three outputs simultaneously and provides uncertainty estimates that the optimizer can use. Expect R² > 0.92 for cl and cd. cl_cd (a derived ratio) is typically harder to fit — expect R² > 0.85 for this output.",
       "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
       "quiz": null
     },
     {
       "step_num": 5,
       "target_panel": "results",
-      "instruction": "Check R² for each output in the Results panel. All three should be high (> 0.90). cl and cl_cd should be easier to fit; cd may be slightly harder due to the quadratic drag term. If any output has R² < 0.85, try Kriging with Matérn2.5 before proceeding.",
+      "instruction": "Check R² for each output in the Results panel. cl and cd should be > 0.92 (they are direct aerodynamic quantities on a smooth response surface). cl_cd is a derived ratio — small errors in cl and cd compound into larger errors in their quotient — so R² > 0.85 is acceptable. If cl_cd R² is below 0.80, try Kriging with Matérn2.5 before proceeding.",
       "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Residual Plot"],
       "quiz": null
     },
