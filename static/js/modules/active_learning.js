@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/active_learning.js
-// Version: 1.2.0
+// Version: 1.3.0
 // Description: Step 13 — Active Learning. Coverage mode (max-min distance),
 //              objective mode (EI / UCB), and residual-guided mode recommendation
 //              panels with design space scatter, recommendation table, CSV export,
@@ -23,6 +23,7 @@ let _activeMode      = "coverage";   // "coverage" | "objective" | "residual"
 let _axisX           = 0;
 let _axisY           = 1;
 let _cachedXTrain    = null;          // training-data rows in model input space; module-level so axis callbacks always see latest value
+let _pcaApplied      = false;         // true when PCA was applied — controls which data source is used for X_train in scatter
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ export async function initActiveLearning(containerEl) {
   const outputCols = results.output_columns;
   const modelType  = results.model_type;
   const hasUQ      = modelType === "gpr" || modelType === "rf";
+  _pcaApplied      = results.pca_applied || false;
 
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
@@ -327,8 +329,11 @@ function _renderResults(container, resp, inputCols) {
 }
 
 async function _fetchTrainAndRenderScatter(scatterEl, resp, inputCols, onFetched) {
-  // Use ?source=working so PC-transformed coordinates align with recommendations.
-  const dataResp = await get("/api/data/rows?source=working");
+  // PCA: fetch normalized df (which has PC columns) so training points align with
+  // PC-space recommendations. Non-PCA: fetch clean df (physical scale) because
+  // _denorm_recommendations already converted recommendations back to physical scale.
+  const url      = _pcaApplied ? "/api/data/rows?source=working" : "/api/data/rows";
+  const dataResp = await get(url);
   if (!dataResp.success) return;
 
   const X_train = dataResp.rows.map(row => inputCols.map(col => row[col] ?? 0));
@@ -337,6 +342,10 @@ async function _fetchTrainAndRenderScatter(scatterEl, resp, inputCols, onFetched
 }
 
 function _rerenderScatter(scatterEl, resp, inputCols, X_train) {
+  // Remove the loading placeholder so it doesn't sit beneath the Plotly canvas.
+  const loadingEl = scatterEl.querySelector(".al-scatter-loading");
+  if (loadingEl) loadingEl.remove();
+
   let xIdx = Math.min(_axisX, inputCols.length - 1);
   let yIdx = Math.min(_axisY, inputCols.length - 1);
   // If clamping caused a collision, auto-advance yIdx and sync module state.
