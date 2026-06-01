@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/active_learning.js
-// Version: 1.1.0
+// Version: 1.2.0
 // Description: Step 13 — Active Learning. Coverage mode (max-min distance),
 //              objective mode (EI / UCB), and residual-guided mode recommendation
 //              panels with design space scatter, recommendation table, CSV export,
@@ -22,6 +22,7 @@ let _lastResult      = null;
 let _activeMode      = "coverage";   // "coverage" | "objective" | "residual"
 let _axisX           = 0;
 let _axisY           = 1;
+let _cachedXTrain    = null;          // training-data rows in model input space; module-level so axis callbacks always see latest value
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -270,6 +271,14 @@ function _buildResidualControls(container, inputCols, outputCols, resultsDiv, hi
 function _renderResults(container, resp, inputCols) {
   clearEl(container);
 
+  // Reset cached training data for this new result; clamp stale axis indices to
+  // the current input space and resolve any equal-index collision that would
+  // produce a blank scatter (e.g. after PCA reduces 6 inputs to 3).
+  _cachedXTrain = null;
+  _axisX = Math.min(_axisX, inputCols.length - 1);
+  _axisY = Math.min(_axisY, inputCols.length - 1);
+  if (_axisX === _axisY) { _axisX = 0; _axisY = Math.min(1, inputCols.length - 1); }
+
   const section = el("div", { cls: "interpret-section" });
 
   // Subtitle
@@ -285,15 +294,18 @@ function _renderResults(container, resp, inputCols) {
   // Scatter plot (with axis selectors if > 2 inputs)
   if (inputCols.length >= 2) {
     const scatterWrap = el("div", { cls: "al-scatter-wrap" });
-    let _cachedXTrain = null;
 
     if (inputCols.length > 2) {
       const axisRow = el("div", { cls: "al-axis-row" });
       axisRow.appendChild(_makeAxisSelector("X axis:", inputCols, _axisX, (i) => {
-        _axisX = i; _rerenderScatter(scatterEl, resp, inputCols, _cachedXTrain);
+        _axisX = i;
+        // Only re-render if training data is ready; otherwise the fetch-completion
+        // callback will render with the already-updated axis values.
+        if (_cachedXTrain !== null) _rerenderScatter(scatterEl, resp, inputCols, _cachedXTrain);
       }));
       axisRow.appendChild(_makeAxisSelector("Y axis:", inputCols, _axisY, (i) => {
-        _axisY = i; _rerenderScatter(scatterEl, resp, inputCols, _cachedXTrain);
+        _axisY = i;
+        if (_cachedXTrain !== null) _rerenderScatter(scatterEl, resp, inputCols, _cachedXTrain);
       }));
       scatterWrap.appendChild(axisRow);
     }
@@ -315,9 +327,6 @@ function _renderResults(container, resp, inputCols) {
 }
 
 async function _fetchTrainAndRenderScatter(scatterEl, resp, inputCols, onFetched) {
-  const modelResp = await get("/api/model/results");
-  if (!modelResp.success) return;
-
   // Use ?source=working so PC-transformed coordinates align with recommendations.
   const dataResp = await get("/api/data/rows?source=working");
   if (!dataResp.success) return;
@@ -328,9 +337,13 @@ async function _fetchTrainAndRenderScatter(scatterEl, resp, inputCols, onFetched
 }
 
 function _rerenderScatter(scatterEl, resp, inputCols, X_train) {
-  const xIdx = Math.min(_axisX, inputCols.length - 1);
-  const yIdx = Math.min(_axisY, inputCols.length - 1);
-  if (xIdx === yIdx) return;
+  let xIdx = Math.min(_axisX, inputCols.length - 1);
+  let yIdx = Math.min(_axisY, inputCols.length - 1);
+  // If clamping caused a collision, auto-advance yIdx and sync module state.
+  if (xIdx === yIdx) {
+    yIdx    = xIdx === 0 ? Math.min(1, inputCols.length - 1) : 0;
+    _axisY  = yIdx;
+  }
   renderDesignSpaceScatter(scatterEl, X_train || [], resp.recommendations, inputCols, {
     axisX: xIdx, axisY: yIdx,
   });

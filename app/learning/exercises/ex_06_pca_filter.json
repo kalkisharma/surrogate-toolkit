@@ -132,18 +132,18 @@
     {
       "step_num": 10,
       "target_panel": "predict",
-      "instruction": "Open Step 10 — Predict. Notice that the input fields now show PC1, PC2, PC3 instead of the original variable names. This is the trade-off of PCA: you gain a cleaner model but lose direct physical interpretation of individual inputs. Enter PC1=0.5, PC2=0.3, PC3=0.6 and observe the predicted cl.",
+      "instruction": "Open Step 9 — Predict. Notice that the input fields show the original physical variables (velocity, dynamic_q, mach, aoa, span, aspect_ratio) — not PC coordinates. A 'PCA active' banner confirms the transform is handled automatically: the toolkit normalizes your values, applies the stored 3-component PCA matrix, and passes the resulting PC coordinates to the GPR. The fields pre-fill with the training means — click 'Run Prediction' to observe the predicted cl.",
       "keywords": ["Extrapolation", "Interpolation"],
       "quiz": {
-        "question": "An engineer asks you: 'What lift coefficient would we get if we increase velocity from 100 to 150 m/s?' After PCA, you cannot answer directly because:",
+        "question": "The PCA + GPR pipeline accepts physical inputs and predicts correctly. What interpretability trade-off remains?",
         "options": [
-          "The model only accepts PC coordinates — you would need to transform the input values through the fitted PCA to get PC coordinates, then predict",
-          "The model is broken after PCA",
-          "Velocity is no longer in the model so it does not affect predictions",
-          "You need to retrain without PCA to answer physical questions"
+          "You can no longer predict at arbitrary velocity values — only near the training means",
+          "The GPR kernel operates in PC space, so its length-scales describe sensitivity to PC1/PC2/PC3, not directly to velocity or aoa. You cannot read off which physical variable most influences the output without examining PCA loadings or running a sensitivity analysis",
+          "Predicted cl values will always be less accurate than a GPR trained directly on the 6 physical inputs",
+          "Batch prediction is disabled after PCA is applied"
         ],
-        "correct_index": 0,
-        "explanation": "The PCA transform is stored in STATE. To predict at a new physical operating point (e.g. velocity=150), you would compute the PC coordinates by transforming [velocity=150, dynamic_q, mach, aoa, span, aspect_ratio] through the fitted PCA matrix, then predict. In this toolkit, that transformation is not yet automated in the prediction panel — which is the fundamental trade-off: PCA gains model accuracy but reduces interpretability."
+        "correct_index": 1,
+        "explanation": "Prediction at any physical operating point works correctly — the toolkit applies normalization and the stored PCA transform automatically. The remaining trade-off is interpretability: the GPR's internal length-scales correspond to PC components, not physical variables. To understand whether velocity or aoa is the dominant driver, you would examine the PCA loading matrix (which physical variables load heavily on each PC) or run a one-at-a-time sensitivity analysis in the Sensitivity step."
       }
     }
   ]

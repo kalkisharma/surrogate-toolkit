@@ -462,7 +462,8 @@ def rows():
     from flask import request as _req
     use_working = _req.args.get("source") == "working"
     if use_working:
-        df = primary.get("normalized") or primary.get("clean")
+        _norm = primary.get("normalized")
+        df = _norm if _norm is not None else primary.get("clean")
     else:
         df = primary["clean"]
 
