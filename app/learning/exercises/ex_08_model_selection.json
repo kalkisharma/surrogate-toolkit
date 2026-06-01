@@ -1,0 +1,127 @@
+{
+  "id": "ex_08_model_selection",
+  "title": "Model Selection — GPR, Random Forest, and Linear",
+  "difficulty": "intermediate",
+  "estimated_minutes": 20,
+  "description": "A 2-input dataset with a compact Gaussian-shaped peak centered in the design space, plus a background linear trend — typical of a physical optimum (peak efficiency, resonance, optimal mixture ratio) surrounded by a monotone background. You will train a Linear model, Random Forest, and GPR on the same data and compare results. The exercise shows why model family is the first choice to make and when GPR's smooth interpolation outperforms RF's piecewise approximation.",
+  "tags": ["model selection", "GPR", "Random Forest", "linear"],
+  "dataset": "model_comparison_2d.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has 2 inputs (x1, x2) in [0, 3] and 1 output (y). The underlying response is a smooth Gaussian-shaped hill centered at (1.5, 1.5) with a linear background trend — it peaks in the middle of the design space and falls off in all directions. A linear model can only fit the background trend; it cannot represent the peak shape at all.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Random Forest (RF)", "Ridge Regression (Linear)"],
+      "quiz": {
+        "question": "The response has a smooth compact peak centered in the design space, plus a linear background trend y ≈ x1 + 0.5·x2. What will a linear (Ridge) regression model predict for points near the center (1.5, 1.5)?",
+        "options": [
+          "It will correctly predict the peak because Ridge regression can capture any pattern given enough regularization",
+          "It will severely underpredict the peak — the model can only fit the linear trend and will predict values close to x1 + 0.5·x2, missing all of the Gaussian contribution",
+          "It will overpredict the peak because Ridge amplifies large values",
+          "Linear regression always fails when inputs are normalized"
+        ],
+        "correct_index": 1,
+        "explanation": "Ridge regression fits a weighted sum of inputs: ŷ = w0 + w1·x1 + w2·x2. No matter how the weights are chosen, this cannot represent a peaked surface — it produces a tilted plane. All points near the Gaussian peak will have large positive residuals (true value >> predicted). This is not a parameter-tuning problem; it is a model-family mismatch: you need a nonlinear model."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "designate",
+      "instruction": "Designate x1 and x2 as inputs and y as the output.",
+      "keywords": ["Input Variable", "Output Variable"],
+      "quiz": null
+    },
+    {
+      "step_num": 3,
+      "target_panel": "normalize",
+      "instruction": "Apply Min-Max normalization to x1 and x2.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "configure",
+      "instruction": "First run — Linear model: Open Step 8 — Model, select Linear, test split 0.2, 5-fold CV. Train. The R² badge will be red (R² < 0.70). Open the residual plot — you should see large positive residuals clustered in the center of the predicted range, where the model consistently undershoots the Gaussian peak.",
+      "keywords": ["Ridge Regression (Linear)", "R² (Coefficient of Determination)", "Residual Plot", "Test Split", "Cross-Validation (CV)"],
+      "quiz": {
+        "question": "The linear model achieves R² ≈ 0.60 (red badge). The residual plot shows large positive residuals at intermediate predicted values and near-zero residuals at low predicted values. What does this spatial pattern in the residuals reveal?",
+        "options": [
+          "The model overfit the training data and the test split was too small",
+          "The model is systematically underpredicting the peak region — positive residuals in the middle of the predicted range are the signature of a missed local maximum that the linear model cannot represent",
+          "Normalization caused the residuals to cluster",
+          "Ridge regularization is set too high"
+        ],
+        "correct_index": 1,
+        "explanation": "When residuals show a spatial pattern (clustering at certain predicted values rather than random scatter), the model is missing a structural feature. Here, the linear model predicts a smooth plane — it gets low and high predictions right for points far from the peak, but systematically predicts too low for peak-region points because it has no mechanism to represent the local Gaussian bump. The residual map is essentially tracing the shape of what the model failed to learn."
+      }
+    },
+    {
+      "step_num": 5,
+      "target_panel": "configure",
+      "instruction": "Second run — Random Forest: switch model type to RF, same test split and CV folds. Train. The R² badge will jump to green (R² ≈ 0.97). RF achieves this without any assumption about the response shape — it splits the input space into rectangular regions and averages training values within each region.",
+      "keywords": ["Random Forest (RF)", "R² (Coefficient of Determination)", "Residual Plot"],
+      "quiz": {
+        "question": "Random Forest achieves R² ≈ 0.97 with no assumptions about the response shape, while linear regression achieves 0.60 on the same data. What is the mechanism that lets RF capture the Gaussian peak when linear regression cannot?",
+        "options": [
+          "RF uses more parameters than linear regression, which always improves accuracy",
+          "RF partitions the input space into small rectangles through decision tree splits and predicts the average training value in each region — the ensemble of many trees approximates any continuous function without requiring a specific functional form",
+          "RF automatically detects and fits Gaussian shapes in the data",
+          "RF normalizes the inputs differently, which removes the nonlinearity"
+        ],
+        "correct_index": 1,
+        "explanation": "Each decision tree in the forest splits the input space at specific thresholds (e.g., x1 < 1.2 and x2 < 1.8). The leaf node covering the peak region contains mostly high-value training points, so the prediction there is high. The ensemble average of 100 trees produces a piecewise-constant approximation of the smooth surface. Given enough trees and training data, RF can approximate any continuous function — but the predictions are staircase-shaped, not smooth."
+      }
+    },
+    {
+      "step_num": 6,
+      "target_panel": "configure",
+      "instruction": "Third run — GPR: switch model type to GPR, RBF kernel (default), alpha 0.1, same test split and CV folds. Train. R² should be ≈ 0.99 — slightly higher than RF. The improvement is real but small: GPR's smooth interpolation matches the smooth Gaussian-shaped response more naturally than RF's piecewise rectangles.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Kernel (Covariance Function)", "R² (Coefficient of Determination)"],
+      "quiz": {
+        "question": "GPR (R² ≈ 0.99) outperforms RF (R² ≈ 0.97) on this smooth peaked response. What property of GPR explains the edge?",
+        "options": [
+          "GPR uses more training iterations than RF",
+          "GPR's RBF kernel assumes the response varies smoothly between training points — exactly matching a Gaussian-shaped surface. RF approximates the same surface with piecewise-constant rectangles, introducing staircase artifacts at boundaries between regions",
+          "GPR always outperforms RF when the dataset is small",
+          "RF cannot fit responses that have a peak"
+        ],
+        "correct_index": 1,
+        "explanation": "The RBF (Squared Exponential) kernel encodes the prior belief that nearby input points should have similar outputs and that the surface is infinitely smooth. A Gaussian-shaped peak satisfies this assumption perfectly. RF's rectangular partitioning introduces discontinuities at every split boundary — each tree boundary creates a step in the predicted surface. With 100 trees, these steps average out to a decent approximation, but GPR's smooth interpolation requires no such averaging."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "results",
+      "instruction": "Review all three results in the model history. The ranking is GPR (≈0.99) > RF (≈0.97) > Linear (≈0.60). Both GPR and RF have green badges; Linear has a red badge. The GPR–RF gap is small (~0.02) but GPR also provides prediction uncertainty (σ²) at every new input — RF provides only a point estimate.",
+      "keywords": ["R² (Coefficient of Determination)", "Gaussian Process Regression (GPR)", "Random Forest (RF)", "Ridge Regression (Linear)"],
+      "quiz": {
+        "question": "GPR is slightly more accurate than RF and provides uncertainty estimates. Why would an engineer still choose RF over GPR in practice?",
+        "options": [
+          "RF is always more accurate on engineering data",
+          "GPR training scales as O(n³) in the number of training points — it becomes impractically slow above roughly 5,000–10,000 rows. RF trains in O(n log n) and handles large datasets, mixed feature types, and non-normalized inputs without issue. When the dataset is large or speed matters and uncertainty estimates are not required, RF is the practical choice",
+          "RF provides better uncertainty estimates than GPR",
+          "GPR requires more hyperparameter tuning than RF"
+        ],
+        "correct_index": 1,
+        "explanation": "GPR's cubic training cost (O(n³)) is the primary practical limitation. For 150 training points it is fast; for 15,000 it would take hours on a single core. RF also naturally handles datasets where some inputs are categorical or untransformed. The choice framework: start with GPR for small, smooth, low-dimensional response surfaces where uncertainty estimates matter; use RF when the dataset is large, mixed-type, or when you need fast retraining. Both beat linear regression whenever the response is nonlinear."
+      }
+    },
+    {
+      "step_num": 8,
+      "target_panel": "results",
+      "instruction": "Final observation: the model label (GPR vs Kriging) matters less than the model family (GP vs RF vs Linear). If you now train Kriging with the same RBF-equivalent kernel and alpha, you will get R² indistinguishable from GPR — they are the same underlying math. The hierarchy is: model family first (GP, RF, linear), then kernel choice within the GP family, then hyperparameter tuning.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Kriging", "R² (Coefficient of Determination)", "Kernel (Covariance Function)"],
+      "quiz": {
+        "question": "You have a new dataset with 500 rows, 8 inputs, and 1 output. The response is believed to be smooth but you do not know if it is linear. What is the correct order of model-selection decisions?",
+        "options": [
+          "Choose the kernel first, then decide between GPR and Kriging, then add more data if needed",
+          "First decide the model family: try linear (fastest, check if R² is acceptable), then RF or GPR if not. If GPR is chosen, then pick a kernel family. Tune hyperparameters (alpha, kernel length scale) last",
+          "Always start with GPR — it is the most general model",
+          "Run all models simultaneously and pick the one with the highest training R²"
+        ],
+        "correct_index": 1,
+        "explanation": "The decision hierarchy matters for efficiency. Linear regression trains in milliseconds and is a valid baseline — if it achieves acceptable R², it is the right choice (simpler, faster, more interpretable). If not, move to RF or GP. Within the GP family, kernel choice comes before hyperparameter tuning. Evaluating on training R² alone is wrong — always compare on held-out test data or CV scores. With 500 rows and 8 inputs, both RF and GPR are feasible; at 5,000+ rows, GPR's cubic cost becomes a constraint."
+      }
+    }
+  ]
+}
