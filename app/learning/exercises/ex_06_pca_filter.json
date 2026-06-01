@@ -115,15 +115,15 @@
     {
       "step_num": 9,
       "target_panel": "results",
-      "instruction": "Review the R² score and parity plot. A well-tuned PCA + GPR pipeline on this dataset should achieve R² > 0.90. If R² is lower, the discarded variance (6%) may include some aoa signal — try 4 components and retrain.",
+      "instruction": "Review the R² score and parity plot. A well-tuned PCA + GPR pipeline on this dataset should achieve R² > 0.90. If R² is lower, the discarded variance may include some aoa signal — try 4 components and retrain.",
       "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Multicollinearity"],
       "quiz": {
-        "question": "You applied PCA and achieved R² = 0.91, but the original 6-input GPR without filtering achieved R² = 0.89. What explains this?",
+        "question": "The PCA + GPR pipeline achieves higher R² than a GPR trained on all 6 original inputs without filtering. What is the most likely explanation?",
         "options": [
           "PCA always improves R² — it is a free performance boost",
           "Removing collinear inputs stabilised the GPR kernel optimisation. Multicollinearity causes the kernel to see multiple inputs as equivalent, degrading length-scale estimates and model accuracy",
           "The test set happened to be easier after PCA",
-          "3 inputs always outperform 6 inputs in GPR"
+          "Fewer inputs always outperform more inputs in GPR"
         ],
         "correct_index": 1,
         "explanation": "GPR uses a kernel (e.g. RBF) to compute distances between points in input space. When three inputs all measure the same thing (velocity, q, Mach), the kernel treats flight speed as three dimensions instead of one, distorting the distance metric. PCA collapses the three correlated inputs into one component, giving the kernel an accurate view of the actual degrees of freedom."
