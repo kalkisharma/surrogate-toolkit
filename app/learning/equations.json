@@ -51,7 +51,7 @@
         "σ = column standard deviation (from training data)",
         "x′ = standardised value with mean 0 and std 1"
       ],
-      "note": "More robust to outliers than min-max. Preferred for GPR."
+      "note": "More robust to outliers than min-max when the column has extreme values that would compress the rest of the range. Both methods work well with GPR; the toolkit exercises use min-max for bounded engineering parameters."
     },
     {
       "name": "IQR Outlier Bounds",

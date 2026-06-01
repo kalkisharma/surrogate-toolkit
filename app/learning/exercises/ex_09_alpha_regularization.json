@@ -58,7 +58,7 @@
     {
       "step_num": 5,
       "target_panel": "configure",
-      "instruction": "Underfit the noise floor — alpha=0.01: change alpha to 0.01 and retrain. CV R² mean will drop to ≈ 0.66 and std will spike to ≈ 0.20. Scores across folds now vary roughly from 0.46 to 0.86 — the model is chasing the noise pattern specific to each training fold. Open the residual plot: training residuals will be near zero (the model is interpolating through noise), but test residuals will be large and scattered.",
+      "instruction": "Overfit the noise — alpha=0.01: change alpha to 0.01 and retrain. CV R² mean will drop to ≈ 0.66 and std will spike to ≈ 0.20. Scores across folds now vary roughly from 0.46 to 0.86 — the model is chasing the noise pattern specific to each training fold. Open the residual plot: training residuals will be near zero (the model is interpolating through noise), but test residuals will be large and scattered.",
       "keywords": ["Gaussian Process Regression (GPR)", "Cross-Validation (CV)", "R² (Coefficient of Determination)", "Residual Plot"],
       "quiz": {
         "question": "With alpha=0.01, CV std spikes from 0.04 to 0.20. Some folds score 0.46, others 0.86. What is causing this dramatic instability?",

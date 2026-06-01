@@ -14,7 +14,7 @@
     },
     {
       "title": "Expected Improvement (EI) Acquisition",
-      "body": "EI is the acquisition function used in objective mode (Bayesian optimisation). At each candidate point x, EI measures how much improvement over the current best prediction we can expect, accounting for both the predicted mean and the uncertainty: EI(x) = E[max(f_best − μ(x), 0)]. Points with low predicted mean (good) or high uncertainty (unexplored) both have high EI. This naturally balances exploitation (refining near the current best) and exploration (sampling uncertain regions). The next recommended point is the one with maximum EI over the candidate space."
+      "body": "EI is the acquisition function used in objective mode (Bayesian optimisation). At each candidate point x, EI measures how much improvement over the current best prediction we can expect, accounting for both the predicted mean and the uncertainty: EI(x) = E[max(f_best − μ(x), 0)]. This formula is written for minimization — f_best is the current lowest prediction; EI is positive only where μ(x) is below it. For maximization, EI = E[max(μ(x) − f_best, 0)]. The toolkit handles both directions automatically based on the objective direction you select. Points with low predicted mean (for minimization) or high uncertainty (unexplored) both have high EI. This naturally balances exploitation (refining near the current best) and exploration (sampling uncertain regions). The next recommended point is the one with maximum EI over the candidate space."
     },
     {
       "title": "Upper Confidence Bound (UCB) Acquisition",

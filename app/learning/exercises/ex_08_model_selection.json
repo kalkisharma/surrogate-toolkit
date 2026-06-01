@@ -109,7 +109,7 @@
     {
       "step_num": 8,
       "target_panel": "results",
-      "instruction": "Final observation: the model label (GPR vs Kriging) matters less than the model family (GP vs RF vs Linear). If you now train Kriging with the same RBF-equivalent kernel and alpha, you will get R² indistinguishable from GPR — they are the same underlying math. The hierarchy is: model family first (GP, RF, linear), then kernel choice within the GP family, then hyperparameter tuning.",
+      "instruction": "Final observation: the model label (GPR vs Kriging) matters less than the model family (GP vs RF vs Linear). If you now train Kriging with its default Matérn 2.5 kernel and the same alpha, you will get R² indistinguishable from GPR on this smooth surface — they are the same underlying math. The hierarchy is: model family first (GP, RF, linear), then kernel choice within the GP family, then hyperparameter tuning.",
       "keywords": ["Gaussian Process Regression (GPR)", "Kriging", "R² (Coefficient of Determination)", "Kernel (Covariance Function)"],
       "quiz": {
         "question": "You have a new dataset with 500 rows, 8 inputs, and 1 output. The response is believed to be smooth but you do not know if it is linear. What is the correct order of model-selection decisions?",

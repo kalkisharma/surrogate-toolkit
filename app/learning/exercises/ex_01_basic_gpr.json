@@ -18,6 +18,7 @@
       "step_num": 2,
       "target_panel": "explore",
       "instruction": "Open the scatter matrix (Step 3). Look at the x1 vs y and x2 vs y plots.",
+      "keywords": [],
       "quiz": {
         "question": "What kind of relationship does the x1 vs y scatter suggest?",
         "options": ["Linear (straight line)", "Quadratic (curved)", "No relationship", "Exponential"],

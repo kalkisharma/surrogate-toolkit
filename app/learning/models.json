@@ -64,7 +64,7 @@
       ],
       "weaknesses": [
         "No uncertainty estimates",
-        "Can produce wild oscillations between training points (Runge phenomenon) in high dimensions",
+        "Can produce oscillation artifacts between training points in high dimensions or when training points are poorly distributed",
         "Ill-conditioned for large datasets or clustered points"
       ],
       "best_for": "Small, well-distributed datasets with smooth responses where exact interpolation is desired and speed is a priority.",
@@ -75,7 +75,7 @@
       "name": "Polynomial Chaos Expansion (PCE)",
       "description": "Represents the surrogate as a multivariate polynomial in the input variables using orthogonal basis functions (Legendre polynomials for uniform inputs). The coefficients encode all information about the response. First-order Sobol sensitivity indices are free byproducts — no separate analysis needed.",
       "strengths": [
-        "Sobol sensitivity indices computed analytically from coefficients — zero extra cost",
+        "First-order Sobol sensitivity indices (S₁) computed analytically from polynomial coefficients — no additional sampling required",
         "Algebraically interpretable — each coefficient has physical meaning",
         "Fast evaluation — purely polynomial arithmetic",
         "Very accurate for smooth, well-behaved responses"
