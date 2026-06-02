@@ -13,9 +13,32 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete — Phases 12 & 13 delivered; 14, 15, 16 complete |
-| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
+| **M4** | v4.0.0 | 17–25 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.5.35] — 2026-06-02
+
+### PHASES.md — Phase 22 scoped (Per-Observation Noise) + milestone renumber
+
+#### Added — PHASES.md
+
+- **Phase 22 — Per-Observation Noise (Heteroscedastic Inputs)** — full scope defined across 5 sub-phases:
+  - 22A: Ingestion & Schema — detect `_std`/`_err`/`_uncertainty` companion columns; prefix match against output column names; store σ² with zero floor; NaN substitution; add `error_columns` to state schema
+  - 22B: Designate Panel — auto-label "Output Error"; allow demotion to "unused"; tooltip explaining 1σ assumption and internal squaring
+  - 22C: Normalization — scale error columns by same factor as paired output (min-max: divide by range; z-score: divide by output std); no shift; division-by-zero guard
+  - 22D: Model Training — GPR `alpha=noise_array` (rigorous); RF/Linear `sample_weight=1/σ²` normalized to max=1.0 (weighted approx); `noise_array is None` guard preserves all existing behavior
+  - 22E: Display & Active Learning (independent) — "noise weighting active" indicator; mean σ sanity check; GPR uncertainty band note; HTML report section; coverage mode flags high-σ dense regions
+- No new pip packages — sklearn natively supports `alpha=array` and `sample_weight`
+
+#### Changed — PHASES.md
+
+- Phase renumber: Auth → Phase 23 (v3.7.0), Sharing → Phase 24 (v3.8.0), HPC → Phase 25 (v4.0.0)
+- Total phases: 24 → 25; M4 phases: 17–24 → 17–25
+- Cross-phase dependency table updated for all renumbered phases
+- New dependencies table updated: Phase 22 (none), Phase 23 (Flask-Login/bcrypt), Phase 25 (celery/redis)
 
 ---
 

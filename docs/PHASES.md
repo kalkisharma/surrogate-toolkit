@@ -1,7 +1,7 @@
 # Surrogate Toolkit — Phase Documentation
 
-**Last updated:** 2026-05-31 (Phase 21 complete; ex_06/ex_07, ARD kernels, Symbols/Equations tabs documented)
-**Total phases:** 24 across 4 milestones
+**Last updated:** 2026-06-02 (Phase 22 scoped — Per-Observation Noise; Auth→23, Sharing→24, HPC→25)
+**Total phases:** 25 across 4 milestones
 **See also:** `docs/DEVELOPER.md` (versioning), `docs/CHANGELOG.md` (release history)
 
 ---
@@ -13,7 +13,7 @@
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
+| **M4** | v4.0.0 | 17–25 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
 
 ---
 
@@ -997,24 +997,103 @@
 
 ---
 
-### Phase 22 — Authentication
+### Phase 22 — Per-Observation Noise (Heteroscedastic Inputs)
 **Status:** 🔲 Not started | **Version:** v3.6.0
+
+**Purpose:** Allow users to supply per-row measurement or convergence uncertainty alongside their output data, so the surrogate can weight reliable observations more heavily and discount noisy ones during training.
+
+**User story:** A CFD engineer has a dataset where some runs converged tightly (small residuals) and others were stopped early (high residuals). They include a `cl_std` column alongside `cl` in their CSV. Phase 22 detects this column automatically, uses it to tell the surrogate "trust this point less" during training, and displays a noise weighting indicator so the engineer knows the feature is active. The trained surrogate fits more tightly to well-converged runs and is not pulled off course by the noisy ones.
+
+**Scope:**
+
+*Sub-phase 22A — Ingestion & Schema (zero risk):*
+- Detect companion error columns at upload time: a column `<output>_std`, `<output>_err`, or `<output>_uncertainty` where `<output>` exactly matches a column name in the dataset
+- Prefix match required — `cl_std` pairs to `cl` only if `cl` exists in the dataset; generic `_std` suffixes without a matching output column are ignored
+- Store pairing in `state["datasets"][key]["metadata"]["error_columns"]` as `{"cl": "cl_std"}`
+- Apply zero floor before squaring: `variance = max(σ, 1e-6)²`; store σ² (variance), not σ
+- Substitute mean σ of non-NaN rows for any NaN entries in `_std` columns at ingestion
+- Exclude error columns from the normal input/output designation flow
+- Guard: `if not error_columns: return` — all existing code paths unchanged when no error columns present
+
+*Sub-phase 22B — Designate Panel (low risk):*
+- Auto-label detected error columns as "Output Error" in the Designate panel — not user-selectable as input or output
+- Allow user override: demoting an auto-detected error column to "unused" removes it from the error_columns pairing
+- Tooltip on "Output Error" label: "Paired uncertainty column — used to weight model training, not predicted directly. Assumed to be 1σ — values are squared internally before use."
+- `POST /api/data/designate` extended to accept and validate "Output Error" designations
+
+*Sub-phase 22C — Normalization (low-moderate risk):*
+- Scale error columns by the same factor as their paired output: min-max → divide by range; z-score → divide by output std; applies to all current and future scaling methods
+- No shift applied — uncertainty is a magnitude, never offset by a mean
+- Same division-by-zero guard as paired output (range = 0 → leave unchanged)
+- Guard: `if not error_columns: return` — normalization path unchanged when no error columns present
+
+*Sub-phase 22D — Model Training (moderate risk — core change):*
+- Extract noise array from STATE at train time: per-sample variance array (σ²) stored in 22A
+- GPR: `GaussianProcessRegressor(alpha=noise_array if noise_array is not None else self.alpha)` — array alpha replaces scalar alpha; rigorous probabilistic noise model embedded in covariance matrix; no other change
+- RF: `RandomForestRegressor.fit(X, y, sample_weight=1/σ²)` — sample weights normalized to max=1.0 before fitting; reliable observations drive splits more strongly
+- Linear (Ridge): `Ridge.fit(X, y, sample_weight=1/σ²)` — weighted least squares; sample weights normalized to max=1.0 to prevent numerical instability
+- Guard: scalar fallback `self.alpha` when noise_array is None — existing behavior completely unchanged
+- Kriging, PCE, RBF, Ensemble: tooltip note "per-observation noise not yet implemented" in configure panel; no silent wrong behavior
+- No new pip packages — sklearn natively supports `alpha=array` and `sample_weight`
+
+*Sub-phase 22E — Display & Active Learning (independent — can ship any time after 22D):*
+- Results panel: "noise weighting active" indicator when error_columns are present
+- Results panel: mean σ across training points displayed as a sanity check (obviously wrong value flags unit errors)
+- Results panel note: GPR ±1.96σ uncertainty bands reflect per-observation noise — expected to differ from scalar-alpha runs
+- HTML export report: noise weighting status and mean σ included in model configuration section
+- Coverage mode (active learning): additionally flag regions where existing points have high σ — high noise + high density still warrants re-sampling even when well-covered
+
+**Backend:**
+- `app/api/data_api.py` — `POST /api/data/upload`: detect and store error_columns in metadata (22A)
+- `app/state/schema.py` — add `"error_columns": {}` to dataset metadata schema (22A)
+- `app/api/data_api.py` — `POST /api/data/designate`: accept "Output Error" designation; demotion to "unused" removes pairing (22B)
+- `app/data/normalization.py` — scale error columns by same factor as paired output; no shift (22C)
+- `app/ml/models/base_model.py` — `fit(X, y, noise_array=None)` signature update (22D)
+- `app/ml/models/gpr_model.py` — array alpha with scalar fallback guard (22D)
+- `app/ml/models/rf_model.py` — sample_weight=1/σ², normalized to max=1.0 (22D)
+- `app/ml/models/linear_model.py` — sample_weight=1/σ², normalized to max=1.0 (22D)
+- `app/api/model_api.py` — extract noise array from STATE and pass to model.fit() (22D)
+- `app/ml/active_learning/coverage_mode.py` — flag high-σ dense regions (22E)
+
+**Frontend:**
+- `static/js/modules/column_designation.js` — "Output Error" auto-label with tooltip; "unused" override (22B)
+- `static/js/modules/results.js` — "noise weighting active" indicator; mean σ display; GPR uncertainty note (22E)
+- HTML report template — noise weighting section in model configuration (22E)
+
+**Dependencies:** Phase 3 (column designation). Phase 4 (model training). No new pip packages.
+
+**Definition of done:**
+- Upload CSV with `cl_std` → detected, stored as error_columns, excluded from designation picker
+- Upload CSV without `_std` columns → zero behavior change throughout entire workflow
+- Designate: `cl_std` auto-labeled "Output Error" with tooltip; demotion to "unused" removes pairing
+- Normalize: `cl_std` scaled by same range/std factor as `cl`; NaN rows substituted before scaling
+- GPR trained with noise array → parity plot visibly improved on a heteroscedastic test dataset vs. scalar alpha
+- RF and Linear trained with sample_weight → high-σ points measurably less influential (verify via weight inspection)
+- "Noise weighting active" indicator visible in Results when error columns present
+- Mean σ displayed as sanity check in Results
+- HTML report includes noise weighting status and mean σ
+- All existing tests pass; new unit tests added for each sub-phase
+
+---
+
+### Phase 23 — Authentication
+**Status:** 🔲 Not started | **Version:** v3.7.0
 
 *(Scope TBD — defined in next team review)*
 
 ---
 
-### Phase 23 — Surrogate Export & Sharing
-**Status:** 🔲 Not started | **Version:** v3.7.0
+### Phase 24 — Surrogate Export & Sharing
+**Status:** 🔲 Not started | **Version:** v3.8.0
 
-*(Scope TBD — requires Phase 22)*
+*(Scope TBD — requires Phase 23)*
 
 ---
 
-### Phase 24 — HPC Integration
+### Phase 25 — HPC Integration
 **Status:** 🔲 Not started | **Version:** v4.0.0
 
-*(Scope TBD — requires Phase 22; earns major version bump for async architecture change)*
+*(Scope TBD — requires Phase 23; earns major version bump for async architecture change)*
 
 ---
 
@@ -1042,9 +1121,10 @@
 | Phase 19 | Phase 4 (trained model + fitted scalers in STATE); Phase 11 (compliance modal reused) |
 | Phase 20 | Phase 4 (trained model + training/test data in STATE) |
 | Phase 21 | Phase 17 (exercise JSON schema); Phase 4 (training result envelope) |
-| Phase 22 | None (standalone auth layer) |
-| Phase 23 | Phase 22 |
-| Phase 24 | Phase 22 |
+| Phase 22 | Phase 3 (column designation); Phase 4 (model training) |
+| Phase 23 | None (standalone auth layer) |
+| Phase 24 | Phase 23 |
+| Phase 25 | Phase 23 |
 
 ---
 
@@ -1061,5 +1141,6 @@
 | Phase 19 | None | Model export uses existing `joblib`, `zipfile`, `io` |
 | Phase 20 | None | Design space explorer uses existing NumPy + `model.predict()` |
 | Phase 21 | None | All fixes use existing Flask, Jinja2, and vanilla JS |
-| Phase 22 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
-| Phase 24 | `celery`, `redis` | Async job queue for HPC submission |
+| Phase 22 | None | Per-observation noise uses sklearn `alpha=array` and `sample_weight` — no new packages |
+| Phase 23 | `Flask-Login`, `bcrypt` | Session auth and password hashing |
+| Phase 25 | `celery`, `redis` | Async job queue for HPC submission |
