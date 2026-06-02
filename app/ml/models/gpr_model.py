@@ -6,7 +6,7 @@ PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-01
-VERSION: 1.4.0
+VERSION: 1.4.1
 ================================================================================
 """
 
@@ -85,7 +85,7 @@ class GPRModel(BaseSurrogateModel):
         elif self._kernel_name == "matern25":
             k = Matern(length_scale=ls, nu=2.5)
         elif self._kernel_name == "rq":
-            k = RationalQuadratic(length_scale=ls)
+            k = RationalQuadratic()  # isotropic — ARD causes bounds mismatch in scipy optimizer
         else:
             k = RBF(length_scale=ls)
 
@@ -120,7 +120,7 @@ class GPRModel(BaseSurrogateModel):
         elif self._kernel_name == "matern25":
             k = Matern(length_scale=ls, nu=2.5)
         elif self._kernel_name == "rq":
-            k = RationalQuadratic(length_scale=ls)
+            k = RationalQuadratic()  # isotropic — ARD causes bounds mismatch in scipy optimizer
         else:
             k = RBF(length_scale=ls)
         single_gpr = GaussianProcessRegressor(
@@ -170,7 +170,7 @@ class GPRModel(BaseSurrogateModel):
                 RBF(length_scale=ls),
                 Matern(length_scale=ls, nu=1.5),
                 Matern(length_scale=ls, nu=2.5),
-                RationalQuadratic(length_scale=ls),
+                RationalQuadratic(),  # isotropic — ARD causes bounds mismatch in scipy optimizer
             ],
             "estimator__alpha": [0.001, 0.01, 0.1, 1.0],
         }

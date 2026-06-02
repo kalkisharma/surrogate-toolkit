@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.30] — 2026-06-01
+
+### Fix: RationalQuadratic kernel always isotropic in auto-tune
+
+#### Fixed
+
+- `gpr_model.py` v1.4.1 — `RationalQuadratic` kernel is now always constructed without `length_scale` (isotropic) in all three locations: `fit()`, `build_estimator()`, and `get_param_grid()`. ARD `RationalQuadratic(length_scale=np.ones(n_features))` causes a scipy optimizer bounds shape mismatch (`(2,) vs (3,)`) in older conda environments and was causing ~20/80 auto-tune fits to fail with `ValueError`.
+
+---
+
 ## [3.5.29] — 2026-06-01
 
 ### PCE underdetermined training guard
