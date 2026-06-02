@@ -19,6 +19,17 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.33] — 2026-06-01
+
+### Sidebar "Workflow" group label for Steps 1–9
+
+#### Added
+
+- `main.js` — "Workflow" group divider inserted above Step 1 in the sidebar, matching the existing "Tools" divider above Step 10. Makes the two-tier sidebar structure (sequential pipeline vs. post-training tools) immediately readable.
+- `main.css` — `.sidebar-group-divider--first` modifier removes the border-top and top margin so the Workflow label sits flush at the top of the step list without a floating separator line. Hidden automatically in collapsed sidebar via existing `.workflow-sidebar--collapsed .sidebar-group-label { display: none }` rule.
+
+---
+
 ## [3.5.32] — 2026-06-01
 
 ### Exercise overlay: collapsible panel + toast repositioning

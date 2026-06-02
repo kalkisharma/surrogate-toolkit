@@ -378,6 +378,10 @@ async function _renderExploration(uploadResponse) {
     });
     sidebarEl.appendChild(collapseBtn);
 
+    const workflowDivider = el("div", { cls: "sidebar-group-divider sidebar-group-divider--first" });
+    workflowDivider.innerHTML = `<span class="sidebar-group-label">Workflow</span>`;
+    sidebarEl.appendChild(workflowDivider);
+
     for (const key of STEP_KEYS) {
       const isActive   = key === _activeKey;
       const isLocked   = !stepUnlocked[key];

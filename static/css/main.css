@@ -2238,6 +2238,12 @@ body,
   padding-top: var(--space-3);
   border-top: 1px solid var(--color-border-subtle);
 }
+.sidebar-group-divider--first {
+  border-top: none;
+  margin-top: 0;
+  padding-top: var(--space-1);
+}
+
 .sidebar-group-label {
   font-size: var(--text-xs);
   font-weight: var(--font-semi);
