@@ -22,7 +22,6 @@ import { getPath, getAvailableCores } from "../state.js";
 
 const HYPERPARAM_DEFAULTS = {
   gpr:     { kernel: "rbf", alpha: 0.1, n_restarts: 10 },
-  kriging: { kernel: "matern25", alpha: 0.1, n_restarts: 10 },
   rf:      { n_estimators: 100, max_depth: null, min_samples_leaf: 1, max_features: "sqrt" },
   rbf:     { kernel: "thin_plate_spline", smoothing: 0.001 },
   pce:     { order: 3 },
@@ -33,12 +32,7 @@ const MODEL_TYPES = [
   {
     value: "gpr",
     label: "Gaussian Process (GPR)",
-    desc:  "Best for small datasets (< 5 000 rows). Provides prediction uncertainty — ideal for active learning and design space exploration.",
-  },
-  {
-    value: "kriging",
-    label: "Kriging (Matérn GPR)",
-    desc:  "GPR variant with Matérn or Rational Quadratic kernel — often fits rougher aerospace response surfaces better than the default RBF kernel. Same uncertainty estimates as GPR.",
+    desc:  "Best for small datasets (< 5 000 rows). Provides prediction uncertainty — ideal for active learning and design space exploration. Kernel selector includes RBF, Matérn ν=1.5/2.5, and Rational Quadratic.",
   },
   {
     value: "rf",
@@ -225,32 +219,6 @@ export async function initModelConfig(containerEl, onTrain) {
             <span class="hyperparam-hint">1 – 50 — more restarts find better kernel parameters, slower training</span>
           </div>
         </div>`;
-    } else if (modelType === "kriging") {
-      hyperparamOuter.innerHTML = `
-        <div class="hyperparam-section">
-          <div class="hyperparam-section-header">
-            <span class="hyperparam-section-label">Hyperparameters</span>
-            <button class="hyperparam-reset" id="hp-reset">Reset to defaults</button>
-          </div>
-          <div class="hyperparam-row">
-            <span class="hyperparam-label">Kernel</span>
-            <select id="hp-kernel" class="hyperparam-select">
-              <option value="matern25" ${(merged.kernel ?? "matern25") === "matern25" ? "selected" : ""}>Matérn ν=2.5 (default)</option>
-              <option value="matern15" ${merged.kernel === "matern15" ? "selected" : ""}>Matérn ν=1.5</option>
-              <option value="rq"       ${merged.kernel === "rq"       ? "selected" : ""}>Rational Quadratic</option>
-            </select>
-          </div>
-          <div class="hyperparam-row">
-            <span class="hyperparam-label">Noise level (alpha)</span>
-            <input id="hp-alpha" type="number" class="hyperparam-input" step="any" min="0.0001" max="10" value="${merged.alpha ?? 0.1}">
-            <span class="hyperparam-hint">0.0001 – 10 — higher = more noise tolerance</span>
-          </div>
-          <div class="hyperparam-row">
-            <span class="hyperparam-label">Optimizer restarts</span>
-            <input id="hp-restarts" type="number" class="hyperparam-input" min="1" max="50" step="1" value="${merged.n_restarts ?? 10}">
-            <span class="hyperparam-hint">1 – 50 — more restarts find better kernel parameters, slower training</span>
-          </div>
-        </div>`;
     } else if (modelType === "rf") {
       const depthUnlimited = merged.max_depth == null;
       hyperparamOuter.innerHTML = `
@@ -390,13 +358,6 @@ export async function initModelConfig(containerEl, onTrain) {
       if (k) hp.kernel    = k.value;
       if (a) hp.alpha     = parseFloat(a.value) || 0.1;
       if (r) hp.n_restarts = parseInt(r.value, 10) || 10;
-    } else if (selectedModel === "kriging") {
-      const k = hyperparamOuter.querySelector("#hp-kernel");
-      const a = hyperparamOuter.querySelector("#hp-alpha");
-      const r = hyperparamOuter.querySelector("#hp-restarts");
-      if (k) hp.kernel    = k.value;
-      if (a) hp.alpha     = parseFloat(a.value) || 0.1;
-      if (r) hp.n_restarts = parseInt(r.value, 10) || 10;
     } else if (selectedModel === "rf") {
       const n  = hyperparamOuter.querySelector("#hp-n-est");
       const d  = hyperparamOuter.querySelector("#hp-max-depth");
@@ -521,7 +482,7 @@ export async function initModelConfig(containerEl, onTrain) {
         `Ideal: <strong>${avail} cores</strong> — ${gridFits} hyperparameter × fold combinations run in parallel`,
         `Currently set to <strong>${current}</strong>`,
       ];
-    } else if (selectedModel === "gpr" || selectedModel === "kriging") {
+    } else if (selectedModel === "gpr") {
       const label = selectedModel.toUpperCase();
       if (nOut > 1) {
         title = `${label} — ${nOut} outputs detected`;
@@ -578,11 +539,7 @@ export async function initModelConfig(containerEl, onTrain) {
 
   function _formatBestParams(modelType, params) {
     if (modelType === "gpr") {
-      const names = { rbf: "RBF", matern15: "Matérn ν=1.5", matern25: "Matérn ν=2.5" };
-      return `kernel = ${names[params.kernel] || params.kernel}  ·  noise = ${params.alpha}`;
-    }
-    if (modelType === "kriging") {
-      const names = { matern15: "Matérn ν=1.5", matern25: "Matérn ν=2.5", rq: "Rational Quadratic" };
+      const names = { rbf: "RBF", matern15: "Matérn ν=1.5", matern25: "Matérn ν=2.5", rq: "Rational Quadratic" };
       return `kernel = ${names[params.kernel] || params.kernel}  ·  noise = ${params.alpha}`;
     }
     if (modelType === "rf") {
@@ -660,8 +617,8 @@ export async function initModelConfig(containerEl, onTrain) {
 
   const checksLabel = el("div", { cls: "model-config-section-label", text: "Components" });
   const checksGrid  = el("div", { cls: "ensemble-component-checks" });
-  const ENS_TYPES  = ["gpr", "kriging", "rf", "rbf", "pce", "linear"];
-  const ENS_LABELS = { gpr: "GPR", kriging: "Kriging", rf: "Random Forest", rbf: "RBF", pce: "PCE", linear: "Linear" };
+  const ENS_TYPES  = ["gpr", "rf", "rbf", "pce", "linear"];
+  const ENS_LABELS = { gpr: "GPR", rf: "Random Forest", rbf: "RBF", pce: "PCE", linear: "Linear" };
   for (const t of ENS_TYPES) {
     const lbl = document.createElement("label");
     lbl.className = "ensemble-check-label";
@@ -688,7 +645,7 @@ export async function initModelConfig(containerEl, onTrain) {
   ensembleSection.appendChild(stratRow);
 
   const ensNote = el("p", { cls: "" });
-  ensNote.innerHTML = `⚡ Each component model trains independently — more cores speeds each one (GPR/Kriging benefit most from 8–10 cores).`;
+  ensNote.innerHTML = `⚡ Each component model trains independently — more cores speeds each one (GPR benefits most from 8–10 cores).`;
   ensNote.style.cssText = "font-size:var(--text-xs);color:var(--color-text-muted);margin:var(--space-2) 0 var(--space-1)";
   ensembleSection.appendChild(ensNote);
 
@@ -904,7 +861,6 @@ export async function initModelConfig(containerEl, onTrain) {
     for (const [val, lbl] of [
       ["rf",      "Random Forest (recommended)"],
       ["gpr",     "Gaussian Process (GPR)"],
-      ["kriging", "Kriging"],
       ["linear",  "Linear"],
     ]) {
       const opt = document.createElement("option");
@@ -920,7 +876,7 @@ export async function initModelConfig(containerEl, onTrain) {
     });
 
     const mfNote = el("p", { cls: "" });
-    mfNote.innerHTML = `⚡ Bridge trains an LF surrogate + an RF error model; Co-Kriging trains GPR models — both benefit from more cores. GPR/Kriging: up to 10 cores.`;
+    mfNote.innerHTML = `⚡ Bridge trains an LF surrogate + an RF error model; Co-Kriging trains GPR models — both benefit from more cores. GPR: up to 10 cores.`;
     mfNote.style.cssText = "font-size:var(--text-xs);color:var(--color-text-muted);margin:var(--space-2) 0 var(--space-1)";
     mfSection.appendChild(mfNote);
 

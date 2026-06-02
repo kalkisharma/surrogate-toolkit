@@ -34,7 +34,7 @@ def compute_uncertainty(model, X_test, output_col_idx, model_type):
     if X_test is None or len(X_test) == 0:
         return None, None, None
 
-    if model_type in ("gpr", "kriging", "co_kriging"):
+    if model_type in ("gpr", "co_kriging"):
         stds   = model.predict_std(X_test)[:, output_col_idx]
         y_mean = model.predict(X_test)[:, output_col_idx]
         return (

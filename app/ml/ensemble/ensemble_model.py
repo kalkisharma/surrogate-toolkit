@@ -43,13 +43,11 @@ def _create_component(model_type: str, hyperparams: dict = None):
         Unfitted BaseSurrogateModel subclass instance.
     """
     from app.ml.models import (
-        GPRModel, KrigingModel, LinearModel, PCEModel, RBFModel, RFModel,
+        GPRModel, LinearModel, PCEModel, RBFModel, RFModel,
     )
     hp = hyperparams or {}
-    if model_type == "gpr":
+    if model_type in ("gpr", "kriging"):
         return GPRModel(kernel=hp.get("kernel", "rbf"), alpha=hp.get("alpha"))
-    if model_type == "kriging":
-        return KrigingModel(kernel=hp.get("kernel", "matern25"), alpha=hp.get("alpha"))
     if model_type == "rf":
         return RFModel(
             n_estimators=hp.get("n_estimators"),

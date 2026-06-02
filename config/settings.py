@@ -17,7 +17,7 @@ VERSION: 3.5.27
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "3.5.27"                     # bumped in settings.py, all changed file headers, and index.html on every release
+VERSION = "3.5.28"                     # bumped in settings.py, all changed file headers, and index.html on every release
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ LOG_TRANSFORM_SKEW_THRESHOLD = 1.0   # |skew| > this flags a column as a candida
 
 # ─── MODEL TRAINING ────────────────────────────────────────────────────────────
 
-SUPPORTED_MODEL_TYPES = ["gpr", "kriging", "rf", "rbf", "pce", "linear"]  # all keys accepted by POST /api/model/train
+SUPPORTED_MODEL_TYPES = ["gpr", "rf", "rbf", "pce", "linear"]  # all keys accepted by POST /api/model/train
 
 TEST_SPLIT_MIN = 0.05        # minimum fraction reserved for the test set
 TEST_SPLIT_MAX = 0.50        # maximum fraction reserved for the test set

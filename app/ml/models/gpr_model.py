@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-31
-VERSION: 1.3.0
+LAST MODIFIED: 2026-06-01
+VERSION: 1.4.0
 ================================================================================
 """
 
@@ -16,7 +16,7 @@ VERSION: 1.3.0
 
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, Matern
+from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic
 from sklearn.multioutput import MultiOutputRegressor
 
 from app.ml.models.base_model import BaseSurrogateModel
@@ -82,6 +82,8 @@ class GPRModel(BaseSurrogateModel):
             k = Matern(length_scale=ls, nu=1.5)
         elif self._kernel_name == "matern25":
             k = Matern(length_scale=ls, nu=2.5)
+        elif self._kernel_name == "rq":
+            k = RationalQuadratic(length_scale=ls)
         else:
             k = RBF(length_scale=ls)
 
@@ -115,6 +117,8 @@ class GPRModel(BaseSurrogateModel):
             k = Matern(length_scale=ls, nu=1.5)
         elif self._kernel_name == "matern25":
             k = Matern(length_scale=ls, nu=2.5)
+        elif self._kernel_name == "rq":
+            k = RationalQuadratic(length_scale=ls)
         else:
             k = RBF(length_scale=ls)
         single_gpr = GaussianProcessRegressor(
@@ -164,6 +168,7 @@ class GPRModel(BaseSurrogateModel):
                 RBF(length_scale=ls),
                 Matern(length_scale=ls, nu=1.5),
                 Matern(length_scale=ls, nu=2.5),
+                RationalQuadratic(length_scale=ls),
             ],
             "estimator__alpha": [0.001, 0.01, 0.1, 1.0],
         }

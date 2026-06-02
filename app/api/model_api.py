@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-31
-VERSION: 2.9.0
+LAST MODIFIED: 2026-06-01
+VERSION: 3.0.0
 ================================================================================
 """
 
@@ -22,7 +22,7 @@ from flask import Blueprint, current_app, jsonify, request
 from sklearn.gaussian_process.kernels import Matern, RationalQuadratic
 from sklearn.model_selection import train_test_split
 
-from app.ml.models import GPRModel, KrigingModel, LinearModel, PCEModel, RBFModel, RFModel
+from app.ml.models import GPRModel, LinearModel, PCEModel, RBFModel, RFModel
 from app.ml.multi_fidelity.bridge_correction import BridgeCorrectionModel
 from app.ml.multi_fidelity.kennedy_ohagan    import KOCoKrigingModel
 from app.ml.sensitivity.global_sensitivity import SobolAnalyzer
@@ -547,7 +547,7 @@ def train():
 
     # ── Training size warnings ────────────────────────────────────────────────
     warnings = []
-    if model_type in ("gpr", "kriging") and len(X_train) < 30:
+    if model_type == "gpr" and len(X_train) < 30:
         warnings.append(
             f"Training set has only {len(X_train)} rows. "
             "GP models are typically reliable with 30+ samples; "
@@ -573,14 +573,14 @@ def train():
     y_pred_test = model.predict(X_test)
     test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
 
-    # GPR/Kriging posterior std — free byproduct; None for RF/RBF/PCE/Linear.
+    # GPR posterior std — free byproduct; None for RF/RBF/PCE/Linear.
     test_stds = None
-    if model_type in ("gpr", "kriging"):
+    if model_type == "gpr":
         test_stds = model.predict_std(X_test).tolist()
 
-    # GPR/Kriging fitted ARD length scales — one per input per output.
+    # GPR fitted ARD length scales — one per input per output.
     kernel_length_scales = None
-    if model_type in ("gpr", "kriging") and hasattr(model, "get_kernel_info"):
+    if model_type == "gpr" and hasattr(model, "get_kernel_info"):
         kernel_length_scales = model.get_kernel_info()
 
     # ── PCA metadata (for predict panel reverse mapping) ─────────────────────
@@ -1551,7 +1551,7 @@ def train_multifidelity():
             f"HF dataset has fewer rows ({n_hf}) than 2× the number of inputs "
             f"({len(input_cols) * 2}). Results may be unreliable."
         )
-    if method == "bridge" and base_model_type in ("gpr", "kriging") and n_hf > 10:
+    if method == "bridge" and base_model_type == "gpr" and n_hf > 10:
         warnings.append(
             f"LOO/k-fold CV with bridge + {base_model_type} base refits the LF GP "
             f"once per fold. With {n_hf} HF rows this may be slow. "
@@ -1656,13 +1656,6 @@ def _make_model(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
     if model_type == "gpr":
         return GPRModel(
             kernel=hp.get("kernel", "rbf"),
-            alpha=hp.get("alpha"),
-            n_jobs=n_jobs,
-            n_restarts=int(hp.get("n_restarts", 10)),
-        )
-    if model_type == "kriging":
-        return KrigingModel(
-            kernel=hp.get("kernel", "matern25"),
             alpha=hp.get("alpha"),
             n_jobs=n_jobs,
             n_restarts=int(hp.get("n_restarts", 10)),
@@ -1796,17 +1789,10 @@ def _convert_best_params(model_type: str, best: dict) -> dict:
         k = best.get("estimator__kernel")
         if isinstance(k, Matern):
             kernel_str = "matern15" if abs(k.nu - 1.5) < 0.01 else "matern25"
-        else:
-            kernel_str = "rbf"
-        return {"kernel": kernel_str, "alpha": float(best["estimator__alpha"])}
-    if model_type == "kriging":
-        k = best.get("estimator__kernel")
-        if isinstance(k, Matern):
-            kernel_str = "matern15" if abs(k.nu - 1.5) < 0.01 else "matern25"
         elif isinstance(k, RationalQuadratic):
             kernel_str = "rq"
         else:
-            kernel_str = "matern25"
+            kernel_str = "rbf"
         return {"kernel": kernel_str, "alpha": float(best["estimator__alpha"])}
     if model_type == "rf":
         return {
