@@ -128,3 +128,4 @@ The app runs on a single machine with no external services required. One instanc
 ## License
 
 Copyright © 2026 Kalki Sharma. All rights reserved.
+See [LICENSE.md](LICENSE.md) for full terms.
