@@ -19,6 +19,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.32] — 2026-06-01
+
+### Exercise overlay: collapsible panel + toast repositioning
+
+#### Added
+
+- `learning_guide.js` — exercise overlay body (`instruction + quiz + nav`) wrapped in `.ex-overlay__body` div. Collapse button (▼/▲) added to the header; clicking toggles `.ex-overlay--collapsed` which hides the body, shrinking the panel to a thin title bar. `exercise-active` class added to `<body>` when overlay opens, removed when it closes (close button, Finish, or `resetExercise()`).
+- `main.css` — `.ex-overlay__body`, `.ex-overlay__collapse`, `.ex-overlay--collapsed` styles. Collapsed state hides body and removes gap so only the header strip remains visible.
+- `notifications.css` — `body.exercise-active #notification-container` override moves toasts to `top: var(--space-6); bottom: auto` (top-right) when exercise is active, eliminating the bottom-right stack collision with the exercise panel.
+
+---
+
 ## [3.5.31] — 2026-06-01
 
 ### Extrapolation warning in prediction panel

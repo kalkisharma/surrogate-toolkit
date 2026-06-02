@@ -15,6 +15,13 @@
   max-width: 400px;
 }
 
+/* Move toasts to top-right when exercise overlay is open so they don't
+   stack on top of the exercise panel (both anchor bottom-right). */
+body.exercise-active #notification-container {
+  top: var(--space-6);
+  bottom: auto;
+}
+
 .toast {
   display: flex;
   align-items: flex-start;

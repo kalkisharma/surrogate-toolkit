@@ -501,13 +501,20 @@ function _showExerciseOverlay() {
     <div class="ex-overlay__header">
       <span class="ex-overlay__title">Step ${step.step_num} of ${total}</span>
       <div class="ex-dots">${dots}</div>
+      <button class="ex-overlay__collapse" aria-label="Collapse exercise panel" title="Collapse">▼</button>
       <button class="ex-overlay__close" aria-label="Close exercise">✕</button>
-    </div>
-    <div class="ex-overlay__instruction">${step.instruction}</div>`;
+    </div>`;
+
+  // Collapsible body wraps instruction, quiz, and nav
+  const body = el("div", { cls: "ex-overlay__body" });
+
+  const instructionDiv = el("div", { cls: "ex-overlay__instruction" });
+  instructionDiv.innerHTML = step.instruction;
+  body.appendChild(instructionDiv);
 
   // Quiz card (if present)
   if (step.quiz) {
-    panel.appendChild(_buildQuizCard(step, ex));
+    body.appendChild(_buildQuizCard(step, ex));
   }
 
   // Nav buttons
@@ -526,7 +533,8 @@ function _showExerciseOverlay() {
     doneBtn.addEventListener("click", () => _markStepAndFinish(step.step_num));
     nav.appendChild(doneBtn);
   }
-  panel.appendChild(nav);
+  body.appendChild(nav);
+  panel.appendChild(body);
 
   // Annotate glossary keywords in instruction and quiz text
   if (_glossaryTermMap && step.keywords?.length) {
@@ -544,6 +552,12 @@ function _showExerciseOverlay() {
     }
   });
 
+  // Collapse / expand toggle
+  panel.querySelector(".ex-overlay__collapse").addEventListener("click", () => {
+    const collapsed = panel.classList.toggle("ex-overlay--collapsed");
+    panel.querySelector(".ex-overlay__collapse").textContent = collapsed ? "▲" : "▼";
+  });
+
   panel.querySelector(".ex-overlay__close").addEventListener("click", () => {
     _hideKwPopover();
     _markStep(step.step_num);
@@ -551,6 +565,7 @@ function _showExerciseOverlay() {
   });
 
   document.body.appendChild(panel);
+  document.body.classList.add("exercise-active");
 }
 
 // Deterministic Fisher-Yates shuffle so option order is stable on reload
@@ -672,6 +687,7 @@ function _navigateToStep(step) {
 function _removeExerciseOverlay() {
   _hideKwPopover();
   document.getElementById("ex-overlay")?.remove();
+  document.body.classList.remove("exercise-active");
 }
 
 // ── Keyword annotation ────────────────────────────────────────────────────────
