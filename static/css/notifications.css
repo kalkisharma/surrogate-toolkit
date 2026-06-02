@@ -18,7 +18,7 @@
 /* Move toasts to top-right when exercise overlay is open so they don't
    stack on top of the exercise panel (both anchor bottom-right). */
 body.exercise-active #notification-container {
-  top: var(--space-6);
+  top: calc(var(--header-height) + var(--space-3));
   bottom: auto;
 }
 
