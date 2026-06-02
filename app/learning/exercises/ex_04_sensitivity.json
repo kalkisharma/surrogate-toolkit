@@ -46,8 +46,8 @@
     {
       "step_num": 5,
       "target_panel": "results",
-      "instruction": "Check the R² score. For a 300-row 5-input dataset with a nonlinear response, GPR should achieve R² > 0.85 on the test set. If R² is lower, try Kriging — the Matérn kernel handles oscillatory functions better than the RBF kernel used by GPR.",
-      "keywords": ["R² (Coefficient of Determination)", "Kriging", "Kernel (Covariance Function)"],
+      "instruction": "Check the R² score. For a 300-row 5-input dataset with a nonlinear response, GPR should achieve R² > 0.85 on the test set. If R² is lower, try switching to the Matérn 2.5 kernel in GPR — it handles oscillatory functions better than the default RBF kernel.",
+      "keywords": ["R² (Coefficient of Determination)", "Kernel (Covariance Function)", "Gaussian Process Regression (GPR)"],
       "quiz": null
     },
     {

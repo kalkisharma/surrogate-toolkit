@@ -109,12 +109,12 @@
     {
       "step_num": 8,
       "target_panel": "results",
-      "instruction": "Final observation: the model label (GPR vs Kriging) matters less than the model family (GP vs RF vs Linear). If you now train Kriging with its default Matérn 2.5 kernel and the same alpha, you will get R² indistinguishable from GPR on this smooth surface — they are the same underlying math. The hierarchy is: model family first (GP, RF, linear), then kernel choice within the GP family, then hyperparameter tuning.",
-      "keywords": ["Gaussian Process Regression (GPR)", "Kriging", "R² (Coefficient of Determination)", "Kernel (Covariance Function)"],
+      "instruction": "Final observation: kernel choice matters more than the model label. If you retrain GPR with the Matérn 2.5 kernel and the same alpha, you will get R² indistinguishable from the RBF-kernel result on this smooth surface — the kernels encode smoothness assumptions, not different model families. The hierarchy is: model family first (GP, RF, linear), then kernel choice within the GP family, then hyperparameter tuning.",
+      "keywords": ["Gaussian Process Regression (GPR)", "R² (Coefficient of Determination)", "Kernel (Covariance Function)"],
       "quiz": {
         "question": "You have a new dataset with 500 rows, 8 inputs, and 1 output. The response is believed to be smooth but you do not know if it is linear. What is the correct order of model-selection decisions?",
         "options": [
-          "Choose the kernel first, then decide between GPR and Kriging, then add more data if needed",
+          "Choose the kernel first (RBF vs Matérn vs RQ), then model family, then tune alpha and restarts",
           "First decide the model family: try linear (fastest, check if R² is acceptable), then RF or GPR if not. If GPR is chosen, then pick a kernel family. Tune hyperparameters (alpha, kernel length scale) last",
           "Always start with GPR — it is the most general model",
           "Run all models simultaneously and pick the one with the highest training R²"

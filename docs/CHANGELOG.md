@@ -19,6 +19,31 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.28] — 2026-06-01
+
+### Merge Kriging into GPR — unified kernel selector
+
+#### Changed
+
+- **`gpr_model.py`** — GPR now supports four kernels: RBF (default), Matérn ν=1.5, Matérn ν=2.5, Rational Quadratic. All use ARD (one length scale per input). `get_param_grid()` includes all four kernels for auto-tune. `build_estimator()` and `fit()` both handle the `"rq"` kernel name.
+- **`kriging_model.py`** — Reduced to a 2-line backward-compatibility alias (`KrigingModel = GPRModel`). Existing `.surrogate` project files that contain pickled `KrigingModel` instances load without `ImportError`.
+- **`model_api.py`** v3.0.0 — `_make_model()` Kriging case removed; `_convert_best_params()` Kriging case merged into GPR (RQ detection now in GPR path); all `("gpr", "kriging")` tuple checks collapsed to `"gpr"`.
+- **`bootstrap.py`** — `"kriging"` removed from `predict_std` dispatch tuple; `"co_kriging"` (Kennedy-O'Hagan) preserved.
+- **`ensemble_model.py`** — `_create_component` Kriging case removed; old `"kriging"` type strings in ensemble configs map to `GPRModel` transparently via the alias.
+- **`config/settings.py`** v3.5.28 — `"kriging"` removed from `SUPPORTED_MODEL_TYPES`.
+- **`model_config.js`** — Kriging removed from model type selector, ensemble component list, and multi-fidelity LF base model selector. GPR description updated to mention all four kernels.
+
+#### Content
+
+- **`app/learning/models.json`** — Kriging entry removed; GPR entry updated with full kernel description and ARD mention.
+- **`app/learning/glossary.json`** — Kriging, ARD, and Optimizer Restarts entries updated to reflect unified model.
+- **`app/learning/decision_trees/model_selection.json`** — Four nodes updated: `very_small_rough` now recommends GPR Matérn 1.5; `medium_low_gpr`, `medium_low_smooth`, `medium_mid_gpr` updated to reference kernel selector rather than switching to Kriging.
+- **`app/learning/decision_trees/kernel_selection.json`** — Restructured: GPR/Kriging branch removed; single smoothness question now covers all four kernels in one unified flow.
+- **`exercises/ex_04_sensitivity.json`**, **`ex_08_model_selection.json`**, **`ex_10_optimization.json`** — "try Kriging" references updated to "switch GPR kernel".
+- **`docs/CODEBASE_TOUR.md`** — Model list updated; `KrigingModel` removed as a separate entry.
+
+---
+
 ## [3.5.10] — 2026-05-30
 
 ### Active learning coverage scatter fixes

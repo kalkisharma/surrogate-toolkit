@@ -31,9 +31,9 @@
     {
       "id": "very_small_rough",
       "type": "recommendation",
-      "model": "kriging",
-      "text": "Kriging (Matérn GPR)",
-      "reason": "Kriging with a Matérn 5/2 kernel handles moderate roughness better than RBF GPR on small datasets. If the response has sharp discontinuities, consider collecting more data — fewer than 30 points is insufficient to characterise a rough response reliably."
+      "model": "gpr",
+      "text": "GPR — Matérn 1.5 kernel",
+      "reason": "For rough responses on small datasets, use GPR with the Matérn 1.5 kernel. Matérn 1.5 is once differentiable and handles sharp curvature better than the default RBF kernel. If the response has discontinuities, consider collecting more data — fewer than 30 points is insufficient to characterise a rough response reliably."
     },
     {
       "id": "medium",
@@ -60,7 +60,7 @@
       "type": "recommendation",
       "model": "gpr",
       "text": "Gaussian Process Regression (GPR)",
-      "reason": "GPR is the standard choice for low-dimensional smooth responses in this size range. It provides native posterior uncertainty estimates (shown as error bars on the parity plot). Default to the RBF kernel; switch to Kriging/Matérn if the initial fit is poor."
+      "reason": "GPR is the standard choice for low-dimensional smooth responses in this size range. It provides native posterior uncertainty estimates (shown as error bars on the parity plot). Default to the RBF kernel; switch to Matérn 2.5 or 1.5 in the GPR kernel selector if the initial fit is poor."
     },
     {
       "id": "medium_low_choice",
@@ -75,8 +75,8 @@
       "id": "medium_low_smooth",
       "type": "recommendation",
       "model": "gpr",
-      "text": "GPR or Kriging",
-      "reason": "For smooth low-dimensional responses, GPR (RBF kernel) or Kriging (Matérn) are both excellent. If exact sensitivity analysis is also required, consider PCE as a fast alternative that produces Sobol indices analytically."
+      "text": "GPR",
+      "reason": "For smooth low-dimensional responses, GPR is excellent. Start with the default RBF kernel; if R² is below 0.90, try Matérn 2.5 using the kernel selector in the hyperparameter panel. If exact sensitivity analysis is also required, consider PCE as a fast alternative that produces Sobol indices analytically."
     },
     {
       "id": "medium_low_rf",
@@ -98,8 +98,8 @@
       "id": "medium_mid_gpr",
       "type": "recommendation",
       "model": "gpr",
-      "text": "GPR or Kriging",
-      "reason": "GPR remains viable up to ~15 inputs if the response is smooth. Performance degrades above 10 inputs because the kernel length-scale optimisation becomes harder. If R² < 0.90 with GPR, try RF as an alternative."
+      "text": "GPR",
+      "reason": "GPR remains viable up to ~15 inputs if the response is smooth. Performance degrades above 10 inputs because the kernel length-scale optimisation becomes harder. If R² < 0.90 with the default RBF kernel, try Matérn 2.5 via the kernel selector before switching model types. If R² is still low, try RF."
     },
     {
       "id": "medium_mid_rf",

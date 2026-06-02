@@ -31,7 +31,7 @@ A Flask single-page application (SPA). The server renders one HTML page (`index.
 │       ▼               ▼                                         │
 │  app/data/      app/ml/models/                                  │
 │  (ingestion,    (GPRModel, RFModel, LinearModel,                │
-│   cleaning,      KrigingModel, RBFModel, PCEModel)              │
+│   cleaning,      RBFModel, PCEModel)                            │
 │   normalization) │                                              │
 │                  ▼                                              │
 │           app/ml/sensitivity/   app/ml/uncertainty/            │
@@ -102,8 +102,8 @@ Read these first, in this order. Everything else makes sense after.
   POST /api/model/train     → model_api.py → train()
          │
          ├─► picks model class from SUPPORTED_MODEL_TYPES:
-         │     gpr     → GPRModel      (sklearn GaussianProcessRegressor, MultiOutputRegressor)
-         │     kriging → KrigingModel  (GPR with explicit Matérn kernel)
+         │     gpr     → GPRModel      (sklearn GaussianProcessRegressor, MultiOutputRegressor;
+         │                              kernels: RBF, Matérn 1.5/2.5, Rational Quadratic)
          │     rf      → RFModel       (sklearn RandomForestRegressor, MultiOutputRegressor)
          │     rbf     → RBFModel      (scipy RBFInterpolator)
          │     pce     → PCEModel      (chaospy)

@@ -48,7 +48,7 @@
     {
       "step_num": 5,
       "target_panel": "results",
-      "instruction": "Check R² for each output in the Results panel. cl and cd should be > 0.92 (they are direct aerodynamic quantities on a smooth response surface). cl_cd is a derived ratio — small errors in cl and cd compound into larger errors in their quotient — so R² > 0.85 is acceptable. If cl_cd R² is below 0.80, try Kriging with Matérn2.5 before proceeding.",
+      "instruction": "Check R² for each output in the Results panel. cl and cd should be > 0.92 (they are direct aerodynamic quantities on a smooth response surface). cl_cd is a derived ratio — small errors in cl and cd compound into larger errors in their quotient — so R² > 0.85 is acceptable. If cl_cd R² is below 0.80, try switching GPR to the Matérn 2.5 kernel before proceeding.",
       "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Residual Plot"],
       "quiz": null
     },

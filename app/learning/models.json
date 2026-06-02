@@ -3,11 +3,11 @@
     {
       "type": "gpr",
       "name": "Gaussian Process Regression (GPR)",
-      "description": "A probabilistic surrogate that models the output as a sample from a Gaussian Process. Provides a full posterior distribution — not just a point prediction but also a confidence interval around it. The RBF (default) kernel assumes infinitely smooth responses; Matérn kernels handle rougher surfaces.",
+      "description": "A probabilistic surrogate that models the output as a sample from a Gaussian Process. Provides a full posterior distribution — not just a point prediction but also a confidence interval around it. Four kernels are available: RBF (default, infinitely smooth), Matérn ν=2.5 (twice differentiable), Matérn ν=1.5 (once differentiable, suits rough surfaces), and Rational Quadratic (mixture of length scales). All kernels use ARD — one length scale per input — so the model automatically down-weights irrelevant inputs during training.",
       "strengths": [
         "Native uncertainty estimates (posterior std) at every prediction point",
-        "Flexible kernel choice adapts to response smoothness",
-        "Exact interpolation through training points (alpha ≈ 0)",
+        "Four kernel choices (RBF, Matérn 2.5, Matérn 1.5, Rational Quadratic) span smooth to rough responses",
+        "ARD length scales expose relative input importance in the Results panel",
         "Well-calibrated confidence intervals when model assumptions hold"
       ],
       "weaknesses": [
@@ -15,24 +15,8 @@
         "Struggles with high-dimensional inputs (> 10–15 variables)",
         "Poor extrapolation — reverts to prior mean outside training range"
       ],
-      "best_for": "Smooth, low-dimensional responses (< 15 inputs) with < 2,000 training points where uncertainty quantification is required.",
-      "avoid_when": "Dataset has > 2,000 rows, > 15 inputs, or the response is non-smooth (discontinuities, sharp gradients)."
-    },
-    {
-      "type": "kriging",
-      "name": "Kriging (Matérn GPR)",
-      "description": "Mathematically equivalent to GPR but defaults to Matérn kernels (ν=2.5 default, ν=1.5 available). Matérn kernels are less smooth than RBF and fit better when the response has sharp curvature or moderate roughness. Widely used in aerospace CFD surrogate modelling.",
-      "strengths": [
-        "Matérn kernels handle rougher responses than RBF",
-        "Same native uncertainty as GPR",
-        "Well-established in aerospace DoE literature"
-      ],
-      "weaknesses": [
-        "Same O(n³) scaling as GPR",
-        "Rational Quadratic kernel adds a length-scale mixture — more flexible but harder to interpret than Matérn"
-      ],
-      "best_for": "Aerodynamic or structural responses with moderate roughness. Good default when GPR with RBF kernel gives poor R².",
-      "avoid_when": "Same constraints as GPR — large datasets or high-dimensional inputs."
+      "best_for": "Smooth to moderately rough, low-dimensional responses (< 15 inputs) with < 2,000 training points where uncertainty quantification is required. Default to RBF; switch to Matérn 2.5 or 1.5 if R² is below 0.90.",
+      "avoid_when": "Dataset has > 2,000 rows, > 15 inputs, or the response has discontinuities."
     },
     {
       "type": "rf",
@@ -68,7 +52,7 @@
         "Ill-conditioned for large datasets or clustered points"
       ],
       "best_for": "Small, well-distributed datasets with smooth responses where exact interpolation is desired and speed is a priority.",
-      "avoid_when": "Large datasets, clustered samples, high-dimensional inputs, or when uncertainty estimates are needed."
+      "avoid_when": "Large datasets, clustered samples, high-dimensional inputs, when uncertainty estimates are needed, or when training data contains measurement noise — RBF interpolates exactly through every point including noise artefacts, producing training R²=1.0 that does not reflect true model accuracy."
     },
     {
       "type": "pce",
