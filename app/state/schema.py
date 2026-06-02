@@ -6,8 +6,8 @@ PURPOSE: Defines the canonical STATE dict shape and helpers to reset, read, and
          serialize it. STATE is the single source of truth for all session data.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-21
-VERSION: 3.1.0
+LAST MODIFIED: 2026-06-02
+VERSION: 3.2.0
 ================================================================================
 """
 
@@ -87,6 +87,8 @@ _CANONICAL_STATE = {
                 "dtypes": {},
                 "null_counts": {},
                 "coercion_warnings": [],
+                # Phase 22: {output_col: error_col} pairs detected at upload time
+                "error_columns": {},
             },
         },
         # Accumulator for all loaded datasets. Each entry:

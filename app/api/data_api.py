@@ -7,8 +7,8 @@ PURPOSE: Blueprint and route handlers for /api/data/*. Wires the ingestion
          JSON responses.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-28
-VERSION: 1.0.2
+LAST MODIFIED: 2026-06-02
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -180,6 +180,8 @@ def upload():
         if meta["null_counts"][col] > 0
     }
 
+    error_columns = _detect_error_columns(df)
+
     ds_meta = {
         "filename":           meta["filename"],
         "upload_timestamp":   meta["upload_timestamp"],
@@ -191,6 +193,7 @@ def upload():
         "coercion_warnings":  meta["coercion_warnings"],
         "missing_data_report": missing_data_report,
         "data_type":          None,   # filled in by the gate (PUT /api/state/session)
+        "error_columns":      error_columns,
     }
 
     # Compute preview rows and summary stats at upload time so both can be
@@ -335,6 +338,7 @@ def upload():
                 "input_columns":     [],
                 "output_columns":    [],
                 "normalization_method": None,
+                "error_columns":     error_columns,
             },
             "preview": {
                 "columns":    meta["columns"],
@@ -542,6 +546,7 @@ def datasets():
             "input_columns":        m.get("input_columns", []),
             "output_columns":       m.get("output_columns", []),
             "normalization_method": m.get("normalization_method"),
+            "error_columns":        m.get("error_columns", {}),
             "active":               key == active_key,
         })
 
@@ -1766,6 +1771,29 @@ def screen_apply():
         "success": False, "error_code": "UNKNOWN_MODE",
         "message": f"Unknown mode '{mode}'. Use 'columns' or 'pca'.",
     }), 400
+
+
+# ─── ERROR COLUMN DETECTION (Phase 22) ───────────────────────────────────────
+
+
+def _detect_error_columns(df) -> dict:
+    """Return {output_col: error_col} for companion uncertainty columns.
+
+    A column qualifies as an error companion if:
+    - It ends with _std, _err, or _uncertainty
+    - Its prefix exactly matches another column name in the same dataset
+    """
+    cols = set(df.columns)
+    suffixes = ("_std", "_err", "_uncertainty")
+    pairs = {}
+    for col in df.columns:
+        for suffix in suffixes:
+            if col.endswith(suffix):
+                prefix = col[: -len(suffix)]
+                if prefix in cols and prefix not in pairs:
+                    pairs[prefix] = col
+                    break
+    return pairs
 
 
 # ─── SERIALISATION HELPERS ────────────────────────────────────────────────────
