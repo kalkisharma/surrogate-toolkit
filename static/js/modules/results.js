@@ -498,7 +498,7 @@ function _render(containerEl, r) {
     if (r.model_type === "gpr") {
       noiseHtml += " GPR posterior uncertainty reflects per-point noise (±1.96σ in confidence bands).";
     }
-    noiseHtml += " <em>Note: cross-validation used uniform alpha — noise weighting applies to the final model only.</em>";
+    noiseHtml += " <em>Note: cross-validation used a fixed noise level — noise weighting applies to the final model only.</em>";
     noiseBox.innerHTML = noiseHtml;
     containerEl.appendChild(noiseBox);
   }
