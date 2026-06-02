@@ -2,10 +2,11 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/column_designation.js
-// Version: 0.5.0
+// Version: 0.6.0
 // Description: Column designation step — lets users classify each column as
 //              Input, Output, or Unused. Sends POST /api/data/designate.
 //              Pre-populates from existing metadata on dataset switch.
+//              Phase 22B: error companion columns auto-labeled "Output Error".
 // =============================================================================
 
 import { post } from "../api.js";
@@ -24,7 +25,8 @@ import { el } from "../utils.js";
  * @param {number}      nRows        - Total row count (for null % calculation).
  * @param {string[]}    initInputs   - Already-designated input columns (may be empty).
  * @param {string[]}    initOutputs  - Already-designated output columns (may be empty).
- * @param {Function}    onConfirm    - Called with ({input_columns, output_columns}) after successful POST.
+ * @param {Function}    onConfirm    - Called with ({input_columns, output_columns, error_columns}) after successful POST.
+ * @param {Object}      errorColumns - Phase 22B: {output_col: error_col} pairs detected at upload. Default {}.
  */
 export function initDesignation(
   containerEl,
@@ -35,6 +37,7 @@ export function initDesignation(
   initInputs,
   initOutputs,
   onConfirm,
+  errorColumns = {},
 ) {
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
@@ -55,12 +58,17 @@ export function initDesignation(
      identifiers, timestamps, or columns flagged as low-quality.</p>`
   );
 
-  // Build role map from initial designation
+  // Phase 22B: track which columns are error companions and which user has overridden
+  const errorColSet     = new Set(Object.values(errorColumns));   // {"cl_std", "cd_std", ...}
+  const removedErrorCols = new Set();                              // user-demoted companions
+
+  // Build role map from initial designation (error companions are not in roles)
   const roles = {};
   for (const col of columns) {
-    if (initInputs.includes(col))  roles[col] = "input";
+    if (errorColSet.has(col)) continue;           // skip — managed separately
+    if (initInputs.includes(col))       roles[col] = "input";
     else if (initOutputs.includes(col)) roles[col] = "output";
-    else roles[col] = "unused";
+    else                                roles[col] = "unused";
   }
 
   // ── Table ──────────────────────────────────────────────────────────────────
@@ -75,6 +83,36 @@ export function initDesignation(
   table.appendChild(thead);
 
   const tbody = el("tbody");
+
+  function _renderRadios(roleCell, col) {
+    roleCell.innerHTML = "";
+    for (const role of ["input", "output", "unused"]) {
+      const radioId = `desig-${CSS.escape(col)}-${role}`;
+      const radio   = el("input", { type: "radio", name: `desig-${CSS.escape(col)}`, id: radioId, value: role });
+      radio.checked = roles[col] === role;
+      radio.addEventListener("change", () => { if (radio.checked) roles[col] = role; });
+      const lbl = el("label", { cls: "desig-role-label", for: radioId, text: role });
+      roleCell.appendChild(radio);
+      roleCell.appendChild(lbl);
+    }
+  }
+
+  function _renderErrorBadge(roleCell, col) {
+    roleCell.innerHTML = "";
+    const badge = el("span", { cls: "desig-error-badge" });
+    badge.textContent = "Output Error";
+    badge.title = "Paired uncertainty column — used to weight model training, not predicted directly. Assumed to be 1σ — values are squared internally before use.";
+    const overrideBtn = el("button", { cls: "desig-error-override btn btn-xs btn-ghost" });
+    overrideBtn.textContent = "Override → Unused";
+    overrideBtn.addEventListener("click", () => {
+      removedErrorCols.add(col);
+      roles[col] = "unused";
+      _renderRadios(roleCell, col);
+    });
+    roleCell.appendChild(badge);
+    roleCell.appendChild(overrideBtn);
+  }
+
   for (const col of columns) {
     const dtype   = dtypes?.[col] ?? "—";
     const nc      = nullCounts?.[col] ?? 0;
@@ -82,6 +120,7 @@ export function initDesignation(
     const nullCls = nc === 0 ? "" : parseFloat(pct) <= 10 ? "null-warn" : "null-bad";
 
     const tr = el("tr");
+    if (errorColSet.has(col)) tr.classList.add("desig-error-row");
     tr.innerHTML = `
       <td class="desig-col-name" title="${col}">${col}</td>
       <td class="desig-dtype text-mono">${dtype}</td>
@@ -90,15 +129,11 @@ export function initDesignation(
     `;
 
     const roleCell = tr.querySelector(".desig-role-cell");
-    for (const role of ["input", "output", "unused"]) {
-      const radioId = `desig-${CSS.escape(col)}-${role}`;
-      const radio   = el("input", { type: "radio", name: `desig-${CSS.escape(col)}`, id: radioId, value: role });
-      radio.checked = roles[col] === role;
-      radio.addEventListener("change", () => { if (radio.checked) roles[col] = role; });
-
-      const lbl = el("label", { cls: "desig-role-label", for: radioId, text: role });
-      roleCell.appendChild(radio);
-      roleCell.appendChild(lbl);
+    if (errorColSet.has(col) && !removedErrorCols.has(col)) {
+      _renderErrorBadge(roleCell, col);
+    } else {
+      if (!(col in roles)) roles[col] = "unused";
+      _renderRadios(roleCell, col);
     }
 
     tbody.appendChild(tr);
@@ -117,9 +152,11 @@ export function initDesignation(
   containerEl.appendChild(helperRow);
 
   function _setAllRadios(role) {
-    for (const col of columns) roles[col] = role;
+    for (const col of columns) {
+      if (errorColSet.has(col) && !removedErrorCols.has(col)) continue;  // skip managed error cols
+      roles[col] = role;
+    }
     tbody.querySelectorAll(`input[type=radio][value="${role}"]`).forEach(r => { r.checked = true; });
-    // Uncheck others
     for (const other of ["input", "output", "unused"].filter(r => r !== role)) {
       tbody.querySelectorAll(`input[type=radio][value="${other}"]`).forEach(r => { r.checked = false; });
     }
@@ -148,11 +185,21 @@ export function initDesignation(
       return;
     }
 
+    // Phase 22B: confirmed error columns = detected pairs minus user overrides
+    const confirmedErrorCols = {};
+    for (const [outCol, errCol] of Object.entries(errorColumns)) {
+      if (!removedErrorCols.has(errCol)) confirmedErrorCols[outCol] = errCol;
+    }
+
     confirmBtn.disabled    = true;
     confirmBtn.textContent = "Saving…";
     showSpinner(containerEl);
 
-    const resp = await post("/api/data/designate", { input_columns: inputCols, output_columns: outputCols });
+    const resp = await post("/api/data/designate", {
+      input_columns:  inputCols,
+      output_columns: outputCols,
+      error_columns:  confirmedErrorCols,
+    });
 
     hideSpinner(containerEl);
 
@@ -165,8 +212,11 @@ export function initDesignation(
 
     confirmBtn.disabled    = false;
     confirmBtn.textContent = "Update Designation";
-    showSuccess(`Designation saved — ${inputCols.length} input(s), ${outputCols.length} output(s).`);
-    onConfirm({ input_columns: inputCols, output_columns: outputCols });
+    const errMsg = Object.keys(confirmedErrorCols).length > 0
+      ? ` — ${Object.keys(confirmedErrorCols).length} error companion(s) confirmed`
+      : "";
+    showSuccess(`Designation saved — ${inputCols.length} input(s), ${outputCols.length} output(s)${errMsg}.`);
+    onConfirm({ input_columns: inputCols, output_columns: outputCols, error_columns: confirmedErrorCols });
   });
 
   containerEl.appendChild(confirmBtn);

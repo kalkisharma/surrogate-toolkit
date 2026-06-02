@@ -307,6 +307,7 @@ async function _renderExploration(uploadResponse) {
   // Mutable cross-panel state — updated by designation callback
   let _currentInputCols  = meta.input_columns  || [];
   let _currentOutputCols = meta.output_columns || [];
+  let _currentErrorCols  = meta.error_columns  || {};   // Phase 22B: {output_col: error_col}
   let _currentNorm       = meta.normalization_method || null;
   let _currentModelType  = null;   // set after training; drives Results sidebar badge
 
@@ -550,9 +551,10 @@ async function _renderExploration(uploadResponse) {
       meta.n_rows,
       _currentInputCols,
       _currentOutputCols,
-      ({ input_columns, output_columns }) => {
+      ({ input_columns, output_columns, error_columns }) => {
         _currentInputCols  = input_columns;
         _currentOutputCols = output_columns;
+        _currentErrorCols  = error_columns || {};
         _currentNorm       = null;
 
         stepUnlocked["normalize"]  = true;
@@ -572,6 +574,7 @@ async function _renderExploration(uploadResponse) {
 
         activatePanel("normalize");
       },
+      _currentErrorCols,
     );
   }
 

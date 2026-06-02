@@ -592,6 +592,7 @@ def designate():
     data           = request.get_json(silent=True) or {}
     input_columns  = data.get("input_columns", [])
     output_columns = data.get("output_columns", [])
+    error_columns  = data.get("error_columns", {})
 
     ds          = _datasets[active_key]
     meta        = ds["metadata"]
@@ -635,6 +636,7 @@ def designate():
     meta["output_columns"] = output_columns
     meta["n_inputs"]       = len(input_columns)
     meta["n_outputs"]      = len(output_columns)
+    meta["error_columns"]  = error_columns   # Phase 22B: confirmed {output_col: error_col}
 
     # Mirror to primary
     primary_meta = state["datasets"]["primary"]["metadata"]
@@ -642,22 +644,26 @@ def designate():
     primary_meta["output_columns"] = output_columns
     primary_meta["n_inputs"]       = len(input_columns)
     primary_meta["n_outputs"]      = len(output_columns)
+    primary_meta["error_columns"]  = error_columns
 
     append_audit_event(state, "designation", {
-        "dataset":   active_key,
-        "n_inputs":  len(input_columns),
-        "n_outputs": len(output_columns),
+        "dataset":        active_key,
+        "n_inputs":       len(input_columns),
+        "n_outputs":      len(output_columns),
+        "error_columns":  error_columns,
     })
 
     current_app.logger.info(
         f"Designation saved: '{active_key}' — "
-        f"{len(input_columns)} input(s), {len(output_columns)} output(s)"
+        f"{len(input_columns)} input(s), {len(output_columns)} output(s), "
+        f"{len(error_columns)} error companion(s)"
     )
 
     return jsonify({
         "success":        True,
         "input_columns":  input_columns,
         "output_columns": output_columns,
+        "error_columns":  error_columns,
     }), 200
 
 
