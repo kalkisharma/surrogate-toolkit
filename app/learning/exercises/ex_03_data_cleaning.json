@@ -3,7 +3,7 @@
   "title": "Cleaning a Messy Dataset",
   "difficulty": "beginner",
   "estimated_minutes": 15,
-  "description": "This dataset has deliberate problems: 8 missing values in x1, three extreme outliers in x2, and a log-normally distributed (right-skewed) x2 column. Practice identifying and fixing each issue before training.",
+  "description": "This dataset has deliberate problems: 8 missing values in x1, several extreme outliers in x2, and a log-normally distributed (right-skewed) x2 column. Practice identifying and fixing each issue before training.",
   "tags": ["data cleaning"],
   "dataset": "dirty_data.csv",
   "steps": [
@@ -60,7 +60,7 @@
     {
       "step_num": 4,
       "target_panel": "clean",
-      "instruction": "Now handle the outliers. The toolkit will show you how many rows would be removed. Choose 'Drop rows' to remove the three extreme outlier rows.",
+      "instruction": "Now handle the outliers. The toolkit will show how many rows are flagged — drop them all. Note how many rows are removed; this is the cost of cleaning.",
       "keywords": ["IQR (Interquartile Range)", "Outlier"],
       "quiz": {
         "question": "What does the IQR outlier rule detect?",
@@ -84,11 +84,25 @@
     {
       "step_num": 6,
       "target_panel": "designate",
-      "instruction": "Designate x1, x2, x3 as inputs and y as the output. Then normalize.",
+      "instruction": "Open Step 5 — Assign. Designate x1, x2, x3 as inputs and y as the output.",
       "quiz": null
     },
     {
       "step_num": 7,
+      "target_panel": "normalize",
+      "instruction": "Open Step 6 — Normalize. Apply Min-Max normalization to all three inputs.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
+      "quiz": null
+    },
+    {
+      "step_num": 8,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 9,
       "target_panel": "configure",
       "instruction": "Train a GPR model and check the R² score. Compare it to what you would get on the raw dirty data — cleaning should improve accuracy by 5–15%.",
       "keywords": ["R² (Coefficient of Determination)", "Gaussian Process Regression (GPR)", "Overfitting"],

@@ -25,33 +25,47 @@
     },
     {
       "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This synthetic dataset needs no cleaning. Skip it and move on.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 3,
       "target_panel": "designate",
       "instruction": "Designate x1 through x5 as inputs and y as the output.",
       "quiz": null
     },
     {
-      "step_num": 3,
+      "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to all 5 inputs.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 4,
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 6,
       "target_panel": "configure",
       "instruction": "Configure a GPR model with test split 0.2 and 5 CV folds. Train it.",
       "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)"],
       "quiz": null
     },
     {
-      "step_num": 5,
+      "step_num": 7,
       "target_panel": "results",
       "instruction": "Check the R² score. For a 300-row 5-input dataset with a nonlinear response, GPR should achieve R² > 0.85 on the test set. If R² is lower, try switching to the Matérn 2.5 kernel in GPR — it handles oscillatory functions better than the default RBF kernel.",
       "keywords": ["R² (Coefficient of Determination)", "Kernel (Covariance Function)", "Gaussian Process Regression (GPR)"],
       "quiz": null
     },
     {
-      "step_num": 6,
+      "step_num": 8,
       "target_panel": "interpret",
       "instruction": "Open Step 12 — Interpret (if it is unlocked after training). Click 'Analyze →' to run Sobol sensitivity analysis. Wait for the tornado chart to appear.",
       "keywords": ["Sobol Sensitivity Index", "S₁ (First-Order Sobol Index)", "ST (Total-Order Sobol Index)", "Tornado Chart"],
@@ -68,7 +82,7 @@
       }
     },
     {
-      "step_num": 7,
+      "step_num": 9,
       "target_panel": "interpret",
       "instruction": "Look at the OAT (one-at-a-time) curves for x4 and x5. They should be nearly flat — confirming these are noise inputs.",
       "keywords": ["OAT (One-at-a-Time) Analysis", "Sobol Sensitivity Index"],
@@ -85,7 +99,7 @@
       }
     },
     {
-      "step_num": 8,
+      "step_num": 10,
       "target_panel": "interpret",
       "instruction": "Based on your Sobol results, which inputs would you consider removing from a follow-up experiment to reduce cost?",
       "keywords": ["ST (Total-Order Sobol Index)", "S₁ (First-Order Sobol Index)"],

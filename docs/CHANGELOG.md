@@ -19,6 +19,22 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.31] — 2026-06-01
+
+### Extrapolation warning in prediction panel
+
+#### Added
+
+- `prediction.js` — inline extrapolation warning rendered below each input field when the typed value falls outside the training range. Amber for values within 10% of the range span beyond the boundary; red for values more than 10% beyond. Warning fires on every keystroke and on initial render. Uses existing `inputMins`/`inputMaxs` already returned by the results API.
+- `main.css` — `.prediction-extrap-warn`, `.prediction-extrap-warn--amber`, `.prediction-extrap-warn--red` styles. `flex-wrap: wrap` added to `.prediction-input-row` so the warning spans the full row width below the input field.
+- `ex_01_basic_gpr.json` step 9 instruction updated to reference the red warning that now actually appears.
+
+#### Notes
+
+- `EXTRAPOLATION_CAUTION_THRESHOLD` and `EXTRAPOLATION_WARNING_THRESHOLD` in `settings.py` were previously dead code; the 0.1 (10%) boundary is now used by the frontend. The 1.25 threshold is preserved in settings for a future server-side implementation.
+
+---
+
 ## [3.5.30] — 2026-06-01
 
 ### Fix: RationalQuadratic kernel always isotropic in auto-tune

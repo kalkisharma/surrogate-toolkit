@@ -25,19 +25,33 @@
     },
     {
       "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This dataset is already clean. Skip it and move on.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 3,
       "target_panel": "designate",
       "instruction": "Designate x1, x2, x3, x4 as inputs and y as the output.",
       "quiz": null
     },
     {
-      "step_num": 3,
+      "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to all inputs.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 4,
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 6,
       "target_panel": "configure",
       "instruction": "Configure a GPR model with test split 0.15 and 5 CV folds. Train it. GPR is preferred for active learning because its prediction variance directly quantifies uncertainty. With only 50 rows in 4 dimensions, expect R² in the range 0.4–0.7 — this is normal for a sparse dataset and is exactly the motivation for running active learning to find where to sample next.",
       "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)", "Active Learning"],
@@ -54,7 +68,7 @@
       }
     },
     {
-      "step_num": 5,
+      "step_num": 7,
       "target_panel": "active",
       "instruction": "Open Step 13 — Active Learning. Run Coverage mode first. This recommends 10 new experiment points that would most reduce overall uncertainty.",
       "keywords": ["Active Learning", "Space-Filling Design", "Latin Hypercube Sampling (LHS)"],
@@ -71,7 +85,7 @@
       }
     },
     {
-      "step_num": 6,
+      "step_num": 8,
       "target_panel": "active",
       "instruction": "Now run Objective mode. Set the output y as the objective and select Maximize. This uses Expected Improvement (EI) to balance exploring uncertain regions with exploiting areas already known to be near the maximum.",
       "keywords": ["Expected Improvement (EI)", "UCB", "Acquisition Function", "Bayesian Optimization"],
@@ -88,7 +102,7 @@
       }
     },
     {
-      "step_num": 7,
+      "step_num": 9,
       "target_panel": "active",
       "instruction": "Compare the two recommendation sets. Coverage points are spread across the space; Objective points cluster near the suspected maximum (around x1≈2.5, x2≈2.5). Neither is 'right' — the choice depends on your goal.",
       "quiz": {

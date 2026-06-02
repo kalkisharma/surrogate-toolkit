@@ -2010,8 +2010,18 @@ body,
 .prediction-input-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-4);
 }
+.prediction-extrap-warn {
+  flex: 0 0 100%;
+  padding-left: calc(160px + var(--space-4));
+  font-size: var(--text-xs);
+  margin-top: calc(-1 * var(--space-2));
+  margin-bottom: var(--space-1);
+}
+.prediction-extrap-warn--amber { color: var(--color-warning); }
+.prediction-extrap-warn--red   { color: var(--color-error); }
 .prediction-input-label {
   flex: 0 0 160px;
   font-family: var(--font-mono);

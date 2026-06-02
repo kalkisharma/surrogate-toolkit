@@ -137,6 +137,37 @@ function _render(containerEl, r) {
     inputs[col] = inp;
     row.appendChild(label);
     row.appendChild(inp);
+
+    // Inline extrapolation warning — shown when typed value is outside training range
+    const warn = el("span", { cls: "prediction-extrap-warn" });
+    warn.style.display = "none";
+    row.appendChild(warn);
+
+    if (lo !== undefined && hi !== undefined) {
+      const rangeSpan = hi - lo;
+      const _checkRange = () => {
+        const v = parseFloat(inp.value);
+        if (isNaN(v) || rangeSpan === 0) { warn.style.display = "none"; return; }
+        const ratio = (v - lo) / rangeSpan;
+        if (ratio >= 0 && ratio <= 1) {
+          warn.style.display = "none";
+          warn.className = "prediction-extrap-warn";
+        } else {
+          const outside = ratio > 1 ? ratio - 1 : -ratio;
+          if (outside > 0.1) {
+            warn.className = "prediction-extrap-warn prediction-extrap-warn--red";
+            warn.textContent = `⚠ Extrapolation warning — training range is ${parseFloat(lo.toPrecision(4))} to ${parseFloat(hi.toPrecision(4))}`;
+          } else {
+            warn.className = "prediction-extrap-warn prediction-extrap-warn--amber";
+            warn.textContent = `⚠ Near edge of training range (${parseFloat(lo.toPrecision(4))} to ${parseFloat(hi.toPrecision(4))})`;
+          }
+          warn.style.display = "";
+        }
+      };
+      inp.addEventListener("input", _checkRange);
+      _checkRange();
+    }
+
     form.appendChild(row);
   }
 

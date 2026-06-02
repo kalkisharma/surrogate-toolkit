@@ -32,19 +32,33 @@
     },
     {
       "step_num": 3,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This dataset has no missing values or outliers. Skip it and move on.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 4,
       "target_panel": "designate",
       "instruction": "Designate x1, x2, x3 as inputs and y as the output.",
       "quiz": null
     },
     {
-      "step_num": 4,
+      "step_num": 5,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to all three inputs.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 5,
+      "step_num": 6,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 7,
       "target_panel": "configure",
       "instruction": "First run: configure as Linear model, test split 0.2, 5-fold CV. Train and note the R² score. The Results panel will show two R² values — Test Set Performance and CV (cross-validation). They measure slightly different things.",
       "keywords": ["Ridge Regression (Linear)", "R² (Coefficient of Determination)", "Test Split", "Cross-Validation (CV)", "K-Fold CV"],
@@ -61,7 +75,7 @@
       }
     },
     {
-      "step_num": 6,
+      "step_num": 8,
       "target_panel": "results",
       "instruction": "Note the test R² for Linear. Now go back to Step 8 — Model, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
       "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Gaussian Process Regression (GPR)", "Random Forest (RF)"],
@@ -78,7 +92,7 @@
       }
     },
     {
-      "step_num": 7,
+      "step_num": 9,
       "target_panel": "predict",
       "instruction": "Use the best-performing model to predict y at x1=0, x2=0, x3=2.5. The true value is sin(0)·cos(0) + 0.3×2.5 = 0.75.",
       "quiz": null
