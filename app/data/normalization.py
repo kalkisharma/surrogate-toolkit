@@ -4,10 +4,11 @@ FILE: normalization.py
 MODULE: app/data/
 PURPOSE: Feature normalization and scaling for designated input columns.
          Writes to primary["normalized"]; primary["clean"] is never mutated.
+         Phase 22C: extract_noise_array() prepares per-sample σ² for model training.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.4.0
+LAST MODIFIED: 2026-06-02
+VERSION: 0.5.0
 ================================================================================
 """
 
@@ -74,3 +75,48 @@ def normalize_dataframe(
             params[col] = {"method": "zscore", "mean": col_mean, "std": col_std}
 
     return result, params
+
+
+def extract_noise_array(df: pd.DataFrame, error_columns: dict):
+    """Return a per-sample variance array for noise-weighted model training (Phase 22C/D).
+
+    Args:
+        df:            Working DataFrame (normalized or clean).
+        error_columns: {output_col: error_col} confirmed at designate time.
+                       Values must be column names present in df.
+
+    Returns:
+        np.ndarray of shape (n_samples,) with per-sample σ² values,
+        or None if error_columns is empty or no companion columns are in df.
+
+    Notes:
+        - σ values (std dev) are read from the companion columns and squared
+          to produce variance (σ²), as expected by sklearn alpha and sample_weight.
+        - NaN entries are substituted with the column mean before averaging.
+        - A zero floor of 1e-6 is applied before squaring to prevent division-by-zero
+          when sample_weight = 1/σ² is computed downstream.
+        - Output columns are not scaled here because the toolkit does not currently
+          normalize output columns. If output normalization is added in future, this
+          function should divide each companion's σ by the output's normalization scale
+          factor before squaring.
+    """
+    if not error_columns:
+        return None
+
+    available_cols = [ec for ec in error_columns.values() if ec in df.columns]
+    if not available_cols:
+        return None
+
+    sigma_df = df[available_cols].copy()
+
+    # Substitute NaN with per-column mean
+    for col in sigma_df.columns:
+        col_mean = float(sigma_df[col].mean(skipna=True))
+        fill_val = col_mean if np.isfinite(col_mean) else 1e-6
+        sigma_df[col] = sigma_df[col].fillna(fill_val)
+
+    # Mean sigma across all available companion columns
+    sigma_mean = sigma_df.mean(axis=1).values.astype(float)
+
+    # Zero floor then square → σ²
+    return np.maximum(sigma_mean, 1e-6) ** 2

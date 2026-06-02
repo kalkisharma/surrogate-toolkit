@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Linear regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-19
-VERSION: 1.0.2
+LAST MODIFIED: 2026-06-02
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -36,6 +36,7 @@ class LinearModel(BaseSurrogateModel):
         y: np.ndarray,
         input_columns: list,
         output_columns: list,
+        noise_array: np.ndarray = None,
     ) -> None:
         """Fit the Ridge model to training data.
 
@@ -62,7 +63,14 @@ class LinearModel(BaseSurrogateModel):
         y = np.asarray(y, dtype=float)
         if y.ndim == 1:
             y = y.reshape(-1, 1)
-        self._model.fit(X, y)
+
+        sample_weight = None
+        if noise_array is not None:
+            weights = 1.0 / noise_array
+            sample_weight = weights / weights.max()
+
+        self._model.fit(X, y, sample_weight=sample_weight)
+        self._noise_active = noise_array is not None
         self._input_columns = list(input_columns)
         self._output_columns = list(output_columns)
         self._is_fitted = True

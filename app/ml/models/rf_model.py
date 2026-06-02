@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Random Forest surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-25
-VERSION: 1.0.2
+LAST MODIFIED: 2026-06-02
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -51,6 +51,7 @@ class RFModel(BaseSurrogateModel):
         y: np.ndarray,
         input_columns: list,
         output_columns: list,
+        noise_array: np.ndarray = None,
     ) -> None:
         """Fit the Random Forest to training data.
 
@@ -77,10 +78,16 @@ class RFModel(BaseSurrogateModel):
         y = np.asarray(y, dtype=float)
         if y.ndim == 1:
             y = y.reshape(-1, 1)
+        sample_weight = None
+        if noise_array is not None:
+            weights = 1.0 / noise_array
+            sample_weight = weights / weights.max()
+
         # RF expects 1D y for single-output; 2D for multi-output.
         # Squeeze to (n,) when there is one output to avoid DataConversionWarning.
         fit_y = y.ravel() if y.shape[1] == 1 else y
-        self._model.fit(X, fit_y)
+        self._model.fit(X, fit_y, sample_weight=sample_weight)
+        self._noise_active = noise_array is not None
         self._input_columns = list(input_columns)
         self._output_columns = list(output_columns)
         self._is_fitted = True

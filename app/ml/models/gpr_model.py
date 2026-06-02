@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-01
-VERSION: 1.4.1
+LAST MODIFIED: 2026-06-02
+VERSION: 1.5.0
 ================================================================================
 """
 
@@ -47,6 +47,7 @@ class GPRModel(BaseSurrogateModel):
         y: np.ndarray,
         input_columns: list,
         output_columns: list,
+        noise_array: np.ndarray = None,
     ) -> None:
         """Fit one GPR per output column.
 
@@ -94,9 +95,12 @@ class GPRModel(BaseSurrogateModel):
         # n_jobs on MultiOutputRegressor is the only available path; it applies
         # only when n_outputs > 1. Future: use joblib.Parallel to run restarts
         # in parallel ourselves, bypassing sklearn's sequential loop.
+        # Phase 22D: use per-sample noise array when provided; fall back to scalar alpha.
+        # noise_array shape (n_samples,) contains σ² values — sklearn alpha expects variance.
+        effective_alpha = noise_array if noise_array is not None else self._alpha
         single_gpr = GaussianProcessRegressor(
             kernel=k,
-            alpha=self._alpha,
+            alpha=effective_alpha,
             normalize_y=True,
             n_restarts_optimizer=self._n_restarts,
             random_state=DEFAULT_RANDOM_STATE,
@@ -104,6 +108,7 @@ class GPRModel(BaseSurrogateModel):
         self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)
 
         self._model.fit(X, y)
+        self._noise_active = noise_array is not None
         self._input_columns = list(input_columns)
         self._output_columns = list(output_columns)
         self._is_fitted = True

@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-01
-VERSION: 3.1.0
+LAST MODIFIED: 2026-06-02
+VERSION: 3.2.0
 ================================================================================
 """
 
@@ -21,6 +21,7 @@ from flask import Blueprint, current_app, jsonify, request
 from sklearn.gaussian_process.kernels import Matern, RationalQuadratic
 from sklearn.model_selection import train_test_split
 
+from app.data.normalization import extract_noise_array
 from app.ml.models import GPRModel, LinearModel, PCEModel, RBFModel, RFModel
 from app.ml.multi_fidelity.bridge_correction import BridgeCorrectionModel
 from app.ml.multi_fidelity.kennedy_ohagan    import KOCoKrigingModel
@@ -537,10 +538,20 @@ def train():
             422,
         )
 
+    # ── Noise array (Phase 22D) ───────────────────────────────────────────────
+    error_columns = meta.get("error_columns") or {}
+    noise_array = extract_noise_array(df, error_columns)
+
     # ── Train/test split ──────────────────────────────────────────────────────
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_split, random_state=DEFAULT_RANDOM_STATE
-    )
+    if noise_array is not None:
+        X_train, X_test, y_train, y_test, noise_train, _noise_test = train_test_split(
+            X, y, noise_array, test_size=test_split, random_state=DEFAULT_RANDOM_STATE
+        )
+    else:
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_split, random_state=DEFAULT_RANDOM_STATE
+        )
+        noise_train = None
 
     # ── Build model ───────────────────────────────────────────────────────────
     model = _make_model(model_type, hyperparams, n_jobs=n_jobs)
@@ -591,7 +602,9 @@ def train():
     )
 
     # ── Fit final model on full training set ──────────────────────────────────
-    model.fit(X_train, y_train, input_cols, output_cols)
+    _noise_supported = model_type in ("gpr", "rf", "linear")
+    model.fit(X_train, y_train, input_cols, output_cols,
+              noise_array=noise_train if _noise_supported else None)
 
     # ── Evaluate on held-out test set ─────────────────────────────────────────
     y_pred_test = model.predict(X_test)
@@ -643,6 +656,8 @@ def train():
         "test_inputs":               X_test.tolist(),
         "test_stds":                 test_stds,
         "kernel_length_scales":      kernel_length_scales,
+        "noise_active":              noise_train is not None and _noise_supported,
+        "noise_mean_sigma":          float(np.sqrt(noise_train.mean())) if noise_train is not None else None,
     }
     models_dict = state["surrogate_sessions"]["primary"]["models"]
     models_dict.pop("interpretation", None)

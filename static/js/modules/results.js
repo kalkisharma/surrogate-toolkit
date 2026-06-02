@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 3.5.27
+// Version: 3.5.35
 // Description: Step 9 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -487,6 +487,20 @@ function _render(containerEl, r) {
     normWarn.appendChild(el("p", { cls: "results-warning-text",
       text: "⚠ Normalization was not applied — model trained on raw data. Results may be unreliable. Return to Step 6 — Normalize, click Apply, then retrain." }));
     containerEl.appendChild(normWarn);
+  }
+
+  // Phase 22E: noise weighting indicator
+  if (r.noise_active) {
+    const sigma = (r.noise_mean_sigma ?? 0).toFixed(4);
+    const noiseBox = el("div", { cls: "results-noise-notice" });
+    let noiseHtml = `<strong>Noise weighting active</strong> — mean σ = ${sigma}.
+      High-uncertainty observations were down-weighted during training.`;
+    if (r.model_type === "gpr") {
+      noiseHtml += " GPR posterior uncertainty reflects per-point noise (±1.96σ in confidence bands).";
+    }
+    noiseHtml += " <em>Note: cross-validation used uniform alpha — noise weighting applies to the final model only.</em>";
+    noiseBox.innerHTML = noiseHtml;
+    containerEl.appendChild(noiseBox);
   }
 
   // GPR/size warnings
