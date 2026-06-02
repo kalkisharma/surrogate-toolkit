@@ -14,6 +14,8 @@ VERSION: 1.4.0
 # Licensed for internal use by Lockheed Martin employees only.
 # See LICENSE.md for full terms.
 
+from typing import Optional
+
 import numpy as np
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic
@@ -173,7 +175,7 @@ class GPRModel(BaseSurrogateModel):
             "estimator__alpha": [0.001, 0.01, 0.1, 1.0],
         }
 
-    def get_kernel_info(self) -> dict | None:
+    def get_kernel_info(self) -> Optional[dict]:
         """Return fitted ARD length scales per output column, or None if not fitted."""
         if not self._is_fitted:
             return None
