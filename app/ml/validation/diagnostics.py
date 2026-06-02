@@ -3,7 +3,7 @@
 FILE: diagnostics.py
 MODULE: app/ml/validation/
 PURPOSE: Model diagnostic metrics — R², RMSE, MAE per output column
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0
@@ -11,8 +11,6 @@ VERSION: 0.7.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score

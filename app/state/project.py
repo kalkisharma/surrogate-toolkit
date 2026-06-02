@@ -4,7 +4,7 @@ FILE: project.py
 MODULE: app/state/
 PURPOSE: Project save/load to disk — serialize STATE to .surrogate ZIP and
          restore it. DataFrames are stored as Parquet; model objects as Pickle.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-14
 VERSION: 1.0.0
@@ -12,8 +12,6 @@ VERSION: 1.0.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import io
 import json

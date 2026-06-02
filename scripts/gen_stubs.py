@@ -6,8 +6,6 @@ os.chdir(BASE)
 
 LICENSE = (
     "# Copyright © 2026 Kalki Sharma. All rights reserved.\n"
-    "# Licensed for internal use by Lockheed Martin employees only.\n"
-    "# See LICENSE.md for full terms.\n"
 )
 
 HEADER_TMPL = (
@@ -18,7 +16,7 @@ HEADER_TMPL = (
     "PURPOSE: {purpose}\n"
     "DEPENDENCIES: {deps}\n"
     "FUTURE EXTENSIONS: {future}\n"
-    "MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)\n"
+    "MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)\n"
     "CLASSIFICATION: Not program-specific\n"
     "CREATED: 2026-05-11\n"
     "LAST MODIFIED: 2026-05-11\n"

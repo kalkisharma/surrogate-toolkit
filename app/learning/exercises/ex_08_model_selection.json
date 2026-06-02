@@ -26,20 +26,32 @@
     },
     {
       "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This synthetic dataset has no missing values or outliers. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
       "target_panel": "designate",
       "instruction": "Designate x1 and x2 as inputs and y as the output.",
       "keywords": ["Input Variable", "Output Variable"],
       "quiz": null
     },
     {
-      "step_num": 3,
+      "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to x1 and x2.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 4,
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. With only 2 inputs there is no multicollinearity to screen. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 6,
       "target_panel": "configure",
       "instruction": "First run — Linear model: Open Step 8 — Model, select Linear, test split 0.2, 5-fold CV. Train. The R² badge will be red (R² < 0.70). Open the residual plot — you should see large positive residuals clustered in the center of the predicted range, where the model consistently undershoots the Gaussian peak.",
       "keywords": ["Ridge Regression (Linear)", "R² (Coefficient of Determination)", "Residual Plot", "Test Split", "Cross-Validation (CV)"],
@@ -56,7 +68,7 @@
       }
     },
     {
-      "step_num": 5,
+      "step_num": 7,
       "target_panel": "configure",
       "instruction": "Second run — Random Forest: switch model type to RF, same test split and CV folds. Train. The R² badge will jump to green (R² ≈ 0.97). RF achieves this without any assumption about the response shape — it splits the input space into rectangular regions and averages training values within each region.",
       "keywords": ["Random Forest (RF)", "R² (Coefficient of Determination)", "Residual Plot"],
@@ -73,7 +85,7 @@
       }
     },
     {
-      "step_num": 6,
+      "step_num": 8,
       "target_panel": "configure",
       "instruction": "Third run — GPR: switch model type to GPR, RBF kernel (default), alpha 0.1, same test split and CV folds. Train. R² should be ≈ 0.99 — slightly higher than RF. The improvement is real but small: GPR's smooth interpolation matches the smooth Gaussian-shaped response more naturally than RF's piecewise rectangles.",
       "keywords": ["Gaussian Process Regression (GPR)", "Kernel (Covariance Function)", "R² (Coefficient of Determination)"],
@@ -90,7 +102,7 @@
       }
     },
     {
-      "step_num": 7,
+      "step_num": 9,
       "target_panel": "results",
       "instruction": "Review all three results in the model history. The ranking is GPR (≈0.99) > RF (≈0.97) > Linear (≈0.60). Both GPR and RF have green badges; Linear has a red badge. The GPR–RF gap is small (~0.02) but GPR also provides prediction uncertainty (σ²) at every new input — RF provides only a point estimate.",
       "keywords": ["R² (Coefficient of Determination)", "Gaussian Process Regression (GPR)", "Random Forest (RF)", "Ridge Regression (Linear)"],
@@ -107,7 +119,7 @@
       }
     },
     {
-      "step_num": 8,
+      "step_num": 10,
       "target_panel": "results",
       "instruction": "Final observation: kernel choice matters more than the model label. If you retrain GPR with the Matérn 2.5 kernel and the same alpha, you will get R² indistinguishable from the RBF-kernel result on this smooth surface — the kernels encode smoothness assumptions, not different model families. The hierarchy is: model family first (GP, RF, linear), then kernel choice within the GP family, then hyperparameter tuning.",
       "keywords": ["Gaussian Process Regression (GPR)", "R² (Coefficient of Determination)", "Kernel (Covariance Function)"],

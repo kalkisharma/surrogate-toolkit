@@ -7,7 +7,7 @@ PURPOSE: Weighted ensemble of multiple surrogate model types.
          (out-of-fold meta-model). Implements the same BaseSurrogateModel
          interface as every other surrogate — all downstream panels
          (predictions, sensitivity, export) work without modification.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-19
 VERSION: 1.0.0
@@ -15,8 +15,6 @@ VERSION: 1.0.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 from sklearn.linear_model import Ridge

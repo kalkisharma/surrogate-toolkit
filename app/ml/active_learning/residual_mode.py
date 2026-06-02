@@ -5,7 +5,7 @@ MODULE: app/ml/active_learning/
 PURPOSE: Residual-guided active learning: recommend new simulation points in
          regions where the surrogate has the highest error, weighted by
          Gaussian kernel proximity to existing test-set residuals.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-26
 LAST MODIFIED: 2026-05-26
 VERSION: 1.0.0
@@ -13,8 +13,6 @@ VERSION: 1.0.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 

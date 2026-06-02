@@ -43,12 +43,18 @@
     },
     {
       "step_num": 3,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This dataset has no missing values or outliers. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 4,
       "target_panel": "designate",
       "instruction": "Assign all six inputs (velocity, dynamic_q, mach, aoa, span, aspect_ratio) as Input and cl as Output.",
       "quiz": null
     },
     {
-      "step_num": 4,
+      "step_num": 5,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to all 6 inputs. Normalization is especially important before PCA — PCA uses variance, and variables with large ranges would otherwise dominate the principal components regardless of their physical importance.",
       "keywords": ["Normalization", "Min-Max Scaling", "Principal Component Analysis (PCA)"],
@@ -65,7 +71,7 @@
       }
     },
     {
-      "step_num": 5,
+      "step_num": 6,
       "target_panel": "screen",
       "instruction": "Open Step 7 — Filter. Click 'Analyze →'. Look at the VIF table. You should see: velocity and mach with VIF > 1000 (nearly perfectly collinear — mach = velocity / speed_of_sound); dynamic_q with VIF ~40 (high, but lower because the V² relationship is nonlinear, so linear VIF underestimates it); span and aspect_ratio with VIF ~20 (aspect_ratio ≈ 2.5 × span in this dataset); aoa near 1 (independent).",
       "keywords": ["VIF (Variance Inflation Factor)", "Multicollinearity"],
@@ -82,7 +88,7 @@
       }
     },
     {
-      "step_num": 6,
+      "step_num": 7,
       "target_panel": "screen",
       "instruction": "Scroll to the bottom of the Filter panel and open the 'PCA Dimensionality Reduction' section. Set Components to 3 and click 'Preview PCA →'. Look at the explained-variance chart. PC1 and PC2 should capture the two correlated groups (speed and geometry). PC3 adds aoa's contribution.",
       "keywords": ["Principal Component Analysis (PCA)", "Explained Variance Ratio"],
@@ -99,21 +105,21 @@
       }
     },
     {
-      "step_num": 7,
+      "step_num": 8,
       "target_panel": "screen",
       "instruction": "Click 'Apply PCA →' to replace the 6 correlated inputs with 3 principal components. A success message will confirm. Note: the model and prediction steps will now use PC coordinates (PC1, PC2, PC3) — not the original physical variables.",
       "keywords": ["Principal Component Analysis (PCA)"],
       "quiz": null
     },
     {
-      "step_num": 8,
+      "step_num": 9,
       "target_panel": "configure",
       "instruction": "Open Step 8 — Model. Configure a GPR with test split 0.2, 5-fold CV. Train. With only 3 uncorrelated inputs, GPR should fit efficiently.",
       "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)"],
       "quiz": null
     },
     {
-      "step_num": 9,
+      "step_num": 10,
       "target_panel": "results",
       "instruction": "Review the R² score and parity plot. A well-tuned PCA + GPR pipeline on this dataset should achieve R² > 0.90. If R² is lower, the discarded variance may include some aoa signal — try 4 components and retrain.",
       "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Multicollinearity"],
@@ -130,7 +136,7 @@
       }
     },
     {
-      "step_num": 10,
+      "step_num": 11,
       "target_panel": "predict",
       "instruction": "Open Step 10 — Predict. Notice that the input fields show the original physical variables (velocity, dynamic_q, mach, aoa, span, aspect_ratio) — not PC coordinates. A 'PCA active' banner confirms the transform is handled automatically: the toolkit normalizes your values, applies the stored 3-component PCA matrix, and passes the resulting PC coordinates to the GPR. The fields pre-fill with the training means — click 'Run Prediction' to observe the predicted cl.",
       "keywords": ["Extrapolation", "Interpolation"],

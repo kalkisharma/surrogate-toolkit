@@ -4,7 +4,7 @@ FILE: test_cleaning.py
 MODULE: tests/unit/
 PURPOSE: Unit tests for app/data/cleaning.py — compute_cleaning_stats,
          handle_nulls, handle_outliers, remove_duplicates.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-12
 LAST MODIFIED: 2026-05-12
 VERSION: 0.5.1
@@ -12,8 +12,6 @@ VERSION: 0.5.1
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 import pandas as pd

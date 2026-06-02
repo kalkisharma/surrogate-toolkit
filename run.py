@@ -4,7 +4,7 @@ FILE: run.py
 MODULE: (root)
 PURPOSE: Development entry point. Reads HOST/PORT/DEBUG from .env and starts
          the Flask development server.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-27
 VERSION: 0.2.1
@@ -12,8 +12,6 @@ VERSION: 0.2.1
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 # load_dotenv() MUST be called before importing create_app so that any
 # environment-driven config (secret key, debug flag) is visible at import time.

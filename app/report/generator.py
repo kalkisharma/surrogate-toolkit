@@ -5,15 +5,13 @@ MODULE: app/report/
 PURPOSE: Collect STATE data into a flat dict for the Jinja2 report template.
          Handles missing sections gracefully — sections appear only when data
          is available.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 from datetime import datetime, timezone
 from typing import Dict, List, Optional

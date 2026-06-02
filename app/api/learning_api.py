@@ -6,7 +6,7 @@ PURPOSE: Blueprint for /api/learning/* — serves static learning content from
          app/learning/*.json and app/learning/decision_trees/*.json.
          Exercise endpoints also inject synthetic datasets and track progress
          in STATE.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-29
 VERSION: 3.2.0
@@ -14,8 +14,6 @@ VERSION: 3.2.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import json
 import os

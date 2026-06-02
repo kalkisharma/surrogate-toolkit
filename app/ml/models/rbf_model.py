@@ -8,7 +8,7 @@ PURPOSE: Radial Basis Function interpolation surrogate model.
          scales better than GPR for medium datasets (1 000–10 000 rows) because
          the solver is O(n²) rather than O(n³). No kernel hyperparameter
          optimisation required — just choose the basis function shape.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-18
 LAST MODIFIED: 2026-05-18
 VERSION: 1.0.0
@@ -16,8 +16,6 @@ VERSION: 1.0.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 from scipy.interpolate import RBFInterpolator

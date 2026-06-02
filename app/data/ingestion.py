@@ -5,7 +5,7 @@ MODULE: app/data/
 PURPOSE: CSV ingestion pipeline. Validates, coerces, and returns a clean
          DataFrame from an uploaded file stream. Pure function — no Flask
          imports — so it can be unit tested without an app context.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-11
 VERSION: 0.1.0
@@ -13,8 +13,6 @@ VERSION: 0.1.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 from datetime import datetime, timezone
 from io import BytesIO

@@ -26,62 +26,74 @@
     },
     {
       "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This dataset has measurement noise distributed across all rows — there are no discrete outlier rows to remove. Skip the clean step and move on. The noise will be handled by the alpha parameter in Step 8.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
       "target_panel": "designate",
       "instruction": "Designate x1 and x2 as inputs and y as the output.",
       "keywords": ["Input Variable", "Output Variable"],
       "quiz": null
     },
     {
-      "step_num": 3,
+      "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to x1 and x2. Note: normalization scales the inputs to [0, 1] — it does not change the noise level in y or remove measurement uncertainty.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 4,
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. With only 2 inputs there is no multicollinearity to screen. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 6,
       "target_panel": "configure",
-      "instruction": "Baseline — default alpha=0.1: Open Step 8 — Model, select GPR, RBF kernel, alpha=0.1, test split 0.2, 5-fold CV. Train. In the CV table, note the R² mean and the ± std. This is your baseline: mean ≈ 0.88, std ≈ 0.04. The std of 0.04 means scores vary by about ±0.04 across folds — moderate and acceptable.",
+      "instruction": "Baseline — default alpha=0.1: Open Step 8 — Model, select GPR, RBF kernel, alpha=0.1, test split 0.2, 5-fold CV. Train. In the CV table, note the R² mean and the ± std. This is your baseline: mean ≈ 0.91, std ≈ 0.04. The std of 0.04 means scores vary by about ±0.04 across folds — moderate and acceptable.",
       "keywords": ["Gaussian Process Regression (GPR)", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
       "quiz": {
-        "question": "With alpha=0.1, CV R² = 0.88 ± 0.04. The ± std means different folds score differently. What does a low CV std specifically tell you about the model?",
+        "question": "With alpha=0.1, CV R² = 0.91 ± 0.04. The ± std means different folds score differently. What does a low CV std specifically tell you about the model?",
         "options": [
           "The model has a high R² — std and mean are the same thing",
           "The model performs consistently regardless of which subset of data it trains on — low CV std is evidence of stable generalisation, not overfitting to any particular noise pattern in the training data",
           "The model has no measurement noise in its training data",
-          "Low CV std means the model will score 0.88 exactly on any new dataset"
+          "Low CV std means the model will score 0.91 exactly on any new dataset"
         ],
         "correct_index": 1,
         "explanation": "CV std measures consistency: if the model scores 0.92 on fold 1 and 0.84 on fold 5, std ≈ 0.04, indicating moderate variation. If it scores 0.95 on fold 1 and 0.40 on fold 5, std ≈ 0.20, indicating the model is highly sensitive to which specific noisy points it happened to see during training. Low std does not guarantee high accuracy — it guarantees repeatability. Both pieces of information (mean and std) are needed: a high mean with high std is dangerous (unstable); a high mean with low std is desirable."
       }
     },
     {
-      "step_num": 5,
+      "step_num": 7,
       "target_panel": "configure",
-      "instruction": "Overfit the noise — alpha=0.01: change alpha to 0.01 and retrain. CV R² mean will drop to ≈ 0.66 and std will spike to ≈ 0.20. Scores across folds now vary roughly from 0.46 to 0.86 — the model is chasing the noise pattern specific to each training fold. Open the residual plot: training residuals will be near zero (the model is interpolating through noise), but test residuals will be large and scattered.",
+      "instruction": "Overfit the noise — alpha=0.001: change alpha to 0.001 and retrain. CV R² mean will collapse to near zero or negative and std will spike above 1.0 — the model is memorising the specific noise pattern of each training fold. Open the residual plot: training residuals will be near zero (the model is interpolating through noise), but test residuals will be large and scattered.",
       "keywords": ["Gaussian Process Regression (GPR)", "Cross-Validation (CV)", "R² (Coefficient of Determination)", "Residual Plot"],
       "quiz": {
-        "question": "With alpha=0.01, CV std spikes from 0.04 to 0.20. Some folds score 0.46, others 0.86. What is causing this dramatic instability?",
+        "question": "With alpha=0.001, CV R² mean collapses to near zero or negative and std spikes above 1.0. Some folds score near zero, others are strongly negative. What is causing this extreme instability?",
         "options": [
-          "The test split is too small with alpha=0.01",
-          "Alpha=0.01 tells GPR that each observation has only σ²=0.0001 noise — far below the true σ²=0.0625. The model interpolates tightly through noisy training points, memorising each noise artefact. When tested on a different fold with a different noise realisation, the memorised artefacts do not transfer. Folds where noise happened to be coherent score well; folds where it was inconsistent score poorly",
-          "Alpha controls the number of training iterations, so 0.01 means fewer iterations",
-          "RBF kernel does not work with alpha < 0.1"
+          "The test split is too small with alpha=0.001",
+          "Alpha=0.001 tells GPR that each observation has σ²=0.001 noise — far below the true σ²≈0.07. The model interpolates nearly exactly through every noisy training point, memorising each noise artefact. When tested on a different fold with a different noise realisation, the memorised artefacts do not transfer. Negative R² means the model is actively worse than predicting the mean",
+          "Alpha controls the number of training iterations, so 0.001 means fewer iterations",
+          "RBF kernel does not work with alpha < 0.01"
         ],
         "correct_index": 1,
-        "explanation": "Alpha is the noise variance added to the diagonal of the GPR covariance matrix. A small alpha forces GPR to pass nearly exactly through every training point, including the noisy ones. The model learns the signal plus the specific noise realisation of the training fold. Cross-validation exposes this: each fold has a different noise realisation, so the 'memorised' model from one fold performs poorly on another. The CV std is the diagnostic signal — it rises sharply when the model is fitting below the true noise floor."
+        "explanation": "Alpha is the noise variance added to the diagonal of the GPR covariance matrix. A tiny alpha forces GPR to pass nearly exactly through every training point, including the noisy ones. The model learns the signal plus the specific noise realisation of the training fold. Cross-validation exposes this: each fold has a different noise realisation, so the 'memorised' model from one fold performs catastrophically on another — producing negative R² when the model is worse than predicting the mean. The CV std is the diagnostic signal — it spikes sharply when the model is fitting below the true noise floor."
       }
     },
     {
-      "step_num": 6,
+      "step_num": 8,
       "target_panel": "configure",
-      "instruction": "Find the noise floor — alpha=0.3: change alpha to 0.3 and retrain. CV mean should hold at ≈ 0.89 while std drops to ≈ 0.02. Test R² stays near 0.92. Compare to the alpha=0.1 baseline: similar mean, lower std. Alpha=0.3 is near the true noise level (σ=0.25) — the model correctly stops trying to fit below the measurement uncertainty.",
+      "instruction": "Find the noise floor — alpha=0.3: change alpha to 0.3 and retrain. CV mean should hold at ≈ 0.90 while std drops to ≈ 0.03. Test R² stays near 0.92. Compare to the alpha=0.1 baseline: similar mean, lower std. Alpha=0.3 is near the true noise level — the model correctly stops trying to fit below the measurement uncertainty.",
       "keywords": ["Gaussian Process Regression (GPR)", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
       "quiz": {
-        "question": "Alpha=0.3 gives CV mean ≈ 0.89 and std ≈ 0.02, compared to alpha=0.1 giving mean ≈ 0.88 and std ≈ 0.04. The test R² barely changes. What does this tell you about the true noise level in the data?",
+        "question": "Alpha=0.3 gives CV mean ≈ 0.90 and std ≈ 0.03, compared to alpha=0.1 giving mean ≈ 0.91 and std ≈ 0.04. The test R² barely changes. What does this tell you about the true noise level in the data?",
         "options": [
           "The true noise level is exactly alpha=0.3 because that is where R² is highest",
-          "The true noise level is approximately σ ≈ 0.25–0.30: alpha=0.3 matches it well enough that the model stops trying to fit below the noise floor (std drops to 0.02) without sacrificing accuracy (mean unchanged). At alpha=0.1, the model was slightly underestimating noise, creating mild instability. The stability improvement without accuracy loss is the fingerprint of hitting the noise floor",
+          "The true noise level is approximately σ ≈ 0.25–0.30: alpha=0.3 matches it well enough that the model stops trying to fit below the noise floor (std drops to 0.03) without sacrificing accuracy (mean nearly unchanged). At alpha=0.1, the model was slightly underestimating noise, creating mild instability. The stability improvement without accuracy loss is the fingerprint of hitting the noise floor",
           "Alpha=0.3 is universally better than alpha=0.1 for all GPR models",
           "Lower CV std always means higher R²"
         ],
@@ -90,37 +102,37 @@
       }
     },
     {
-      "step_num": 7,
+      "step_num": 9,
       "target_panel": "configure",
-      "instruction": "Over-smooth — alpha=1.0: change alpha to 1.0 and retrain. CV mean will drop to ≈ 0.85 and test R² to ≈ 0.90. The model is now too smooth — it is discounting real signal variation as noise. The residual plot will show systematic structure (the model is missing genuine response variation).",
+      "instruction": "Over-smooth — alpha=1.0: change alpha to 1.0 and retrain. CV mean will drop to ≈ 0.84 and test R² to ≈ 0.84. The model is now too smooth — it is discounting real signal variation as noise. The residual plot will show systematic structure (the model is missing genuine response variation).",
       "keywords": ["Gaussian Process Regression (GPR)", "R² (Coefficient of Determination)", "Residual Plot"],
       "quiz": {
-        "question": "At alpha=1.0, CV std is low (≈ 0.03) but CV mean and test R² both fall compared to alpha=0.3. What is happening?",
+        "question": "At alpha=1.0, CV std is low (≈ 0.02) but CV mean and test R² both fall compared to alpha=0.3. What is happening?",
         "options": [
           "Alpha=1.0 causes numerical instability in the GPR solver",
-          "Alpha=1.0 tells GPR each observation has σ²=1.0 noise — four times the true noise level. The model discounts every training point too heavily, producing an overly smooth surface that misses real response variation. Low CV std confirms the model is not overfitting; falling mean R² confirms it is missing signal. This is the bias half of the bias-variance trade-off: the model is stable but systematically wrong",
+          "Alpha=1.0 tells GPR each observation has σ²=1.0 noise — far above the true noise level. The model discounts every training point too heavily, producing an overly smooth surface that misses real response variation. Low CV std confirms the model is not overfitting; falling mean R² confirms it is missing signal. This is the bias half of the bias-variance trade-off: the model is stable but systematically wrong",
           "More data points are needed when alpha > 0.5",
           "The RBF kernel is incompatible with alpha > 0.5"
         ],
         "correct_index": 1,
-        "explanation": "Over-regularisation (alpha too high) is the opposite failure mode from under-regularisation (alpha too low). At alpha=1.0 the model is told 'I expect ±1.0 noise on every measurement' — so it ignores small-scale response variation as noise artefacts. The result is a smooth but biased surface. CV std is low because the model is consistent (not memorising noise), but mean R² is lower because the smooth surface systematically misses the true response shape. The sweet spot is the alpha value where CV std has stabilised low AND CV mean is still high."
+        "explanation": "Over-regularisation (alpha too high) is the opposite failure mode from under-regularisation (alpha too low). At alpha=1.0 the model is told 'I expect very large noise on every measurement' — so it ignores small-scale response variation as noise artefacts. The result is a smooth but biased surface. CV std is low because the model is consistent (not memorising noise), but mean R² is lower because the smooth surface systematically misses the true response shape. The sweet spot is the alpha value where CV std has stabilised low AND CV mean is still high."
       }
     },
     {
-      "step_num": 8,
+      "step_num": 10,
       "target_panel": "configure",
-      "instruction": "Auto-tune: reset alpha to 0.1 (default), then click 'Auto-Tune →'. Auto-tune runs a grid search over alpha values (and kernel options) using cross-validation. Compare its selected alpha to your manual finding from steps 5–7. It should select alpha in the 0.2–0.4 range, confirming your manual sweep.",
+      "instruction": "Auto-tune: reset alpha to 0.1 (default), then click 'Auto-Tune →'. Auto-tune runs a grid search over alpha values (and kernel options) using cross-validation. Compare its selected alpha to your manual finding from steps 7–9. It should select alpha in the 0.05–0.15 range, consistent with your manual sweep.",
       "keywords": ["Gaussian Process Regression (GPR)", "Optimizer Restarts", "Cross-Validation (CV)"],
       "quiz": {
-        "question": "Auto-tune selects alpha ≈ 0.3 — matching your manual finding. What is the practical rule for setting alpha when you do not have time to sweep it manually?",
+        "question": "Auto-tune selects alpha in the 0.05–0.15 range — consistent with your manual finding. What is the practical rule for setting alpha when you do not have time to sweep it manually?",
         "options": [
           "Always use alpha=0.1 (the default) — it works for all datasets",
-          "Set alpha to your estimated measurement noise variance (σ²). For clean simulation data σ ≈ 0.01–0.05, use alpha=0.01–0.05. For experimental data with moderate noise σ ≈ 0.1–0.3, use alpha=0.1–0.3. If noise is unknown, start at alpha=0.1 and raise it until CV std stabilises — that point is your noise floor estimate",
+          "Set alpha to your estimated measurement noise variance (σ²). For clean simulation data with σ ≈ 0.01–0.05, use alpha=0.01–0.05. For experimental data with moderate noise σ ≈ 0.25, use alpha ≈ 0.05–0.1. If noise is unknown, start at alpha=0.1 and raise it until CV std stabilises — that point is your noise floor estimate",
           "Use the highest alpha that keeps R² above 0.70",
           "Alpha should equal the dataset noise-to-signal ratio expressed as a percentage"
         ],
         "correct_index": 1,
-        "explanation": "Alpha represents the expected per-observation noise variance σ². For clean simulation outputs (near-deterministic), very low alpha (0.01–0.05) is appropriate — the model should interpolate closely. For experimental measurements, alpha should match the instrument noise level. When noise is unknown, the CV std sweep is the empirical procedure: raise alpha until std stops falling (the noise floor), then confirm mean R² has not dropped significantly. Auto-tune automates this procedure over the defined grid — it is a time-saving tool, but understanding the sweep is essential for setting a sensible search grid and interpreting the result."
+        "explanation": "Alpha represents the expected per-observation noise variance σ². For clean simulation outputs (near-deterministic), very low alpha (0.01–0.05) is appropriate — the model should interpolate closely. For experimental measurements, alpha should match the instrument noise variance (not the standard deviation). When noise is unknown, the CV std sweep is the empirical procedure: raise alpha until std stops falling (the noise floor), then confirm mean R² has not dropped significantly. Auto-tune automates this procedure over the defined grid — it is a time-saving tool, but understanding the sweep is essential for setting a sensible search grid and interpreting the result."
       }
     }
   ]

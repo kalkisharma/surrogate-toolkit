@@ -3,7 +3,7 @@
 FILE: test_models.py
 MODULE: tests/unit/
 PURPOSE: Unit tests for surrogate model implementations and diagnostics
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0
@@ -11,8 +11,6 @@ VERSION: 0.7.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 import pytest

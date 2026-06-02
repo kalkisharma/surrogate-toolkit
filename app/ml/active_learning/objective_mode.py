@@ -4,7 +4,7 @@ FILE: objective_mode.py
 MODULE: app/ml/active_learning/
 PURPOSE: Objective-guided recommendation using Expected Improvement (EI) or
          Upper Confidence Bound (UCB) acquisition functions.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0
@@ -12,8 +12,6 @@ VERSION: 1.0.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 

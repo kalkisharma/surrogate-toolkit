@@ -19,6 +19,26 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.34] — 2026-06-01
+
+### Exercise fixes (ex_06–ex_10) + codebase header cleanup
+
+#### Changed — Exercises
+
+- **ex_06_pca_filter** — Added missing Clean skip step (step 3); renumbered steps to 11 total. All VIF and PCA content verified accurate.
+- **ex_07_multifidelity** — Added Clean + Filter skip steps for both LF and HF datasets (4 new steps); corrected LF RF R² expectation from "0.90–0.94" to "0.95–0.98" (actual ≈ 0.97); renumbered to 15 total steps.
+- **ex_08_model_selection** — Added Clean + Filter skip steps; renumbered to 10 total steps. All Linear/RF/GPR R² claims verified accurate (0.60 / 0.97 / 0.99).
+- **ex_09_alpha_regularization** — Added Clean + Filter skip steps; corrected alpha baseline mean from 0.88 to 0.91; changed overfit demo from alpha=0.01 to alpha=0.001 (actual dramatic CV collapse only occurs at 0.001, not 0.01); updated quiz text and auto-tune expected range from 0.2–0.4 to 0.05–0.15; renumbered to 10 total steps.
+- **ex_10_optimization** — Added Clean + Filter skip steps; updated configure step to recommend Auto-Tune or Matérn 2.5 with alpha=0.05 for cd (default RBF alpha=0.1 gives cd R²≈0.68; Matérn achieves 0.97); added cd recovery path to results step; renumbered to 10 total steps.
+
+#### Changed — Codebase headers
+
+- Replaced `kalki.j.sharma@lmco.com` with `kalkijsharma@gmail.com` across all 95 Python and Markdown files.
+- Removed "Licensed for internal use by Lockheed Martin employees only." and "See LICENSE.md for full terms." lines from all file headers and `scripts/gen_stubs.py` template — no LICENSE.md exists and no LM affiliation applies.
+- Updated `README.md` License section accordingly.
+
+---
+
 ## [3.5.33] — 2026-06-01
 
 ### Sidebar "Workflow" group label for Steps 1–9

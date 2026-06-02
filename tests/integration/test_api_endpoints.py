@@ -4,7 +4,7 @@ FILE: test_api_endpoints.py
 MODULE: tests/integration/
 PURPOSE: Integration tests for the /api/data/* HTTP endpoints. Tests the full
          request/response cycle including STATE mutations.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.7.0
@@ -12,8 +12,6 @@ VERSION: 0.7.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import io
 import json

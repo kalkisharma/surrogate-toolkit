@@ -4,7 +4,7 @@ FILE: normalization.py
 MODULE: app/data/
 PURPOSE: Feature normalization and scaling for designated input columns.
          Writes to primary["normalized"]; primary["clean"] is never mutated.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
 VERSION: 0.4.0
@@ -12,8 +12,6 @@ VERSION: 0.4.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 import pandas as pd

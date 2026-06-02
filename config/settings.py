@@ -4,7 +4,7 @@ FILE: settings.py
 MODULE: config/
 PURPOSE: Single source of truth for all configurable constants. Nothing is
          hardcoded elsewhere in the application — all tunable values live here.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-01
 VERSION: 3.5.27
@@ -12,12 +12,10 @@ VERSION: 3.5.27
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "3.5.33"                     # bumped in settings.py, all changed file headers, and index.html on every release
+VERSION = "3.5.34"                     # bumped in settings.py, all changed file headers, and index.html on every release
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 

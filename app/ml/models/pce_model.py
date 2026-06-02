@@ -6,7 +6,7 @@ PURPOSE: Polynomial Chaos Expansion surrogate model using chaospy.
          Represents each output as a sum of orthogonal polynomials in the inputs.
          Sobol sensitivity indices (S1, ST) fall out analytically from the
          expansion coefficients — no Monte Carlo sampling needed.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-18
 LAST MODIFIED: 2026-05-18
 VERSION: 1.0.0
@@ -14,8 +14,6 @@ VERSION: 1.0.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import numpy as np
 

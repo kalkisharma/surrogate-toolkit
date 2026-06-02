@@ -4,7 +4,7 @@ FILE: schema.py
 MODULE: app/state/
 PURPOSE: Defines the canonical STATE dict shape and helpers to reset, read, and
          serialize it. STATE is the single source of truth for all session data.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-21
 VERSION: 3.1.0
@@ -12,8 +12,6 @@ VERSION: 3.1.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import copy
 from datetime import datetime, timezone

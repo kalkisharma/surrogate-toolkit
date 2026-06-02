@@ -5,7 +5,7 @@ MODULE: app/api/
 PURPOSE: Blueprint and route handlers for /api/data/*. Wires the ingestion
          pipeline to the HTTP API, updates STATE, and returns standardised
          JSON responses.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-28
 VERSION: 1.0.2
@@ -13,8 +13,6 @@ VERSION: 1.0.2
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 from datetime import datetime, timezone
 

@@ -5,7 +5,7 @@ MODULE: app/
 PURPOSE: Flask application factory. Creates and configures the Flask app,
          registers all blueprints, initializes STATE, and sets global error
          handlers.
-MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-13
 VERSION: 0.9.0
@@ -13,8 +13,6 @@ VERSION: 0.9.0
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
-# Licensed for internal use by Lockheed Martin employees only.
-# See LICENSE.md for full terms.
 
 import os
 

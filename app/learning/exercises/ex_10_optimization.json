@@ -26,34 +26,46 @@
     },
     {
       "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This aerodynamic dataset has no missing values or outliers. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
       "target_panel": "designate",
       "instruction": "Designate aoa and ar as inputs. Designate cl, cd, and cl_cd as outputs.",
       "keywords": ["Input Variable", "Output Variable"],
       "quiz": null
     },
     {
-      "step_num": 3,
+      "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to aoa and ar.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 4,
-      "target_panel": "configure",
-      "instruction": "Train a GPR model with test split 0.2, 5-fold CV. GPR is preferred here — it models all three outputs simultaneously and provides uncertainty estimates that the optimizer can use. Expect R² > 0.92 for cl and cd. cl_cd (a derived ratio) is typically harder to fit — expect R² > 0.85 for this output.",
-      "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
-      "quiz": null
-    },
-    {
       "step_num": 5,
-      "target_panel": "results",
-      "instruction": "Check R² for each output in the Results panel. cl and cd should be > 0.92 (they are direct aerodynamic quantities on a smooth response surface). cl_cd is a derived ratio — small errors in cl and cd compound into larger errors in their quotient — so R² > 0.85 is acceptable. If cl_cd R² is below 0.80, try switching GPR to the Matérn 2.5 kernel before proceeding.",
-      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Residual Plot"],
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. With only 2 inputs (aoa, ar) there is no multicollinearity to screen. Skip it and move on.",
       "quiz": null
     },
     {
       "step_num": 6,
+      "target_panel": "configure",
+      "instruction": "Train a GPR model with test split 0.2, 5-fold CV. Click 'Auto-Tune →' first, or manually select Matérn 2.5 kernel with alpha 0.05 — the cd response has a nonlinear curvature that the default RBF kernel underestimates at alpha=0.1. Expect R² > 0.92 for cl and cd after using Auto-Tune or Matérn 2.5. cl_cd (a derived ratio) is typically harder to fit — expect R² > 0.85 for this output.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
+      "quiz": null
+    },
+    {
+      "step_num": 7,
+      "target_panel": "results",
+      "instruction": "Check R² for each output in the Results panel. cl and cd should be > 0.92 (they are direct aerodynamic quantities on a smooth response surface). cl_cd is a derived ratio — small errors in cl and cd compound into larger errors in their quotient — so R² > 0.85 is acceptable. If cl_cd R² is below 0.80, try switching GPR to the Matérn 2.5 kernel before proceeding. If cd R² is below 0.90, switch to Matérn 2.5 kernel with alpha 0.05, or run Auto-Tune — the drag surface has a nonlinear curvature that RBF underestimates at the default alpha.",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Residual Plot"],
+      "quiz": null
+    },
+    {
+      "step_num": 8,
       "target_panel": "optimize",
       "instruction": "Open Step 11 — Design Space Optimization. First run single-objective: set objective to Minimize cd (drag). Run. The optimizer will find the input combination (aoa, ar) that minimises predicted cd. Note the recommended aoa and ar values — low aoa and moderate ar, as expected.",
       "keywords": ["Surrogate-Based Optimization"],
@@ -70,7 +82,7 @@
       }
     },
     {
-      "step_num": 7,
+      "step_num": 9,
       "target_panel": "optimize",
       "instruction": "Now run multi-objective optimization: set Objective 1 to Minimize cd, Objective 2 to Maximize cl_cd. Run. A Pareto front plot will appear showing all non-dominated designs. Each point on the front is a design where you cannot reduce cd without also reducing cl_cd.",
       "keywords": ["Surrogate-Based Optimization"],
@@ -87,7 +99,7 @@
       }
     },
     {
-      "step_num": 8,
+      "step_num": 10,
       "target_panel": "optimize",
       "instruction": "Look at the Pareto front plot. Find the 'knee point' — the design where the curve bends most sharply. This is where the trade-off is steepest: moving further along the front costs a lot of cl_cd to gain a little cd reduction. The knee point is often the most balanced engineering choice.",
       "keywords": ["Surrogate-Based Optimization"],

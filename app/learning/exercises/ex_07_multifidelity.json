@@ -27,20 +27,32 @@
     },
     {
       "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. The LF dataset was generated synthetically and has no missing values or outliers. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
       "target_panel": "designate",
       "instruction": "Assign x1, x2, x3 as inputs and y as the output for the LF dataset.",
       "keywords": [],
       "quiz": null
     },
     {
-      "step_num": 3,
+      "step_num": 4,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to x1, x2, x3 for the LF dataset.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 4,
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. These three inputs (x1, x2, x3) are well-designed synthetic parameters with no multicollinearity — VIF will show values near 1. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 6,
       "target_panel": "configure",
       "instruction": "Configure a Random Forest model (test split 0.15, 5-fold CV). RF is a good choice for the LF dataset — it is robust on the larger, noisier LF runs. Train it.",
       "keywords": ["Random Forest (RF)", "Test Split", "Cross-Validation (CV)"],
@@ -57,12 +69,12 @@
       }
     },
     {
-      "step_num": 5,
+      "step_num": 7,
       "target_panel": "results",
-      "instruction": "Note the LF model's test R² — it should be around 0.90–0.94. The LF model captures the main effects (3x1 + 2x2² + 1.5x1·x3) well but underestimates the nonlinear interaction term 0.8·sin(π·x2·x3) present in the HF physics. The residual plot may show a slight systematic curve.",
+      "instruction": "Note the LF model's test R² — it should be around 0.95–0.98. The LF model captures the main effects (3x1 + 2x2² + 1.5x1·x3) well but underestimates the nonlinear interaction term 0.8·sin(π·x2·x3) present in the HF physics. The residual plot may show a slight systematic curve at certain input combinations.",
       "keywords": ["R² (Coefficient of Determination)", "Residual Plot"],
       "quiz": {
-        "question": "The LF surrogate achieves R² = 0.91 on the LF test set. Does this mean it will also achieve R² ≈ 0.91 on the HF outputs?",
+        "question": "The LF surrogate achieves R² ≈ 0.97 on the LF test set. Does this mean it will also achieve R² ≈ 0.97 on the HF outputs?",
         "options": [
           "Yes — R² only depends on fit quality, not fidelity level",
           "Not necessarily — the LF model was trained on different (simpler) physics. It may systematically under-predict or over-predict the HF output wherever the HF interaction term is significant",
@@ -74,26 +86,38 @@
       }
     },
     {
-      "step_num": 6,
+      "step_num": 8,
       "target_panel": "preview",
       "instruction": "Now switch to the HF dataset: click the 'multifidelity_hf' tab in the dataset selector at the top of the sidebar. The preview should show 30 rows — the same three inputs but with more accurate y values from the high-fidelity simulation.",
       "quiz": null
     },
     {
-      "step_num": 7,
+      "step_num": 9,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. The HF dataset is clean — 30 carefully selected simulation runs with no outliers. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 10,
       "target_panel": "designate",
       "instruction": "Assign x1, x2, x3 as inputs and y as the output for the HF dataset. Same column names as LF — this is required for the Bridge Correction to work.",
       "quiz": null
     },
     {
-      "step_num": 8,
+      "step_num": 11,
       "target_panel": "normalize",
       "instruction": "Apply Min-Max normalization to the HF inputs. Use the same method as LF so both datasets are on the same scale.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
-      "step_num": 9,
+      "step_num": 12,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. Same three inputs as LF — no collinearity issues. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 13,
       "target_panel": "configure",
       "instruction": "Configure a GPR model (test split 0.2, 5-fold CV). GPR is the right choice for 30 accurate HF points — small dataset, smooth response, and native uncertainty estimates. Train it.",
       "keywords": ["Gaussian Process Regression (GPR)", "Test Split", "Latin Hypercube Sampling (LHS)"],
@@ -110,14 +134,14 @@
       }
     },
     {
-      "step_num": 10,
+      "step_num": 14,
       "target_panel": "results",
       "instruction": "Note the HF GPR's test R² — it should be higher than the LF RF despite having far fewer data points, because the HF physics is more accurate and smoother. The parity plot should show tighter clustering along the diagonal.",
       "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Gaussian Process Regression (GPR)"],
       "quiz": null
     },
     {
-      "step_num": 11,
+      "step_num": 15,
       "target_panel": "compare",
       "instruction": "Open Step 14 — Compare. Both datasets and their trained models are visible. Select 'Multi-Fidelity' mode, set LF dataset to multifidelity_lf and HF dataset to multifidelity_hf. Choose Bridge Correction method and click Train. The correction model learns the discrepancy (HF − LF_prediction) at the 30 HF points.",
       "keywords": ["Bridge Correction", "Kennedy-O'Hagan Co-Kriging", "Multi-Fidelity Modeling"],
