@@ -1,0 +1,114 @@
+{
+  "id": "ex_11_noise_weighting",
+  "title": "Heteroscedastic Noise Weighting — Using Measurement Uncertainty in Training",
+  "difficulty": "intermediate",
+  "estimated_minutes": 20,
+  "description": "A 50-point wind tunnel dataset includes both lift coefficient measurements (cl) and their per-point measurement uncertainty (cl_std). At low angles of attack the flow is attached and instruments are precise (σ ≈ 0.04). At high angles of attack flow separation creates turbulent fluctuations that increase measurement noise (σ up to 0.17). This exercise shows how the tool automatically detects companion error columns, down-weights high-uncertainty observations during training, and displays a noise weighting indicator in the results panel.",
+  "tags": ["noise weighting", "heteroscedastic", "GPR", "measurement uncertainty", "error columns"],
+  "dataset": "hetero_noise_2d.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The dataset has 4 columns: mach (Mach number, 0.2–0.7), aoa_deg (angle of attack, −8° to +12°), cl (measured lift coefficient), and cl_std (measurement standard deviation per row). Notice that cl_std is not a physical output you want to predict — it quantifies how reliable each cl measurement is. Rows taken at high angles of attack (large |aoa_deg|) have larger cl_std values because flow separation introduces turbulent pressure fluctuations that the force balance cannot average out in a short sample window.",
+      "keywords": ["Input Variable", "Output Variable"],
+      "quiz": {
+        "question": "cl_std values range from about 0.04 at low angles of attack to 0.17 at high angles. What physical phenomenon causes this increase in measurement uncertainty?",
+        "options": [
+          "The Mach number increases at high angles of attack, distorting the pressure taps",
+          "At high angles of attack the airfoil begins to stall — the separated turbulent flow creates chaotic pressure fluctuations that vary from one measurement sample to the next, making the force balance reading less repeatable",
+          "The wind tunnel fan runs faster at high angles of attack, introducing vibration noise",
+          "cl_std increases because cl itself is larger at high angles of attack"
+        ],
+        "correct_index": 1,
+        "explanation": "Measurement uncertainty in a wind tunnel is dominated by the turbulence intensity of the flow over the model. At low angles of attack the boundary layer is attached and laminar — pressure readings are stable and repeatable. As angle of attack increases past the stall onset, the separated flow produces unsteady vortex shedding and pressure fluctuations that change the instantaneous force on the balance. Short sample windows (< 10 s per polar point) cannot fully average out these fluctuations, so σ increases with |aoa_deg|. This is heteroscedastic noise: the uncertainty is not constant across observations but depends on the operating condition."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This dataset has no missing values or outlier rows — the scatter at high AoA is genuine measurement noise, not bad data points. Skip the clean step. Removing high-AoA rows would discard real physics at the cost of coverage. The correct approach is to keep all rows and give the model less weight on the noisy ones — which is what the noise weighting in Step 8 does.",
+      "quiz": null
+    },
+    {
+      "step_num": 3,
+      "target_panel": "designate",
+      "instruction": "Open Step 5 — Assign. Notice that cl_std has a teal 'Output Error' badge automatically — the tool detected that 'cl_std' ends with '_std' and that 'cl' is a designated output column, so it paired them. Leave cl_std in its default 'Output Error' role. Set mach and aoa_deg as Input columns and cl as the Output column, then click Confirm.",
+      "keywords": ["Input Variable", "Output Variable"],
+      "quiz": {
+        "question": "The tool automatically gave cl_std an 'Output Error' badge. What would happen if you clicked 'Override → Unused' on that badge?",
+        "options": [
+          "cl_std would be deleted from the dataset",
+          "cl_std would be treated as a regular unused column and excluded from the analysis — the noise weighting information would be discarded and training would proceed without per-sample uncertainty",
+          "cl_std would become an additional output column the model must predict",
+          "cl_std would be added as an input feature to the model"
+        ],
+        "correct_index": 1,
+        "explanation": "The 'Override → Unused' button demotes the companion column back to a plain unused column. The pairing is forgotten and the noise array is not passed to the model at training time — every observation is weighted equally, regardless of how uncertain it is. This is the correct choice if you know the cl_std values are unreliable or if you want a direct comparison between weighted and unweighted training (which you will do in the final step of this exercise)."
+      }
+    },
+    {
+      "step_num": 4,
+      "target_panel": "normalize",
+      "instruction": "Open Step 6 — Normalize. Apply Min-Max normalization to mach and aoa_deg. Note: only input columns are normalized — cl and cl_std are passed to the model in their original units. The cl_std values (in lift coefficient units) are therefore already on the same scale as cl, so no additional scaling of the error column is needed.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
+      "quiz": null
+    },
+    {
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 7 — Filter Inputs. With only 2 inputs there is no multicollinearity to screen. Skip it and move on.",
+      "quiz": null
+    },
+    {
+      "step_num": 6,
+      "target_panel": "configure",
+      "instruction": "Open Step 8 — Model. Select GPR, RBF kernel, default alpha, test split 0.2, 5-fold CV. Train. After training, look at the top of the results panel for the green 'Noise weighting active — mean σ = …' banner. The mean σ shown is approximately 0.10 — the average measurement standard deviation across the 40 training rows. GPR used this array as per-point alpha: rows with σ = 0.17 had their diagonal covariance entry set to 0.029 (σ²), while rows with σ = 0.04 had it set to 0.0016 — an 18× difference in assigned noise level.",
+      "keywords": ["Gaussian Process Regression (GPR)", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
+      "quiz": {
+        "question": "The noise banner shows 'mean σ = 0.10'. GPR uses σ² (variance) as the alpha value per row, not σ directly. For a row where cl_std = 0.10, what alpha value does GPR assign to that observation?",
+        "options": [
+          "0.10 — the standard deviation is used directly",
+          "0.01 — σ² = 0.10² = 0.01",
+          "0.316 — the square root of σ",
+          "10.0 — the reciprocal of σ"
+        ],
+        "correct_index": 1,
+        "explanation": "GPR's alpha parameter represents the noise variance σ², not the standard deviation σ. For a row where the measurement uncertainty is cl_std = 0.10, the variance is σ² = 0.10² = 0.01. This value is placed on the diagonal of the covariance matrix for that observation. A row with cl_std = 0.04 gets α = 0.0016, and a row with cl_std = 0.17 gets α = 0.0289 — about 18× larger. GPR will pull its fitted curve closer to the precise rows and allow more deviation from the uncertain ones."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "results",
+      "instruction": "Review the test R² and parity plot. Then look at the residual plot: points at the high-AoA end of the x-axis tend to have larger residuals — this is expected because those rows had genuine measurement scatter that the model correctly did not try to interpolate through. The model should show R² > 0.95 on this dataset. The CV note at the bottom of the noise banner states that cross-validation used a fixed noise level — only the final trained model benefits from the per-point noise array.",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Residual Plot"],
+      "quiz": {
+        "question": "The residual plot shows larger scatter at high angles of attack than at low angles. Is this a sign that the model performed poorly at high AoA?",
+        "options": [
+          "Yes — a good model should have equally small residuals across all operating conditions",
+          "No — the residuals at high AoA are larger because the training data itself had higher measurement scatter there. The model correctly avoided overfitting to that noise, so the residuals reflect the true measurement uncertainty rather than model error",
+          "No — residuals at high AoA are larger because the model prioritises low-AoA predictions",
+          "Yes — the model needs more training data at high angles of attack"
+        ],
+        "correct_index": 1,
+        "explanation": "Residuals at any given operating condition reflect both model error and measurement noise. When noise weighting is active, high-σ observations are treated as less reliable, so the model does not try to pass exactly through them. The result is that residuals at high AoA are roughly equal to cl_std at that condition — the model has learned 'this region is noisy, stay near the trend rather than interpolating each point'. This is the correct behaviour. If the model had residuals much larger than cl_std at low AoA, that would indicate a genuine fit problem."
+      }
+    },
+    {
+      "step_num": 8,
+      "target_panel": "designate",
+      "instruction": "Compare without noise weighting: Go back to Step 5 — Assign, click 'Override → Unused' on the cl_std badge, and click Confirm again. Then retrain with the same GPR settings. Without the noise array, every row is weighted equally — the model will try to interpolate through the noisy high-AoA points. Compare the new test R², CV R², and residual plot to your previous run. On this dataset the difference in R² is small but the residual structure at high AoA will be visibly worse. Use the run selector dropdown in the Results header to switch between run 1 (noise-weighted) and run 2 (unweighted) for a direct side-by-side comparison.",
+      "quiz": {
+        "question": "You re-trained without noise weighting and the test R² barely changed. Does this mean noise weighting had no effect?",
+        "options": [
+          "Yes — if R² does not change, the feature had no impact",
+          "No — test R² is an aggregate metric. The noise-weighted model may have better calibrated uncertainty and cleaner residuals in the low-noise region (low AoA) even if the overall R² is similar. Noise weighting matters most when you need the model to be reliable in the precision zone, not just accurate on average",
+          "No — the noise weighting effect only appears in the CV score, not the test score",
+          "Yes — noise weighting only helps when σ varies by more than 10× across observations"
+        ],
+        "correct_index": 1,
+        "explanation": "Aggregate R² can mask local behaviour. The noise-weighted model learns 'trust these low-σ points more' — its fitted surface passes closer to the precise low-AoA measurements, which is where engineering decisions (cruise design point) are usually made. The unweighted model gives equal credibility to every row and may fit a slightly different surface through the precision zone to satisfy the noisy high-AoA points. The difference is subtle on a clean 50-point dataset but becomes significant when noise spans a wider range or when you care about a specific subregion of the design space."
+      }
+    }
+  ]
+}
