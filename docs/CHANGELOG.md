@@ -19,6 +19,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.29] — 2026-06-01
+
+### PCE underdetermined training guard
+
+#### Added
+
+- `model_api.py` v3.1.0 — PCE training now validates that `n_train ≥ C(n_inputs + order, order)` (number of polynomial terms) before calling `model.fit()`. Returns `PCE_UNDERDETERMINED` (HTTP 422) with a clear message when the condition fails. Emits a caution warning when `n_train < 2 × n_terms` (fit is possible but potentially noise-sensitive).
+- `math.comb` imported (stdlib, no new dependency).
+- `PCE_UNDERDETERMINED` added to `_ERROR_HTTP_STATUS` map.
+
+---
+
 ## [3.5.28] — 2026-06-01
 
 ### Merge Kriging into GPR — unified kernel selector

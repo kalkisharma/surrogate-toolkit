@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalki.j.sharma@lmco.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-01
-VERSION: 3.0.0
+VERSION: 3.1.0
 ================================================================================
 """
 
@@ -16,6 +16,7 @@ VERSION: 3.0.0
 # See LICENSE.md for full terms.
 
 import time
+from math import comb
 
 import numpy as np
 from flask import Blueprint, current_app, jsonify, request
@@ -55,6 +56,7 @@ _ERROR_HTTP_STATUS = {
     "DESIGNATION_REQUIRED":  422,
     "CONFIG_REQUIRED":       422,
     "NO_TRAINED_MODEL":      404,
+    "PCE_UNDERDETERMINED":   422,
 }
 
 
@@ -558,6 +560,30 @@ def train():
             f"GPR training time scales as O(n³). Your training set has "
             f"{len(X_train):,} rows — this may take several minutes."
         )
+    if model_type == "pce":
+        pce_order  = int((hyperparams or {}).get("order", 3))
+        n_inputs   = X_train.shape[1]
+        n_terms    = comb(n_inputs + pce_order, pce_order)
+        n_train    = len(X_train)
+        if n_train < n_terms:
+            return jsonify({
+                "success": False,
+                "error_code": "PCE_UNDERDETERMINED",
+                "message": (
+                    f"PCE order {pce_order} with {n_inputs} inputs requires at least "
+                    f"{n_terms} training rows, but the training set has only {n_train}. "
+                    f"Reduce the polynomial order or add more data."
+                ),
+                "detail": f"Terms = C({n_inputs}+{pce_order},{pce_order}) = {n_terms}",
+                "recoverable": True,
+                "allowed_actions": ["train"],
+            }), 422
+        if n_train < 2 * n_terms:
+            warnings.append(
+                f"PCE order {pce_order} with {n_inputs} inputs has {n_terms} polynomial "
+                f"terms. Training set ({n_train} rows) is less than 2× the term count — "
+                f"the fit may be sensitive to noise. Consider reducing order or adding data."
+            )
 
     # ── Cross-validation on training set ─────────────────────────────────────
     # Guard: k-fold requires at least n_folds samples in the training set.
