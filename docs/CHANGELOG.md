@@ -56,6 +56,220 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.27] — 2026-05-31
+
+### ARD auto-tune fix + fitted kernel length scales in Results panel
+
+#### Fixed
+
+- `gpr_model.py` / `kriging_model.py` — `get_param_grid()` was generating isotropic (scalar) kernel instances while `fit()` used ARD (array) instances. Fixed: `build_estimator(n_features)` now stores `self._n_features`; `get_param_grid()` uses it to build ARD arrays matching what `fit()` produces. `RationalQuadratic` in Kriging auto-tune also updated to use ARD `length_scale` array.
+
+#### Added
+
+- `gpr_model.py` / `kriging_model.py` — `get_kernel_info()` returns fitted ARD length scales per input per output after training.
+- `model_api.py` — Extracts `kernel_length_scales` from `get_kernel_info()` after GPR/Kriging training; included in results dict.
+- `results.js` — ARD Kernel Length Scales card in Results metrics pane (GPR/Kriging only); sorted ascending so most influential input appears first.
+
+---
+
+## [3.5.26] — 2026-05-31
+
+### Guide and exercise accuracy fixes + deterministic quiz shuffle
+
+#### Fixed (content — commit 1)
+
+- `ex_09` step 5: "Underfit the noise floor" → "Overfit the noise" (alpha=0.01 causes overfitting, not underfitting).
+- `ex_08` step 8: "same RBF-equivalent kernel" → "default Matérn 2.5 kernel" (Kriging has no RBF option).
+- `equations.json` Z-Score note: removed "Preferred for GPR"; added balanced note explaining both scaling methods work with GPR.
+- `active_learning.json` EI formula: added minimization/maximization direction clarification.
+- `models.json` RBF weakness: "Runge phenomenon" (wrong term) → "oscillation artifacts between training points"; `avoid_when` expanded with noise warning.
+- `models.json` PCE strength: "Sobol sensitivity indices" → "first-order Sobol sensitivity indices (S₁)".
+- `glossary.json` PCE: clarified to first-order Sobol indices (S₁) derived from polynomial coefficients.
+- `ex_01` / `ex_07` step 2: added missing `keywords: []` field (absent key risked JS runtime error).
+
+#### Added (commit 2)
+
+- `learning_guide.js` — `_shuffleOptions()`: deterministic Fisher-Yates shuffle keyed on exercise ID + step number breaks "correct answer is always B" pattern without modifying 47 JSON files. Saved answers persist as original JSON indices; shuffle is stable on page reload.
+
+---
+
+## [3.5.25] — 2026-05-31
+
+### Fix ex_10 R² thresholds for cl/cd ratio output
+
+#### Fixed
+
+- `ex_10` steps 4–5: `cl_cd` is a derived ratio (cl/cd) — small errors in the direct quantities compound in the quotient, making it harder to fit than `cl` or `cd`. Expected R² for `cl_cd` corrected to > 0.85 (steps 4) and fallback threshold lowered to R² < 0.80 (step 5).
+
+---
+
+## [3.5.24] — 2026-05-31
+
+### Redesign ex_08 and ex_09 around demonstrable contrasts
+
+#### Changed
+
+- **ex_08** (renamed from `ex_08_kernel_comparison` → `ex_08_model_selection`): Retired GPR-RBF vs Matérn contrast (sklearn MLE compensation made R² gap < 0.02 and unreliable). New exercise uses gaussian-hill + linear response (y = 3·exp(−r²/1.5) + x₁ + 0.5·x₂; n=150; σ=0.08) giving stable contrast: Linear R²≈0.60, RF≈0.97, GPR≈0.99. New dataset: `model_comparison_2d.csv`.
+- **ex_09** (renamed from `ex_09_hyperparameter_tuning` → `ex_09_alpha_regularization`): Old exercise broken (both kernels fit at R²=0.97; alpha=0.5 was catastrophic at R²=0.29). New exercise: alpha sweep on noisy experimental data (σ=0.25). New dataset: `alpha_noisy_2d.csv`.
+- Deleted stale datasets: `kernel_oscillatory_2d.csv`, `hyperparameter_damped_2d.csv`.
+
+---
+
+## [3.5.23] — 2026-05-30
+
+### Ex_08 dataset redesigned for clear kernel contrast
+
+#### Changed
+
+- `kernel_oscillatory_2d.csv` replaced: 200-row sin/cos dataset was too dense for kernel assumptions to engage (all models ~0.98–0.99 R²). New dataset: 80 rows, higher-frequency (sin(5x₁)+cos(4x₂)+0.3x₁x₂), where RBF over-smoothing is visible. Updated `ex_08` step instructions and quiz options to match.
+
+---
+
+## [3.5.22] — 2026-05-30
+
+### Fix clear session not fully clearing
+
+#### Fixed
+
+- `main.js` — Settings dropdown, exercise overlay (`#ex-overlay`), and Learning Guide modal now explicitly closed on Clear Session. Previously the click-outside handler missed the settings button (it's inside the dropdown); the overlay and guide modal were not wired to the clear event.
+
+---
+
+## [3.5.21] — 2026-05-30
+
+### Exercise audit + 3 new exercises + panel step number fixes
+
+#### Fixed
+
+- `model_config.js`, `prediction.js`, `optimization.js`, `comparison.js` — Panel step labels corrected to match router `STEP_NUMS` (e.g. "Step 7" → "Step 8 — Model").
+- `ex_02`, `ex_05`, `ex_06`, `ex_07` — Missing `keywords` arrays added to relevant steps.
+
+#### Added
+
+- `ex_08_kernel_comparison.json` — GPR-RBF vs Matérn vs Kriging vs RBF surrogate on oscillatory 2D response; 8 steps.
+- `ex_09_hyperparameter_tuning.json` — Diagnose S-curve residual pattern; fix via kernel guide; compare manual vs auto-tune; 7 steps.
+- `ex_10_optimization.json` — Single and multi-objective optimization on 2-output aerodynamic dataset; Pareto front, knee point, constrained selection; 8 steps.
+- New datasets: `kernel_oscillatory_2d.csv`, `hyperparameter_damped_2d.csv`, `aero_pareto_2d.csv`.
+
+---
+
+## [3.5.20] — 2026-05-30
+
+### Active learning scatter coordinate space mismatch
+
+#### Fixed
+
+- `active_learning.js` — Non-PCA sessions were plotting normalized (0–1) training coordinates against denormalized (physical-scale) recommendations. Fixed: uses clean df for non-PCA and normalized df for PCA so both series share the same coordinate space.
+- `active_learning.js` — "Loading scatter..." placeholder persisted below Plotly canvas after render; now explicitly removed before `Plotly.react`.
+
+---
+
+## [3.5.19] — 2026-05-30
+
+### Active learning scatter + data_api crash fixes
+
+#### Fixed
+
+- `active_learning.js` — Scatter blank after PCA: stale `_axisX/_axisY` indices clamped to same value after input count shrank; now deduplicates at `_renderResults` entry. Training markers disappeared on axis change: `_cachedXTrain` moved to module level; axis callbacks call `_rerenderScatter` only when data is ready.
+- `data_api.py` — `/api/data/rows` crash: `'or'` operator on DataFrame raises `ValueError`; replaced with explicit `is not None` guard.
+- `ex_06` step 10: instruction and quiz updated to reflect that predict panel shows physical variable fields and applies PCA transform automatically.
+
+---
+
+## [3.5.18] — 2026-05-30
+
+### Ex_06 quiz fix + auto-tune cores hint fix
+
+#### Fixed
+
+- `ex_06` step 9: Quiz question removed hardcoded R² values (0.91/0.89) that users' actual results may not match; reworded as a general comparison scenario.
+- `model_config.js` — Auto-tune cores hint updated to reference the Cores prompt in the header instead of a generic instruction.
+
+---
+
+## [3.5.17] — 2026-05-30
+
+### Fix auto-tune crash + specific cores recommendation
+
+#### Fixed
+
+- `model_api.py` / `gpr_model.py` / `kriging_model.py` — Auto-tune `TypeError` (None passed to GridSearchCV): GPR/Kriging build `self._model` lazily in `fit()` once `n_features` is known (ARD length-scale arrays require input count). Added `build_estimator(n_features)` to both models; `tune` endpoint calls it before `GridSearchCV` when the method exists.
+- `model_config.js` — Auto-tune cores prompt now shows actual available core count (`avail`) rather than hardcoded "8–16 cores".
+
+---
+
+## [3.5.16] — 2026-05-29
+
+### Keyword underline + click-to-define in exercise steps
+
+#### Added
+
+- `learning_guide.js` — `_annotateKeywords()` (TreeWalker text-node injection) underlines glossary terms in exercise step instructions and quiz text. Clicking a term opens a popover with the glossary definition and category. Popover dismissed on click-outside or Escape.
+- `keywords[]` arrays added to relevant steps across all 7 exercises.
+- `learning_mode.css` — `.kw-link`, `.kw-popover` styles.
+
+---
+
+## [3.5.15] — 2026-05-29
+
+### Guide content audit + new guides
+
+#### Fixed
+
+- `models.json` — Stale "Intermediate/Expert mode" reference removed from Kriging entry.
+
+#### Added
+
+- `models.json` — Multi-Fidelity Surrogate and Ensemble Surrogate entries added.
+- `glossary.json` — 6 new terms: Heteroscedasticity, UCB, Acquisition Function, ARD, Bayesian Optimization, Optimizer Restarts.
+- `app/learning/optimization.json` — New Surrogate-Based Optimization topic (6 sections: single/multi-objective, Pareto front, constraints, cores, when not to optimize).
+- `app/learning/decision_trees/kernel_selection.json` — Kernel & Hyperparameter Guide decision tree (kernel choice, n_restarts, alpha calibration for GPR and Kriging); wired into Topics nav and API route.
+
+---
+
+## [3.5.14] — 2026-05-29
+
+### Expose n_restarts as editable hyperparameter for GPR/Kriging
+
+#### Added
+
+- `model_config.js` — n_restarts input (1–50) in GPR and Kriging hyperparameter panels; flows through `_collectHyperparams()` → API → `GaussianProcessRegressor(n_restarts_optimizer=...)`.
+
+---
+
+## [3.5.13] — 2026-05-29
+
+### Fix GPR train crash + correct single-output cores prompt
+
+#### Fixed
+
+- `gpr_model.py` / `kriging_model.py` — Removed `n_jobs` from `GaussianProcessRegressor` constructor (sklearn GPR does not accept that argument — `TypeError` on train). Reverted to `n_jobs` on `MultiOutputRegressor` only, which is correct for multi-output parallelism.
+- `model_config.js` — Single-output GPR/Kriging cores prompt corrected to "1 core — sklearn runs restarts sequentially; cores only help with multiple outputs".
+
+---
+
+## [3.5.12] — 2026-05-29
+
+### Fix GPR/Kriging n_jobs + complete cores recommendations
+
+#### Fixed
+
+- `gpr_model.py` / `kriging_model.py` — Multi-output GPR: `n_jobs` on `MultiOutputRegressor` parallelises across outputs (correct); each internal GPR uses `n_jobs=1` to avoid N×10 process overcommit.
+- `model_config.js` — Cores recommendations added for auto-tune (GridSearchCV), Compare All Models, Train Ensemble, and Train Multi-Fidelity sections.
+
+---
+
+## [3.5.11] — 2026-05-28
+
+### Retire experience levels + Cores to header with contextual prompts
+
+#### Changed
+
+- Experience level selector (Beginner/Intermediate/Expert) removed from header and all CSS gates retired; all features now visible to all users.
+- Cores input moved to global header (always visible). Contextual cores prompt appears below the hyperparameter panel, specific to the selected model type and output count.
+
+---
+
 ## [3.5.10] — 2026-05-30
 
 ### Active learning coverage scatter fixes
