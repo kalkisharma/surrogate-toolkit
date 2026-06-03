@@ -6,7 +6,7 @@ PURPOSE: K-fold cross-validation for surrogate models
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.7.0
+VERSION: 0.7.1
 ================================================================================
 """
 
@@ -15,11 +15,19 @@ VERSION: 0.7.0
 import copy
 
 import numpy as np
+from joblib import Parallel, delayed
 from sklearn.model_selection import KFold
 
 from app.ml.models.base_model import BaseSurrogateModel
 from app.ml.validation.diagnostics import compute_metrics
 from config.settings import DEFAULT_RANDOM_STATE
+
+
+def _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns):
+    """Train one CV fold and return predictions on the validation slice."""
+    fold_model = copy.deepcopy(model)
+    fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
+    return fold_model.predict(X[val_idx])
 
 
 def run_cross_validation(
@@ -29,6 +37,7 @@ def run_cross_validation(
     output_columns: list,
     n_folds: int,
     input_columns: list,
+    n_jobs: int = 1,
 ) -> dict:
     """Run k-fold cross-validation, returning per-output aggregated metrics.
 
@@ -86,15 +95,18 @@ def run_cross_validation(
             f"n_folds ({n_folds}) cannot exceed the number of samples ({len(X)})."
         )
 
-    kf = KFold(n_splits=n_folds, shuffle=True, random_state=DEFAULT_RANDOM_STATE)
+    kf     = KFold(n_splits=n_folds, shuffle=True, random_state=DEFAULT_RANDOM_STATE)
+    splits = list(kf.split(X))
+
+    # Run folds in parallel when n_jobs > 1; n_jobs=1 is fully sequential (no overhead).
+    fold_preds = Parallel(n_jobs=n_jobs)(
+        delayed(_fit_fold)(model, X, y, ti, vi, input_columns, output_columns)
+        for ti, vi in splits
+    )
 
     # Accumulate per-fold scores: {col_name: {metric: [fold_scores...]}}
     accum = {col: {"r2": [], "rmse": [], "mae": []} for col in output_columns}
-
-    for train_idx, val_idx in kf.split(X):
-        fold_model = copy.deepcopy(model)
-        fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
-        y_pred = fold_model.predict(X[val_idx])
+    for (_, val_idx), y_pred in zip(splits, fold_preds):
         for m in compute_metrics(y[val_idx], y_pred, output_columns):
             col = m["column"]
             accum[col]["r2"].append(m["r2"])

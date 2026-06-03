@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 3.2.0
+VERSION: 3.2.1
 ================================================================================
 """
 
@@ -594,11 +594,13 @@ def train():
                 f"the fit may be sensitive to noise. Consider reducing order or adding data."
             )
 
-    # ── Cross-validation on training set ─────────────────────────────────────
+    # ── Cross-validation + final fit + test eval (timed together) ────────────
+    _t0 = time.perf_counter()
+
     # Guard: k-fold requires at least n_folds samples in the training set.
     safe_folds = min(cv_folds, len(X_train))
     cv_results = run_cross_validation(
-        model, X_train, y_train, output_cols, safe_folds, input_cols
+        model, X_train, y_train, output_cols, safe_folds, input_cols, n_jobs=n_jobs
     )
 
     # ── Fit final model on full training set ──────────────────────────────────
@@ -609,6 +611,8 @@ def train():
     # ── Evaluate on held-out test set ─────────────────────────────────────────
     y_pred_test = model.predict(X_test)
     test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
+
+    train_time_s = round(time.perf_counter() - _t0, 2)
 
     # GPR posterior std — free byproduct; None for RF/RBF/PCE/Linear.
     test_stds = None
@@ -658,6 +662,7 @@ def train():
         "kernel_length_scales":      kernel_length_scales,
         "noise_active":              noise_train is not None and _noise_supported,
         "noise_mean_sigma":          float(np.sqrt(noise_train.mean())) if noise_train is not None else None,
+        "train_time_s":              train_time_s,
     }
     models_dict = state["surrogate_sessions"]["primary"]["models"]
     models_dict.pop("interpretation", None)
@@ -677,7 +682,7 @@ def train():
     history      = models_dict.setdefault("history", [])
     cv_r2_by_col = {
         entry["column"]: entry["mean_r2"]
-        for entry in cv_results.get("metrics", [])
+        for entry in cv_results.get("per_output", [])
     }
     now_ts = int(time.time())
     for m in test_metrics:

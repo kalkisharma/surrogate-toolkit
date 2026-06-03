@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 3.5.35
+// Version: 3.5.41
 // Description: Step 9 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -599,6 +599,7 @@ function _render(containerEl, r) {
   if (r.hyperparams?.kernel) configRows.splice(1, 0, ["Kernel", r.hyperparams.kernel]);
   if (r.hyperparams?.alpha  != null) configRows.splice(2, 0, ["Alpha (noise)", r.hyperparams.alpha]);
   if (r.pca_applied) configRows.push(["Preprocessing", `PCA — ${r.input_columns.length} components`]);
+  if (r.train_time_s != null) configRows.push(["Train time", `${r.train_time_s} s`]);
   const configGrid = el("div", { cls: "results-config-grid" });
   for (const [label, value] of configRows) {
     const cell = el("div", { cls: "results-config-cell" });

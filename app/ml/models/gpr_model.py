@@ -6,7 +6,7 @@ PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 1.5.0
+VERSION: 1.5.1
 ================================================================================
 """
 
@@ -33,7 +33,7 @@ class GPRModel(BaseSurrogateModel):
     dimension) so irrelevant inputs can be suppressed automatically.
     """
 
-    def __init__(self, kernel: str = "rbf", alpha: float = None, n_jobs: int = 1, n_restarts: int = 10):
+    def __init__(self, kernel: str = "rbf", alpha: float = None, n_jobs: int = 1, n_restarts: int = 2):
         super().__init__("gpr")
         self._kernel_name = kernel
         self._alpha = float(alpha) if alpha is not None else GPR_DEFAULT_ALPHA
