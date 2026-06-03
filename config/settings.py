@@ -90,6 +90,9 @@ EXTRAPOLATION_WARNING_THRESHOLD = 1.25  # input value is 25% outside training ra
 R2_MINIMUM_ACCEPTABLE = 0.70    # R² below this triggers a red badge in the results panel
 R2_CAUTION_THRESHOLD = 0.85     # R² below this triggers an amber badge; above is green
 
+CI_CONFIDENCE = 0.95            # confidence level for GPR uncertainty intervals (e.g. 0.95 → ±1.96σ)
+PCA_VARIANCE_THRESHOLD = 0.95   # cumulative explained variance target for auto n_components selection
+
 # ─── UI / UX ──────────────────────────────────────────────────────────────────
 
 DEFAULT_EXPERIENCE_LEVEL = 'beginner'   # 'beginner' | 'intermediate' | 'expert'; controls feature visibility

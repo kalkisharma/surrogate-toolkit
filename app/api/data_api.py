@@ -43,6 +43,7 @@ from config.settings import (
     MAX_DATASETS_MEMORY_MB,
     MAX_PLOT_ROWS,
     MIN_ROWS,
+    PCA_VARIANCE_THRESHOLD,
 )
 
 bp = Blueprint("data", __name__)
@@ -1633,7 +1634,7 @@ def screen_pca():
     cumulative = np.cumsum(ev)
 
     # Auto n_components: fewest components reaching ≥ 95% cumulative variance
-    auto_n = int(np.searchsorted(cumulative, 0.95) + 1)
+    auto_n = int(np.searchsorted(cumulative, PCA_VARIANCE_THRESHOLD) + 1)
     auto_n = min(auto_n, max_comp)
 
     if n_components is None:

@@ -31,6 +31,7 @@ from app.ml.uncertainty.bootstrap import compute_uncertainty
 from app.ml.validation import compute_metrics, run_cross_validation
 from app.state.schema import append_audit_event
 from config.settings import (
+    CI_CONFIDENCE,
     CV_FOLDS_MAX,
     CV_FOLDS_MIN,
     DEFAULT_CV_FOLDS,
@@ -393,7 +394,7 @@ def interpret():
             "method":        unc_method,
             "ci_lower":      ci_lower,
             "ci_upper":      ci_upper,
-            "ci_confidence": 0.95,
+            "ci_confidence": CI_CONFIDENCE,
         }
 
     payload = {
