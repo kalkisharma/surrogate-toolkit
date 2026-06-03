@@ -7,7 +7,7 @@ PURPOSE: Single source of truth for all configurable constants. Nothing is
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 3.5.42
+VERSION: 3.5.43
 ================================================================================
 """
 
@@ -15,7 +15,7 @@ VERSION: 3.5.42
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "3.5.42"                     # bumped in settings.py, all changed file headers, and index.html on every release
+VERSION = "3.5.43"                     # bumped in settings.py, all changed file headers, and index.html on every release
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
@@ -65,6 +65,7 @@ GPR_DEFAULT_ALPHA = 0.1          # noise regularisation added to GPR diagonal (s
 # ─── ACTIVE LEARNING ──────────────────────────────────────────────────────────
 
 DEFAULT_RECOMMENDATIONS = 10     # number of new experiment points suggested per active learning run
+GPR_PARALLEL_ROW_THRESHOLD = 200 # n_train below this → serial is faster than parallel CV folds for GPR
 MAX_ACTIVE_LEARNING_HISTORY = 5  # rounds of recommendations stored in STATE before oldest is dropped
 
 # ─── PROCESSORS ───────────────────────────────────────────────────────────────

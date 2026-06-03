@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/model_config.js
-// Version: 3.0.0
+// Version: 3.0.1
 // Description: Step 8 — Model. Lets users choose a model type,
 //              train/test split, and cross-validation folds. Shows a per-model
 //              hyperparameter section (kernel/alpha for GPR, trees/depth/features
@@ -21,7 +21,7 @@ import { runDecisionTree } from "./learning_guide.js";
 import { getPath, getAvailableCores } from "../state.js";
 
 const HYPERPARAM_DEFAULTS = {
-  gpr:     { kernel: "rbf", alpha: 0.1, n_restarts: 10 },
+  gpr:     { kernel: "rbf", alpha: 0.1, n_restarts: 2 },
   rf:      { n_estimators: 100, max_depth: null, min_samples_leaf: 1, max_features: "sqrt" },
   rbf:     { kernel: "thin_plate_spline", smoothing: 0.001 },
   pce:     { order: 3 },
@@ -215,7 +215,7 @@ export async function initModelConfig(containerEl, onTrain) {
           </div>
           <div class="hyperparam-row">
             <span class="hyperparam-label">Optimizer restarts</span>
-            <input id="hp-restarts" type="number" class="hyperparam-input" min="1" max="50" step="1" value="${merged.n_restarts ?? 10}">
+            <input id="hp-restarts" type="number" class="hyperparam-input" min="1" max="50" step="1" value="${merged.n_restarts ?? 2}">
             <span class="hyperparam-hint">1 – 50 — more restarts find better kernel parameters, slower training</span>
           </div>
         </div>`;
@@ -357,7 +357,7 @@ export async function initModelConfig(containerEl, onTrain) {
       const r = hyperparamOuter.querySelector("#hp-restarts");
       if (k) hp.kernel    = k.value;
       if (a) hp.alpha     = parseFloat(a.value) || 0.1;
-      if (r) hp.n_restarts = parseInt(r.value, 10) || 10;
+      if (r) hp.n_restarts = parseInt(r.value, 10) || 2;
     } else if (selectedModel === "rf") {
       const n  = hyperparamOuter.querySelector("#hp-n-est");
       const d  = hyperparamOuter.querySelector("#hp-max-depth");
@@ -462,65 +462,95 @@ export async function initModelConfig(containerEl, onTrain) {
   const coresPrompt = el("div", { cls: "cores-prompt", id: "train-cores-prompt" });
   form.appendChild(coresPrompt);
 
-  function _updateCoresPrompt() {
-    const avail      = getAvailableCores() || "?";
-    const current    = parseInt(document.getElementById("cores-input")?.value || "1", 10);
-    const activeKey  = getPath("datasets.active_dataset_key");
-    const outCols    = getPath(`datasets._datasets.${activeKey}.metadata.output_columns`, []);
-    const nOut       = outCols.length;
+  // GPR_PARALLEL_ROW_THRESHOLD must match settings.py GPR_PARALLEL_ROW_THRESHOLD
+  const GPR_PARALLEL_ROW_THRESHOLD = 200;
+
+  function _computeRecommendation() {
+    const avail     = getAvailableCores() || 1;
+    const activeKey = getPath("datasets.active_dataset_key");
+    const meta      = getPath(`datasets._datasets.${activeKey}.metadata`, {});
+    const nOut      = (meta.output_columns || []).length;
+    const nRows     = meta.n_rows_clean || 0;
+    const nFolds    = parseInt(cvSelect.value, 10) || 5;
     const autoTuneOn = !!hyperparamOuter.querySelector("#hp-autotune")?.checked;
 
-    let title, lines, na = false;
-
     if (autoTuneOn) {
-      // GridSearchCV parallelises param_combinations × CV_folds fits.
-      // GPR: 3 kernels × 4 alphas × 5 folds = 60. RF: ~360+.
-      // Ideal = all available cores; fits (60–360+) always exceed typical core count.
       const gridFits = (selectedModel === "rf") ? "~360" : "~60";
-      title = "Auto-Tune — GridSearchCV";
-      lines = [
-        `Ideal: <strong>${avail} cores</strong> — ${gridFits} hyperparameter × fold combinations run in parallel`,
-        `Currently set to <strong>${current}</strong>`,
-      ];
-    } else if (selectedModel === "gpr") {
-      const label = selectedModel.toUpperCase();
-      if (nOut > 1) {
-        title = `${label} — ${nOut} outputs detected`;
-        lines = [
-          `Ideal: <strong>${nOut} cores</strong> — each output trains as an independent model in parallel`,
-          `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
-        ];
-      } else {
-        title = `${label} — single output`;
-        lines = [
-          `Ideal: <strong>1 core</strong> — sklearn's GPR runs optimizer restarts sequentially; cores only help when you have multiple output columns`,
-          `<strong>${avail}</strong> available on this machine`,
-        ];
-        na = true;
-      }
-    } else if (selectedModel === "rf") {
-      title = "Random Forest";
-      lines = [
-        `Ideal: <strong>up to 8 cores</strong> — trees are built in parallel across all estimators`,
-        `Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available on this machine`,
-      ];
-    } else {
-      title = `${selectedModel ? selectedModel.toUpperCase() : "This model type"} — no parallelism`;
-      lines = [`Cores do not affect training speed for this model type`];
-      na = true;
+      return {
+        cores: avail,
+        title: "Auto-Tune — GridSearchCV",
+        reason: `Runs ${gridFits} hyperparameter combinations in parallel — use all available cores for fastest tuning.`,
+      };
     }
+
+    if (selectedModel === "gpr") {
+      if (nRows <= GPR_PARALLEL_ROW_THRESHOLD) {
+        return {
+          cores: 1,
+          title: "GPR — small dataset",
+          reason: `Dataset is small (${nRows} rows) — serial training is faster than parallel for GPR. BLAS already uses multiple CPU threads internally at 1 worker.`,
+          na: true,
+        };
+      }
+      const ideal = Math.min(nFolds * Math.max(1, nOut), avail);
+      const reason = nOut > 1
+        ? `GPR trains ${nOut} independent output model(s) across ${nFolds} CV folds — ${ideal} core(s) covers all parallelism without BLAS thread oversubscription.`
+        : `GPR with ${nFolds} folds on ${nRows} rows — ${ideal} fold worker(s) keep the CPU busy without BLAS oversubscription.`;
+      return { cores: ideal, title: "GPR — recommended cores", reason };
+    }
+
+    if (selectedModel === "rf") {
+      const nEst = parseInt(hyperparamOuter.querySelector("#hp-n-est")?.value || "100", 10) || 100;
+      const ideal = Math.min(avail, Math.max(1, Math.round(nEst / 10)));
+      return {
+        cores: ideal,
+        title: "Random Forest — recommended cores",
+        reason: `Random Forest builds ${nEst} trees in parallel — ${ideal} core(s) splits the work without thread overhead.`,
+      };
+    }
+
+    return {
+      cores: null,
+      title: `${selectedModel ? selectedModel.toUpperCase() : "This model"} — no parallelism`,
+      reason: "Cores have no effect on training speed for this model type.",
+      na: true,
+    };
+  }
+
+  function _updateCoresPrompt() {
+    const current = parseInt(document.getElementById("cores-input")?.value || "1", 10);
+    const avail   = getAvailableCores() || "?";
+    const rec     = _computeRecommendation();
+    const na      = rec.na || false;
+
+    const showApply = rec.cores != null && current !== rec.cores;
+    const applyHtml = showApply
+      ? ` <button class="cores-prompt__apply" id="cores-prompt-apply">Apply (${rec.cores})</button>`
+      : "";
 
     coresPrompt.className = `cores-prompt${na ? " cores-prompt--na" : ""}`;
     coresPrompt.innerHTML = `
       <span class="cores-prompt__icon">⚡</span>
       <div class="cores-prompt__body">
-        <p class="cores-prompt__title">${title}</p>
-        ${lines.map(l => `<p class="cores-prompt__line">${l}</p>`).join("")}
+        <p class="cores-prompt__title">${rec.title}</p>
+        <p class="cores-prompt__line">${rec.reason}</p>
+        <p class="cores-prompt__line">Currently set to <strong>${current}</strong> &nbsp;·&nbsp; <strong>${avail}</strong> available${applyHtml}</p>
       </div>`;
+
+    coresPrompt.querySelector("#cores-prompt-apply")?.addEventListener("click", () => {
+      const inp = document.getElementById("cores-input");
+      if (inp && rec.cores != null) {
+        inp.value = rec.cores;
+        inp.dispatchEvent(new Event("change"));
+        _updateCoresPrompt();
+      }
+    });
   }
 
   typeOptions.addEventListener("click", _updateCoresPrompt);
   hyperparamOuter.addEventListener("change", _updateCoresPrompt);
+  splitInput.addEventListener("change", _updateCoresPrompt);
+  cvSelect.addEventListener("change", _updateCoresPrompt);
   document.getElementById("cores-input")?.addEventListener("change", _updateCoresPrompt);
   _updateCoresPrompt();
 

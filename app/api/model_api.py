@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 3.2.1
+VERSION: 3.2.2
 ================================================================================
 """
 
@@ -36,8 +36,10 @@ from config.settings import (
     DEFAULT_CV_FOLDS,
     DEFAULT_RANDOM_STATE,
     DEFAULT_TEST_SPLIT,
+    GPR_PARALLEL_ROW_THRESHOLD,
     MAX_MODEL_HISTORY,
     MAX_PLOT_ROWS,
+    RF_DEFAULT_ESTIMATORS,
     SUPPORTED_MODEL_TYPES,
     TEST_SPLIT_MAX,
     TEST_SPLIT_MIN,
@@ -91,7 +93,13 @@ def get_config():
     """
     state  = current_app.config["STATE"]
     config = state["surrogate_sessions"]["primary"]["config"]
-    return jsonify({"success": True, "config": config}), 200
+    rec_cores, rec_reason = _recommend_cores(state)
+    return jsonify({
+        "success": True,
+        "config": config,
+        "recommended_cores": rec_cores,
+        "recommended_cores_reason": rec_reason,
+    }), 200
 
 
 @bp.route("/configure", methods=["POST"])
@@ -600,7 +608,8 @@ def train():
     # Guard: k-fold requires at least n_folds samples in the training set.
     safe_folds = min(cv_folds, len(X_train))
     cv_results = run_cross_validation(
-        model, X_train, y_train, output_cols, safe_folds, input_cols, n_jobs=n_jobs
+        model, X_train, y_train, output_cols, safe_folds, input_cols,
+        n_jobs=n_jobs, n_outputs=len(output_cols)
     )
 
     # ── Fit final model on full training set ──────────────────────────────────
@@ -1679,6 +1688,57 @@ def train_multifidelity():
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 
+def _recommend_cores(state: dict) -> tuple:
+    """Return (recommended_n_jobs, plain-English reason) for the current config.
+
+    Reads model type, cv_folds, n_outputs, n_rows, and available processors
+    from STATE. Returns (1, reason) when parallelism offers no benefit.
+    """
+    config   = state["surrogate_sessions"]["primary"]["config"]
+    meta     = state["datasets"]["primary"]["metadata"]
+    avail    = int(state.get("processors", {}).get("available") or 1)
+
+    model_type = config.get("model_type")
+    n_outputs  = len(meta.get("output_columns") or [])
+    n_rows     = int(meta.get("n_rows_clean") or 0)
+    cv_folds   = int(config.get("cv_folds") or DEFAULT_CV_FOLDS)
+    hp         = config.get("hyperparams") or {}
+    n_est      = int(hp.get("n_estimators") or RF_DEFAULT_ESTIMATORS)
+
+    if model_type in (None, "rbf", "pce", "linear"):
+        return 1, "RBF, PCE, and Linear models are single-threaded — cores have no effect on training speed."
+
+    if model_type == "gpr":
+        if n_rows <= GPR_PARALLEL_ROW_THRESHOLD:
+            return 1, (
+                f"Dataset is small ({n_rows} rows) — serial training is faster than parallel "
+                f"for GPR on small datasets. BLAS already uses all CPU cores internally."
+            )
+        # Useful parallelism: fold workers, bounded by available cores
+        ideal = min(cv_folds * max(1, n_outputs), avail)
+        if n_outputs > 1:
+            reason = (
+                f"GPR trains {n_outputs} independent output model(s) per fold across "
+                f"{cv_folds} folds — {ideal} core(s) covers all parallelism without "
+                f"BLAS thread oversubscription."
+            )
+        else:
+            reason = (
+                f"GPR with {cv_folds} folds on {n_rows} rows — {ideal} fold worker(s) "
+                f"keep the CPU busy without BLAS oversubscription."
+            )
+        return ideal, reason
+
+    if model_type == "rf":
+        ideal = max(1, min(avail, n_est // 10))
+        return ideal, (
+            f"Random Forest builds {n_est} trees in parallel — "
+            f"{ideal} core(s) splits the work without thread overhead."
+        )
+
+    return 1, "No recommendation available for this model type."
+
+
 def _make_model(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
     """Instantiate the correct model class for model_type.
 
@@ -1702,7 +1762,7 @@ def _make_model(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
             kernel=hp.get("kernel", "rbf"),
             alpha=hp.get("alpha"),
             n_jobs=n_jobs,
-            n_restarts=int(hp.get("n_restarts", 10)),
+            n_restarts=int(hp.get("n_restarts", 2)),
         )
     if model_type == "rf":
         return RFModel(

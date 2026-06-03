@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Abstract base class for all surrogate models
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 1.0.1
+LAST MODIFIED: 2026-06-02
+VERSION: 1.0.2
 ================================================================================
 """
 
@@ -107,7 +107,11 @@ class BaseSurrogateModel(ABC):
             Include hyperparameter values, training data shape.
         """
 
-    # ─── Helpers ───────────────────────────────────────────────────────────────
+    # ─── Concrete helpers ──────────────────────────────────────────────────────
+
+    def set_n_jobs(self, n: int) -> None:
+        """Set parallelism level for CV fold workers. No-op for models without n_jobs."""
+        pass
 
     def _check_fitted(self) -> None:
         """Raise RuntimeError if the model has not been fitted yet.

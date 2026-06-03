@@ -6,7 +6,7 @@ PURPOSE: Random Forest surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 1.1.0
+VERSION: 1.1.1
 ================================================================================
 """
 
@@ -121,6 +121,9 @@ class RFModel(BaseSurrogateModel):
             "min_samples_leaf": [1, 2, 5],
             "max_features":     ["sqrt", "log2"],
         }
+
+    def set_n_jobs(self, n: int) -> None:
+        self._model.set_params(n_jobs=int(n))
 
     def get_summary(self) -> dict:
         """Return a JSON-serializable summary of this model.

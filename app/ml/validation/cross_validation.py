@@ -5,14 +5,15 @@ MODULE: app/ml/validation/
 PURPOSE: K-fold cross-validation for surrogate models
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.7.2
+LAST MODIFIED: 2026-06-02
+VERSION: 0.7.3
 ================================================================================
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
 
 import copy
+import os
 
 import numpy as np
 from joblib import Parallel, delayed
@@ -23,10 +24,17 @@ from app.ml.validation.diagnostics import compute_metrics
 from config.settings import DEFAULT_RANDOM_STATE
 
 
-def _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns):
+def _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns,
+              n_jobs_per_fold=1, n_blas_per_fold=None):
     """Train one CV fold and return predictions on the validation slice."""
+    from threadpoolctl import threadpool_limits
     fold_model = copy.deepcopy(model)
-    fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
+    fold_model.set_n_jobs(n_jobs_per_fold)
+    if n_blas_per_fold is not None:
+        with threadpool_limits(limits=n_blas_per_fold):
+            fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
+    else:
+        fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
     return fold_model.predict(X[val_idx])
 
 
@@ -38,6 +46,7 @@ def run_cross_validation(
     n_folds: int,
     input_columns: list,
     n_jobs: int = 1,
+    n_outputs: int = 1,
 ) -> dict:
     """Run k-fold cross-validation, returning per-output aggregated metrics.
 
@@ -98,11 +107,18 @@ def run_cross_validation(
     kf     = KFold(n_splits=n_folds, shuffle=True, random_state=DEFAULT_RANDOM_STATE)
     splits = list(kf.split(X))
 
+    # Compute per-fold BLAS budget: divide CPU cores evenly among active fold workers.
+    # Without this cap, 5 parallel fold threads each spawn 16 OpenBLAS threads,
+    # giving 80 threads on 16 cores and superlinear slowdown.
+    n_cpus       = os.cpu_count() or 1
+    active_folds = min(n_jobs, n_folds)
+    n_blas_limit = max(1, n_cpus // active_folds) if active_folds > 1 else None
+
     # prefer="threads" avoids process-spawn overhead on all platforms and works
     # correctly for sklearn models whose C extensions release the GIL.
-    # joblib's threadpoolctl integration prevents BLAS thread oversubscription.
     fold_preds = Parallel(n_jobs=n_jobs, prefer="threads")(
-        delayed(_fit_fold)(model, X, y, ti, vi, input_columns, output_columns)
+        delayed(_fit_fold)(model, X, y, ti, vi, input_columns, output_columns,
+                          1, n_blas_limit)
         for ti, vi in splits
     )
 
