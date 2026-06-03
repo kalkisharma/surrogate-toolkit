@@ -285,7 +285,8 @@ def upload():
 
     # ── Save full surrogate session before switching active dataset ───────────
     # Saves models, config, pca, and workflow metadata so switching back to a
-    # previously-worked dataset restores all steps (designation, normalization, PCA).
+    # previously-worked dataset restores all steps (designation, normalization,
+    # filter/screen, PCA).
     prev_key = state["datasets"].get("active_dataset_key")
     if prev_key and prev_key in _datasets and prev_key != safe_name:
         prev_primary_meta = state["datasets"]["primary"]["metadata"]
@@ -296,8 +297,10 @@ def upload():
             "workflow_meta": {
                 "input_columns":        prev_primary_meta.get("input_columns", []),
                 "output_columns":       prev_primary_meta.get("output_columns", []),
+                "removed_inputs":       prev_primary_meta.get("removed_inputs", []),
+                "n_inputs":             prev_primary_meta.get("n_inputs"),
+                "n_outputs":            prev_primary_meta.get("n_outputs"),
                 "normalization_method": prev_primary_meta.get("normalization_method"),
-                "normalization_applied":prev_primary_meta.get("normalization_applied", False),
                 "pca_applied":          prev_primary_meta.get("pca_applied", False),
                 "n_rows_clean":         prev_primary_meta.get("n_rows_clean"),
             },
@@ -333,8 +336,10 @@ def upload():
         surrogate["pca"] = None
         primary["metadata"]["input_columns"]        = []
         primary["metadata"]["output_columns"]       = []
+        primary["metadata"]["removed_inputs"]       = []
+        primary["metadata"]["n_inputs"]             = None
+        primary["metadata"]["n_outputs"]            = None
         primary["metadata"]["normalization_method"] = None
-        primary["metadata"]["normalization_applied"]= False
         primary["metadata"]["pca_applied"]          = False
 
     # n_rows_clean must always be set — use original row count as floor.
@@ -1693,8 +1698,13 @@ def screen_apply():
             "cv_folds":    DEFAULT_CV_FOLDS,
             "hyperparams": {},
         }
+        # Mirror cleared models/config into the dataset's surrogate_session but
+        # preserve any already-saved pca and workflow_meta so a later dataset
+        # switch still restores the full filter/screen state.
         if active_key and active_key in state["datasets"]["_datasets"]:
+            existing = state["datasets"]["_datasets"][active_key].get("surrogate_session", {})
             state["datasets"]["_datasets"][active_key]["surrogate_session"] = {
+                **existing,
                 "models": {},
                 "config": {
                     "model_type": None,
