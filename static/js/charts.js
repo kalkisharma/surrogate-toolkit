@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.5
+// Version: 2.5.6
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -20,6 +20,9 @@ const _COLORSCALES = {
   RdBu:    [[0,"rgb(5,10,172)"],[0.35,"rgb(106,137,247)"],[0.5,"rgb(190,190,190)"],[0.6,"rgb(220,170,132)"],[0.7,"rgb(230,145,90)"],[1,"rgb(178,10,28)"]],
   Inferno: [[0,"rgb(0,0,4)"],[0.13,"rgb(31,12,72)"],[0.25,"rgb(85,15,109)"],[0.38,"rgb(136,34,106)"],[0.5,"rgb(186,54,85)"],[0.63,"rgb(227,89,51)"],[0.75,"rgb(249,140,10)"],[0.88,"rgb(249,201,50)"],[1,"rgb(252,255,164)"]],
   Hot:     [[0,"rgb(0,0,0)"],[0.3,"rgb(230,0,0)"],[0.6,"rgb(255,210,0)"],[1,"rgb(255,255,255)"]],
+  Blues:   [[0,"rgb(247,251,255)"],[0.125,"rgb(222,235,247)"],[0.25,"rgb(198,219,239)"],[0.375,"rgb(158,202,225)"],[0.5,"rgb(107,174,214)"],[0.625,"rgb(66,146,198)"],[0.75,"rgb(33,113,181)"],[0.875,"rgb(8,81,156)"],[1,"rgb(8,48,107)"]],
+  Thermal: [[0,"rgb(4,35,51)"],[0.13,"rgb(23,51,122)"],[0.25,"rgb(85,59,157)"],[0.38,"rgb(129,79,143)"],[0.5,"rgb(175,95,130)"],[0.63,"rgb(222,112,101)"],[0.75,"rgb(249,146,66)"],[0.88,"rgb(249,196,65)"],[1,"rgb(232,250,91)"]],
+  RdPu:    [[0,"rgb(255,247,243)"],[0.125,"rgb(253,224,221)"],[0.25,"rgb(252,197,192)"],[0.375,"rgb(250,159,181)"],[0.5,"rgb(247,104,161)"],[0.625,"rgb(221,52,151)"],[0.75,"rgb(174,1,126)"],[0.875,"rgb(122,1,119)"],[1,"rgb(73,0,106)"]],
 };
 
 function _hexToRgba(hex, opacity) {
@@ -494,6 +497,7 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
   const fontSize    = options.fontSize          ?? 12;
   const fontColor   = options.fontColor         ?? fontClr;
   const colorscale  = options.colorscale        ?? "Viridis";
+  const cs          = _COLORSCALES[colorscale]  ?? colorscale;  // explicit array or fall through to name
   const showAnnot   = options.showAnnotations   ?? true;
   const height      = options.height            ?? Math.max(320, columns.length * 48 + 100);
 
@@ -505,17 +509,19 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
   const colorbarFontSize = options.colorbarFontSize ?? _autoLabel;
 
   // Annotation text must contrast with the cell colour, not with the background.
-  // We choose #ffffff or #222222 based on the approximate luminance of each colorscale.
+  // Thresholds derived from relative luminance calculations for each colorscale.
   const _annotColor = (val) => {
     switch (colorscale) {
       case "Blues":
+        // Light→dark blue: luminance crossover ~val 0.70 (at 0.625 dark text still better).
+        return val < 0.70 ? "#222222" : "#ffffff";
       case "RdPu":
-        // Light→dark: low values are near-white, high values are deep blue/purple.
-        return val < 0.5 ? "#222222" : "#ffffff";
+        // Near-white→deep purple: luminance crossover ~val 0.65.
+        return val < 0.65 ? "#222222" : "#ffffff";
       case "Thermal":
-        // Very dark at 0, bright yellow-green at mid, dark red at 1.
+        // Very dark at 0, bright yellow-green at mid, dark again at 1.
         return (val < 0.22 || val > 0.85) ? "#ffffff" : "#222222";
-      default: // Viridis and any future additions: dark at 0, bright yellow at 1.
+      default: // Viridis, Plasma, Inferno: dark at 0, bright at 1.
         return val < 0.5 ? "#ffffff" : "#222222";
     }
   };
@@ -528,7 +534,7 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
     x:             columns,
     y:             columns,
     z,
-    colorscale,
+    colorscale:    cs,
     zmin:          0,
     zmax:          1,
     hovertemplate: "%{y} — %{x}: %{z:.3f}<extra></extra>",

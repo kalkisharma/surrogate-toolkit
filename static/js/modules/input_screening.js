@@ -31,7 +31,7 @@ let _corrHeatAnnot      = null;    // null = use chart default (true)
 let _corrHeatCellFs     = null;
 let _corrHeatLabelFs    = null;
 let _corrHeatColorbarFs = null;
-let _corrHeatHeight     = null;    // null = auto
+let _corrHeatHeight     = 500;
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
