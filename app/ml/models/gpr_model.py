@@ -6,7 +6,7 @@ PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-03
-VERSION: 1.5.5
+VERSION: 1.5.6
 ================================================================================
 """
 
@@ -185,11 +185,12 @@ class GPRModel(BaseSurrogateModel):
 
     def get_param_grid(self) -> dict:
         ls = np.ones(getattr(self, "_n_features", 1))
+        ls_bounds = (1e-3, 1e10)
         return {
             "estimator__kernel": [
-                RBF(length_scale=ls),
-                Matern(length_scale=ls, nu=1.5),
-                Matern(length_scale=ls, nu=2.5),
+                RBF(length_scale=ls, length_scale_bounds=ls_bounds),
+                Matern(length_scale=ls, length_scale_bounds=ls_bounds, nu=1.5),
+                Matern(length_scale=ls, length_scale_bounds=ls_bounds, nu=2.5),
                 RationalQuadratic(),  # isotropic — ARD causes bounds mismatch in scipy optimizer
             ],
             "estimator__alpha": [0.001, 0.01, 0.1, 1.0],

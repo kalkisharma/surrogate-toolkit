@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.50] — 2026-06-03
+
+### Fix: GPR tune endpoint still generating ConvergenceWarning via get_param_grid()
+
+#### Fixed
+
+- **`gpr_model.py`** — `get_param_grid()` was constructing RBF and Matern kernels without `length_scale_bounds`, so GridSearchCV (used by the Tune endpoint) still triggered ARD `ConvergenceWarning` on every kernel candidate that pushed a length scale to the sklearn default upper bound of `1e5`. Applied the same `length_scale_bounds=(1e-3, 1e10)` fix as v3.5.49, completing the fix across all three kernel construction sites (`fit()`, `build_estimator()`, `get_param_grid()`).
+
+---
+
 ## [3.5.49] — 2026-06-03
 
 ### Fix: GPR ARD ConvergenceWarning — length_scale upper bound raised to 1e10
