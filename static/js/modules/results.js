@@ -595,9 +595,11 @@ function _render(containerEl, r) {
     ["Model type",  r.model_type.toUpperCase()],
     ["Test split",  `${Math.round(r.test_split * 100)}%`],
     ["CV folds",    r.cv_folds ?? r.cv_results?.n_folds ?? "—"],
+    ["Cores",       r.n_jobs ?? "—"],
   ];
   if (r.hyperparams?.kernel) configRows.splice(1, 0, ["Kernel", r.hyperparams.kernel]);
   if (r.hyperparams?.alpha  != null) configRows.splice(2, 0, ["Alpha (noise)", r.hyperparams.alpha]);
+  if (r.n_restarts != null) configRows.push(["Optimizer restarts", r.n_restarts]);
   if (r.pca_applied) configRows.push(["Preprocessing", `PCA — ${r.input_columns.length} components`]);
   if (r.train_time_s != null) configRows.push(["Train time", `${r.train_time_s} s`]);
   const configGrid = el("div", { cls: "results-config-grid" });
@@ -653,6 +655,11 @@ function _render(containerEl, r) {
   );
   testSection.appendChild(testTitle);
   testSection.appendChild(_buildMetricsTable(r.test_metrics));
+  if (r.test_time_s != null) {
+    const testNote = el("p", { cls: "results-table-note" });
+    testNote.textContent = `Evaluation time: ${r.test_time_s} s`;
+    testSection.appendChild(testNote);
+  }
   metricsPane.appendChild(testSection);
 
   // ── CV summary (skipped for ensemble — breakdown shown above instead) ────────
@@ -677,6 +684,11 @@ function _render(containerEl, r) {
   );
   cvSection.appendChild(cvTitle);
   cvSection.appendChild(_buildCVTable(r.cv_results.per_output));
+  if (r.cv_time_s != null) {
+    const cvNote = el("p", { cls: "results-table-note" });
+    cvNote.textContent = `CV time: ${r.cv_time_s} s`;
+    cvSection.appendChild(cvNote);
+  }
   metricsPane.appendChild(cvSection);
   } // end else (non-ensemble CV section)
 

@@ -602,7 +602,7 @@ def train():
                 f"the fit may be sensitive to noise. Consider reducing order or adding data."
             )
 
-    # ── Cross-validation + final fit + test eval (timed together) ────────────
+    # ── Cross-validation ──────────────────────────────────────────────────────
     _t0 = time.perf_counter()
 
     # Guard: k-fold requires at least n_folds samples in the training set.
@@ -611,18 +611,23 @@ def train():
         model, X_train, y_train, output_cols, safe_folds, input_cols,
         n_jobs=n_jobs, n_outputs=len(output_cols)
     )
+    _cv_time_s = round(time.perf_counter() - _t0, 2)
 
     # ── Fit final model on full training set ──────────────────────────────────
     _noise_supported = model_type in ("gpr", "rf", "linear")
+    _t1 = time.perf_counter()
     model.fit(X_train, y_train, input_cols, output_cols,
               noise_array=noise_train if _noise_supported else None)
+    _fit_time_s = round(time.perf_counter() - _t1, 2)
 
     # ── Evaluate on held-out test set ─────────────────────────────────────────
+    _t2 = time.perf_counter()
     y_pred_test = model.predict(X_test)
     test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
     for i, m in enumerate(test_metrics):
         col_range = float(y_train[:, i].max() - y_train[:, i].min())
         m["output_range"] = col_range if col_range > 0 else None
+    _test_time_s = round(time.perf_counter() - _t2, 2)
 
     train_time_s = round(time.perf_counter() - _t0, 2)
 
@@ -667,6 +672,11 @@ def train():
         "pca_original_input_means":  {col: float(_orig_df[col].mean()) for col in _orig_inputs} if _orig_inputs else None,
         "pca_original_input_mins":   {col: float(_orig_df[col].min())  for col in _orig_inputs} if _orig_inputs else None,
         "pca_original_input_maxs":   {col: float(_orig_df[col].max())  for col in _orig_inputs} if _orig_inputs else None,
+        "n_jobs":                    n_jobs,
+        "n_restarts":                getattr(model, "_n_restarts", None),
+        "cv_time_s":                 _cv_time_s,
+        "fit_time_s":                _fit_time_s,
+        "test_time_s":               _test_time_s,
         "test_metrics":              test_metrics,
         "cv_results":                cv_results,
         "warnings":                  warnings,

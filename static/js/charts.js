@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.6
+// Version: 2.5.7
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -160,8 +160,10 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
       ? (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)")
       : "rgba(0,0,0,0)";
 
-  // Truncate long column names so labels don't overlap in SPLOM cells
-  const truncate = (name) => name.length > 9 ? name.slice(0, 8) + "…" : name;
+  // Truncate long column names so labels don't overlap in SPLOM cells.
+  // Character budget scales with font size — smaller font reveals more characters.
+  const maxChars = Math.max(6, Math.round(110 / fontSize));
+  const truncate = (name) => name.length > maxChars ? name.slice(0, maxChars - 1) + "…" : name;
 
   const trace = {
     type: "splom",
@@ -1658,6 +1660,23 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
   const topMargin  = title ? 48 : 32;
   const legendBg   = legendBgColor !== null ? legendBgColor : "rgba(0,0,0,0)";
 
+  // Filter annotation — appears on-screen and in export when points are excluded.
+  const annotations = [];
+  if (excluded.length > 0 && Object.keys(filterRanges).length > 0) {
+    const lines = Object.entries(filterRanges)
+      .map(([col, [lo, hi]]) => `${col}: [${Number(lo).toPrecision(4)}, ${Number(hi).toPrecision(4)}]`);
+    annotations.push({
+      xref: "paper", yref: "paper",
+      x: 0.01, y: 0.99, xanchor: "left", yanchor: "top",
+      text: "<b>Active filters</b><br>" + lines.join("<br>"),
+      showarrow: false,
+      font: { size: fontSize, family: "JetBrains Mono, monospace", color: fontClr },
+      bgcolor: isDark ? "rgba(20,24,40,0.88)" : "rgba(255,255,255,0.88)",
+      bordercolor: "rgba(180,180,200,0.5)",
+      borderwidth: 1, borderpad: 6, align: "left",
+    });
+  }
+
   // eslint-disable-next-line no-undef
   Plotly.react(containerEl, traces, {
     paper_bgcolor: paperBg, plot_bgcolor: plotBg,
@@ -1674,9 +1693,13 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
       bordercolor: legendBorderWidth > 0 ? legendBorderColor : "rgba(0,0,0,0)",
       borderwidth: legendBorderWidth,
     } : undefined,
+    annotations,
   }, {
     responsive: true, displayModeBar: true, displaylogo: false,
     modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
-    toImageButtonOptions: { filename: `scatter2d_${xCol}_vs_${yCol}`, scale: 2 },
+    toImageButtonOptions: {
+      filename: `scatter2d_${xCol}_vs_${yCol}${excluded.length > 0 ? "_filtered" : ""}`,
+      scale: 2,
+    },
   });
 }

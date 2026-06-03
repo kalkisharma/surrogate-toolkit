@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/input_screening.js
-// Version: 1.1.0 (app v3.3.1)
+// Version: 1.2.0 (app v3.5.52)
 // Description: Step 7 — Input Filtering. Correlation heatmap, VIF table with
 //              3-tier multicollinearity indicators, Sobol ST overlay (when
 //              interpretation cache is present), low-variance flags, input
@@ -14,7 +14,7 @@ import { post, put } from "../api.js";
 import { registerPrimer } from "../learning_mode.js";
 import { showError, showSuccess } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
-import { renderCorrelationHeatmap, renderExplainedVarianceChart } from "../charts.js";
+import { renderDCorHeatmap, renderExplainedVarianceChart } from "../charts.js";
 import { el, clearEl, escHtml } from "../utils.js";
 
 // ── Module state ──────────────────────────────────────────────────────────────
@@ -171,7 +171,7 @@ function _renderResults(container, resp, rootEl) {
 
   // ── Correlation heatmap ───────────────────────────────────────────────────
   const heatSection = el("div", { cls: "screen-section" });
-  heatSection.innerHTML = `<h3 class="screen-section-title">Correlation Matrix</h3>`;
+  heatSection.innerHTML = `<h3 class="screen-section-title">Distance Correlation Matrix</h3>`;
   container.appendChild(heatSection);
 
   // Settings panel (same controls as dCor heatmap in Explore)
@@ -243,7 +243,7 @@ function _renderResults(container, resp, rootEl) {
   heatSection.appendChild(heatWrap);
 
   function _redrawCorrHeat() {
-    renderCorrelationHeatmap(heatWrap, resp.input_columns, resp.correlation_matrix, resp.threshold, {
+    renderDCorHeatmap(heatWrap, resp.input_columns, resp.dcor_matrix, {
       fontSize:         _corrHeatFs         !== null ? _corrHeatFs         : 12,
       fontColor:        _corrHeatFontColor  !== null ? _corrHeatFontColor  : undefined,
       showAnnotations:  _corrHeatAnnot      !== null ? _corrHeatAnnot      : undefined,

@@ -1500,24 +1500,36 @@ def screen_inputs():
     df = (primary["normalized"] if primary.get("normalized") is not None else primary["clean"])
     X  = df[input_cols]
 
-    # Pearson correlation matrix
-    corr = X.corr(method="pearson")
+    # Distance correlation matrix — use cache if available, else compute and cache.
+    _datasets   = state["datasets"]["_datasets"]
+    active_key  = state["datasets"]["active_dataset_key"]
+    cached_dcor = _datasets.get(active_key, {}).get("metadata", {}).get("dcor_matrix")
+    if cached_dcor and all(c in cached_dcor for c in input_cols):
+        dcor_matrix = {c: {d: cached_dcor[c][d] for d in input_cols} for c in input_cols}
+    else:
+        subset      = X.iloc[:MAX_PLOT_ROWS]
+        dcor_matrix = compute_dcor_matrix(subset, input_cols)
+        if active_key and active_key in _datasets:
+            _datasets[active_key]["metadata"]["dcor_matrix"] = dcor_matrix
 
-    # Flagged pairs — upper triangle only, sorted by |r| descending
+    # Flagged pairs — upper triangle only, sorted by dCor descending
     flagged_pairs = []
     for i, col_a in enumerate(input_cols):
         for j, col_b in enumerate(input_cols):
             if j <= i:
                 continue
-            r = float(corr.loc[col_a, col_b])
-            if abs(r) >= threshold:
+            dc = float(dcor_matrix[col_a][col_b])
+            if dc >= threshold:
                 flagged_pairs.append({
                     "col_a": col_a,
                     "col_b": col_b,
-                    "r":     round(r, 4),
-                    "abs_r": round(abs(r), 4),
+                    "r":     round(dc, 4),
+                    "abs_r": round(dc, 4),
                 })
     flagged_pairs.sort(key=lambda x: x["abs_r"], reverse=True)
+
+    # Pearson matrix still needed for VIF computation (VIF uses Pearson internally)
+    corr = X.corr(method="pearson")
 
     # Low-variance flags — coefficient of variation = |std / mean|
     low_variance = []
@@ -1570,22 +1582,16 @@ def screen_inputs():
         if n_cached > 0:
             sobol_st = {col: round(st_sum[col] / n_cached, 4) for col in input_cols}
 
-    # Correlation matrix as dict[col][col] → float
-    corr_dict = {
-        col: {other: round(float(corr.loc[col, other]), 4) for other in input_cols}
-        for col in input_cols
-    }
-
     return jsonify({
-        "success":            True,
-        "input_columns":      input_cols,
-        "threshold":          threshold,
-        "cv_threshold":       cv_threshold,
-        "correlation_matrix": corr_dict,
-        "flagged_pairs":      flagged_pairs,
-        "low_variance":       low_variance,
-        "vif":                vif,
-        "sobol_st":           sobol_st,
+        "success":       True,
+        "input_columns": input_cols,
+        "threshold":     threshold,
+        "cv_threshold":  cv_threshold,
+        "dcor_matrix":   dcor_matrix,
+        "flagged_pairs": flagged_pairs,
+        "low_variance":  low_variance,
+        "vif":           vif,
+        "sobol_st":      sobol_st,
     }), 200
 
 

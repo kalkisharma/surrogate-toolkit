@@ -19,6 +19,26 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.52] — 2026-06-03
+
+### Q1–Q4 UX improvements: SPLOM label truncation, Results config additions, dCor in Filter, 2D scatter export filters
+
+#### Changed
+
+- **`charts.js`** — SPLOM label truncation (`_PALETTES` + `renderScatterMatrix`): max visible characters now computed as `Math.max(6, Math.round(110 / fontSize))` so that reducing font size through Plot Settings exposes more characters per label, and increasing font size constrains the label to prevent overflow. Previously the truncation was fixed at a constant regardless of font size.
+- **`charts.js`** — Added 3 new marker palette entries to `_PALETTES`: **Purple / Gold** (`purpleGold`), **Indigo / Orange** (`indigoOrange`), and **Crimson / Cyan** (`crimsonCyan`), each with distinct light-mode and dark-mode rgba values. Palette selector now offers 6 choices.
+- **`charts.js`** — `renderDataScatter2D()`: when `excluded.length > 0` and `filterRanges` is non-empty, a semi-transparent annotation box is added to the chart showing active filter ranges (one line per filtered column, toPrecision(4), JetBrains Mono font). Export filename gets a `_filtered` suffix and `scale: 2` is set in `toImageButtonOptions` so the exported PNG is double resolution. This makes filter context self-documenting in saved images.
+- **`data_explorer.js`** — Palette `<select>` updated with three additional `<option>` elements for the new palettes.
+- **`data_explorer.js`** — Distance Correlation heatmap default height changed from `null` (lazy-compute via `Math.max(320, cols * 48 + 100)`) to `500` px so the heatmap renders at a consistent, readable height on first load without waiting for the user to manually adjust.
+- **`data_explorer.js`** — `_buildScatter2DSection()`: settings panel, axis selectors, per-column range filter sliders, and chart container with `renderDataScatter2D()` integration.
+- **`model_api.py`** — Training response now includes: `n_jobs` (core count used), `n_restarts` (GPR optimizer restarts, if applicable), `cv_time_s` (CV wall time), `fit_time_s` (final fit wall time), `test_time_s` (test evaluation wall time).
+- **`results.js`** — Model Configuration card: added "Cores" row (from `n_jobs`) and "Optimizer restarts" row (from `n_restarts`, only shown when present). CV results section: timing note `"CV time: N s"` added below table. Test set section: timing note `"Evaluation time: N s"` added below table.
+- **`data_api.py`** — Screen endpoint (`/api/data/screen`) now returns `dcor_matrix` (distance correlation) instead of `correlation_matrix` (Pearson). Distance correlation captures non-linear dependence — more appropriate than Pearson for engineering physics data. The endpoint reuses the dCor matrix already cached in STATE from the Explore step; if absent (dataset loaded without an Explore pass), it computes inline on up to `MAX_PLOT_ROWS` rows and caches the result.
+- **`input_screening.js`** — Import updated to `renderDCorHeatmap`; `_redrawCorrHeat()` now calls `renderDCorHeatmap` with `resp.dcor_matrix`. Section heading changed from "Correlation Matrix" to "Distance Correlation Matrix". The dCor heatmap chart already includes a built-in Plotly camera icon for PNG export.
+- **`main.css`** — Added `.scatter2d-section` card styles.
+
+---
+
 ## [3.5.51] — 2026-06-03
 
 ### Results tables aesthetic improvements (5-finding team review)
