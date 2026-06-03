@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.2.3
+// Version: 1.2.4
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -1306,9 +1306,16 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   section.appendChild(chartEl);
 
   function _draw() {
+    // Only pass ranges that have been narrowed from the column's full range.
+    // Full-range entries would appear in the annotation box and inflate the
+    // excluded count even though no points are actually filtered.
+    const activeFilters = {};
+    for (const [col, [lo, hi]] of Object.entries(filterRanges)) {
+      if (lo > colMins[col] || hi < colMaxs[col]) activeFilters[col] = [lo, hi];
+    }
     renderDataScatter2D(chartEl, rows, {
       xCol: xSel.value, yCol: ySel.value,
-      filterRanges: { ...filterRanges },
+      filterRanges: activeFilters,
       ...s2d,
     });
   }
