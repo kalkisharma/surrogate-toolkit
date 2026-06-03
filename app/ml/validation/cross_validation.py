@@ -6,7 +6,7 @@ PURPOSE: K-fold cross-validation for surrogate models
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 0.7.3
+VERSION: 0.7.5
 ================================================================================
 """
 
@@ -24,6 +24,32 @@ from app.ml.validation.diagnostics import compute_metrics
 from config.settings import DEFAULT_RANDOM_STATE
 
 
+# None = unknown, True = works in thread, False = broken in thread context.
+# Probed once on first parallel CV call and reused for the process lifetime.
+_THREADPOOLCTL_THREAD_SAFE = None
+
+
+def _probe_threadpoolctl():
+    """Run a threadpool_limits probe inside a real worker thread and cache the result."""
+    global _THREADPOOLCTL_THREAD_SAFE
+    if _THREADPOOLCTL_THREAD_SAFE is not None:
+        return _THREADPOOLCTL_THREAD_SAFE
+    from concurrent.futures import ThreadPoolExecutor
+
+    def _inner():
+        try:
+            from threadpoolctl import threadpool_limits
+            with threadpool_limits(limits=1):
+                pass
+            return True
+        except Exception:
+            return False
+
+    with ThreadPoolExecutor(max_workers=1) as ex:
+        _THREADPOOLCTL_THREAD_SAFE = ex.submit(_inner).result()
+    return _THREADPOOLCTL_THREAD_SAFE
+
+
 def _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns,
               n_jobs_per_fold=1, n_blas_per_fold=None):
     """Train one CV fold and return predictions on the validation slice."""
@@ -35,8 +61,8 @@ def _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns,
             with threadpool_limits(limits=n_blas_per_fold):
                 fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
         except Exception:
-            # threadpoolctl can fail on certain Anaconda/Windows DLL combinations;
-            # fall through to an uncapped fit rather than crashing the training run.
+            # Secondary safety net: probe should have caught broken envs already;
+            # this handles any DLLs loaded after the probe completed.
             fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
     else:
         fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
@@ -112,16 +138,26 @@ def run_cross_validation(
     kf     = KFold(n_splits=n_folds, shuffle=True, random_state=DEFAULT_RANDOM_STATE)
     splits = list(kf.split(X))
 
-    # Compute per-fold BLAS budget: divide CPU cores evenly among active fold workers.
-    # Without this cap, 5 parallel fold threads each spawn 16 OpenBLAS threads,
-    # giving 80 threads on 16 cores and superlinear slowdown.
+    # Cap workers at n_folds — extra workers beyond the task count serve no purpose.
+    effective_n_jobs = min(n_jobs, n_folds)
+
+    # On some Anaconda/Windows environments threadpoolctl crashes inside worker
+    # threads (DLL enumeration via EnumProcessModuleEx returns None for a symbol
+    # it expects to be a version string). The main-thread probe does NOT catch
+    # this — we must probe inside an actual worker thread. If the probe fails,
+    # fall back to serial: serial with full BLAS is faster than parallel with
+    # uncontrolled BLAS oversubscription (5 folds × 16 BLAS threads = 80 threads
+    # fighting for 16 cores causes superlinear slowdown).
+    if effective_n_jobs > 1 and not _probe_threadpoolctl():
+        effective_n_jobs = 1
+
     n_cpus       = os.cpu_count() or 1
-    active_folds = min(n_jobs, n_folds)
+    active_folds = min(effective_n_jobs, n_folds)
     n_blas_limit = max(1, n_cpus // active_folds) if active_folds > 1 else None
 
     # prefer="threads" avoids process-spawn overhead on all platforms and works
     # correctly for sklearn models whose C extensions release the GIL.
-    fold_preds = Parallel(n_jobs=n_jobs, prefer="threads")(
+    fold_preds = Parallel(n_jobs=effective_n_jobs, prefer="threads")(
         delayed(_fit_fold)(model, X, y, ti, vi, input_columns, output_columns,
                           1, n_blas_limit)
         for ti, vi in splits

@@ -466,11 +466,12 @@ export async function initModelConfig(containerEl, onTrain) {
   const GPR_PARALLEL_ROW_THRESHOLD = 200;
 
   function _computeRecommendation() {
-    const avail     = getAvailableCores() || 1;
-    const activeKey = getPath("datasets.active_dataset_key");
-    const meta      = getPath(`datasets._datasets.${activeKey}.metadata`, {});
-    const nOut      = (meta.output_columns || []).length;
-    const nRows     = meta.n_rows_clean || 0;
+    const avail = getAvailableCores() || 1;
+    // Training always uses the primary dataset slot; exercise flows do not
+    // set active_dataset_key so reading _datasets.{key}.metadata yields empty.
+    const meta  = getPath("datasets.primary.metadata", {});
+    const nOut  = (meta.output_columns || []).length;
+    const nRows = meta.n_rows_clean || 0;
     const nFolds    = parseInt(cvSelect.value, 10) || 5;
     const autoTuneOn = !!hyperparamOuter.querySelector("#hp-autotune")?.checked;
 
