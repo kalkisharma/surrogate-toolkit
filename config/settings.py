@@ -7,7 +7,7 @@ PURPOSE: Single source of truth for all configurable constants. Nothing is
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 3.5.48
+VERSION: 3.5.52
 ================================================================================
 """
 
