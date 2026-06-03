@@ -19,6 +19,133 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.44] — 2026-06-03
+
+### Fix: GPR training speed regression at Cores > 1 (single-output models)
+
+#### Fixed
+
+- **`gpr_model.py`** — `MultiOutputRegressor` parallelises across outputs only. Passing `n_jobs=16` for a single-output model caused joblib's loky backend to spawn 16 worker processes on Windows (each re-importing Python + sklearn), adding ~14 s of overhead to both the final fit and test evaluation. Fix: `effective_mor_jobs = min(self._n_jobs, n_outputs)`. Single-output GPR now always builds with `n_jobs=1` (in-process, no spawn overhead); multi-output GPR uses the user's Cores setting up to the number of outputs.
+
+---
+
+## [3.5.43] — 2026-06-02
+
+### BLAS-aware parallel CV, cores recommendation, and n_rows_clean fixes
+
+#### Added
+
+- **`cross_validation.py`** — `_probe_threadpoolctl()`: cached probe that runs `threadpool_limits` inside a real worker thread and stores the result for the process lifetime. On Anaconda/Windows, `EnumProcessModuleEx` returns `None` for some DLL version strings during DLL enumeration inside joblib workers, causing `AttributeError`. The probe detects this and falls back to serial CV (serial with full BLAS is faster than 5 parallel workers × 16 uncontrolled BLAS threads = 80 threads on 16 cores).
+- **`cross_validation.py`** — `_fit_fold()` now calls `fold_model.set_n_jobs(n_jobs_per_fold)` so each fold runs its own model single-threaded. `n_blas_limit = max(1, n_cpus // active_folds)` caps BLAS threads per fold when parallel is safe. `prefer="threads"` on `Parallel` avoids loky process-spawn overhead.
+- **`base_model.py`** — `set_n_jobs(n)` no-op added to the base class so all subclasses inherit it safely.
+- **`gpr_model.py`** / **`rf_model.py`** — `set_n_jobs(n)` overrides: GPR updates `self._n_jobs` (picked up when `MultiOutputRegressor` is built in `fit()`); RF calls `self._model.set_params(n_jobs=n)`.
+- **`model_api.py`** — `_recommend_cores(state)`: computes `(n_cores, reason)` from model type, n_rows, cv_folds, n_outputs, and available processors. Returned in `get_config()` as `recommended_cores` / `recommended_cores_reason`.
+- **`model_config.js`** — `_computeRecommendation()` and `_updateCoresPrompt()`: client-side cores card shows recommended cores, plain-English rationale, current setting, and an **Apply** button that writes the recommendation to the header cores input and fires `change` to persist it to session state.
+- **`settings.py`** — `GPR_PARALLEL_ROW_THRESHOLD = 200`.
+- **`main.css`** — `.cores-prompt__apply` button style.
+
+#### Fixed
+
+- **`cross_validation.py`** — `n_jobs` parameter added to `run_cross_validation` signature; `prefer="threads"` eliminated loky process-spawn overhead on parallel CV.
+- **`model_api.py`** — `hp.get("n_restarts", 10)` → `hp.get("n_restarts", 2)` in `_make_model`.
+- **`model_config.js`** — `HYPERPARAM_DEFAULTS.n_restarts` and all fallback literals changed from `10` → `2`; metadata path corrected from `datasets._datasets.${activeKey}.metadata` to `datasets.primary.metadata`; `refreshState()` added to `initModelConfig` `Promise.all` so the cores card reads current state on panel open.
+- **`data_api.py`** — `_apply_clean()` now mirrors `n_rows_clean` to `state["datasets"]["primary"]["metadata"]` (was only written to the keyed dataset); same mirror added to undo handler and upload initialization.
+- **`learning_api.py`** — `start_exercise()` initialises `primary.metadata.n_rows_clean` from `n_rows_original` when cleaning is skipped (exercises without a Clean step left it `None`, causing the cores card to show "0 rows").
+
+---
+
+## [3.5.42] — 2026-06-02
+
+### Fix PCA state serialization + parallel CV thread backend
+
+#### Fixed
+
+- **`schema.py`** — `get_state_json_safe()` `_safe()` walker now handles NumPy arrays (`ndarray`) and scalar types (`integer`, `floating`, `bool_`) so PCA output (e.g., `input_means` stored as `np.ndarray`) serialises without `TypeError: Object of type ndarray is not JSON serializable`.
+- **`cross_validation.py`** — `prefer="threads"` added to `joblib.Parallel`; eliminates loky worker-process spawning for CV folds (threads share the parent process's already-imported sklearn/numpy, avoiding repeated import overhead on Windows).
+
+---
+
+## [3.5.41] — 2026-06-02
+
+### GPR training performance: parallel CV folds, lower n_restarts, train time metric
+
+#### Changed
+
+- **`cross_validation.py`** — `run_cross_validation` accepts `n_jobs` parameter; folds run in parallel via `joblib.Parallel` capped at `min(n_jobs, n_folds)` workers.
+- **`gpr_model.py`** — `n_restarts` default lowered from `10` → `2`; reduces kernel optimizer restarts per fold from 10 to 2 (4× faster CV with minimal accuracy loss on well-conditioned datasets).
+- **`model_api.py`** — `n_jobs` forwarded to `run_cross_validation`; `n_outputs` passed for future per-output parallelism.
+- **`results.js`** — Training time displayed in the results panel header.
+
+---
+
+## [3.5.40] — 2026-06-02
+
+### Fix dCor colorscale + Pearson heatmap height default
+
+#### Fixed
+
+- **`charts.js`** — `renderDCorHeatmap` and `renderCorrelationHeatmap`: replaced named Plotly colorscale strings (`"RdPu"`, `"Blues"`) with explicit `[[stop, color], ...]` arrays extracted from the vendored Plotly 2.35.2 build. Named strings are unsupported in the vendored JS build and rendered as the default colorscale.
+- **`input_screening.js`** — `_corrHeatHeight` default set to `500` so the Pearson heatmap renders at a readable height on first load instead of the auto-scale formula.
+
+---
+
+## [3.5.39] — 2026-06-02
+
+### Data explorer legend visibility + heatmap contrast fix + unified heatmap settings
+
+#### Changed
+
+- **`charts.js`** — `renderDataScatter2D`: legend `showlegend` always true for the "Included" trace (previously only shown when excluded points existed, causing the legend box to disappear on unfiltered data).
+- **`input_screening.js`** — Pearson correlation heatmap now shares the full settings panel (font sizes, gridlines, bg colors) with the dCor heatmap via unified settings wiring.
+- **`charts.js`** — `renderDCorHeatmap` and `renderCorrelationHeatmap` accept `titleFontSize` option for independent heatmap title sizing.
+
+---
+
+## [3.5.38] — 2026-06-02
+
+### 2D scatter & dCor settings: title font, border/legend controls, heatmap font sizes
+
+#### Added
+
+- **`charts.js`** — `renderDataScatter2D`: `title`, `titlePosition`, `plotTitleFontSize`, `axisTitleFontSize`, `legendPosition`, `legendFontSize`, `legendBgColor`, `legendBorderColor`, `legendBorderWidth`, `plotBorderWidth`, `plotBorderColor` options.
+- **`data_explorer.js`** — 2D scatter settings panel extended with Title, Legend, and Plot Border sections.
+
+#### Fixed
+
+- **`charts.js`** — dCor heatmap: axis tick font size and colorbar font size now use `tickFontSize` option correctly.
+
+---
+
+## [3.5.37] — 2026-06-02
+
+### 2D scatter & dCor polish: filters below chart, title/legend, font limits
+
+#### Changed
+
+- **`data_explorer.js`** — 2D scatter section: filter panel moved below the chart (axis selectors → chart → filters); per-column filter cards use dual range sliders + number inputs with live sync; "Filters (N columns)" `<details>` element with active-count badge.
+- **`charts.js`** — `renderDataScatter2D` accepts `title` and `legendPosition` options; hover templates show column name and value.
+- **`main.css`** — Scatter2D filter panel, filter grid, filter item, badge, slider, and number input styles.
+
+---
+
+## [3.5.36] — 2026-06-02
+
+### Data Exploration enhancements: 3 new palettes, dCor height 500 px, 2D scatter section
+
+#### Added
+
+- **`charts.js`** — Three new marker palettes in `_PALETTES`: `purpleGold`, `indigoOrange`, `crimsonCyan` (light and dark variants for each).
+- **`charts.js`** — `renderDataScatter2D(containerEl, rows, opts)`: standalone 2D scatter with dual included/excluded traces, per-column range filter support, full layout options (font sizes, marker color/size/opacity, edge, gridlines, bg colors).
+- **`data_explorer.js`** — Three new `<option>` elements in SPLOM settings palette selector: Purple / Gold, Indigo / Orange, Crimson / Cyan.
+- **`data_explorer.js`** — `_buildScatter2DSection(containerEl, rows, columns)`: card section below the dCor heatmap with X/Y axis dropdowns, full settings panel (Typography, Markers, Figure, Gridlines), per-column range filter sliders that dim excluded points live, and `localStorage` settings persistence.
+- **`main.css`** — `.scatter2d-section` card styles and all filter row/slider/badge styles.
+
+#### Changed
+
+- **`data_explorer.js`** — `_dcorHeight` default changed from `null` (auto-scale) to `500` so the distance correlation heatmap renders at a consistent height on first load.
+
+---
+
 ## [3.5.35] — 2026-06-02
 
 ### PHASES.md — Phase 22 scoped (Per-Observation Noise) + milestone renumber
