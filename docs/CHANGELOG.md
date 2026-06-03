@@ -19,6 +19,42 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.47] — 2026-06-03
+
+### Fix: filter step state not fully saved or cleared on dataset switch
+
+#### Fixed
+
+- **`data_api.py`** — `removed_inputs`, `n_inputs`, and `n_outputs` were missing from the `workflow_meta` snapshot saved on dataset switch. Switching back to a previously filtered dataset lost which inputs had been dropped by the screen step.
+- **`data_api.py`** — `removed_inputs`, `n_inputs`, and `n_outputs` were not explicitly reset when loading a brand-new dataset, leaving stale column names from the previous session visible in the filter panel.
+- **`data_api.py`** — `_clear_surrogate()` (called inside `screen_apply` when the filter step invalidates the trained model) overwrote the entire `surrogate_session` dict with only `{models, config}`, discarding any `pca` and `workflow_meta` that had been saved during an earlier dataset switch. Now merges with `**existing` so those fields survive.
+
+---
+
+## [3.5.46] — 2026-06-03
+
+### Full workflow state save/restore on dataset switch
+
+#### Changed
+
+- **`data_api.py`** — Dataset switch now saves and restores the complete surrogate workflow state per dataset: `models`, `config`, `pca`, and `workflow_meta` (input/output columns, removed inputs, normalization method, PCA applied flag, clean row count). Previously only `models` and `config` were saved, so designation, normalization, and filter/PCA progress were lost when switching away from a dataset and then back.
+
+#### Fixed
+
+- **`data_api.py`** — Loading a new primary dataset now explicitly resets all workflow fields (`input_columns`, `output_columns`, `removed_inputs`, `normalization_method`, `pca_applied`, `surrogate.pca`) so stale state from the previous dataset never contaminates the new one. Previously these fields were left in place because `primary["metadata"].update(ds_meta)` only sets keys present in the new dataset's metadata dict.
+
+---
+
+## [3.5.45] — 2026-06-03
+
+### Fix: stale PCA state KeyError when training after loading a new dataset
+
+#### Fixed
+
+- **`model_api.py`** — When a session with PCA applied was followed by loading a new dataset (without clearing the session), the train route tried to compute `_orig_df[col].mean()` for columns in the old PCA's `original_inputs` that didn't exist in the new dataset, raising `KeyError`. Fix: validate that all `original_inputs` columns exist in `_orig_df` before treating `_pca_applied` as `True`; if any are missing the PCA block is skipped gracefully.
+
+---
+
 ## [3.5.44] — 2026-06-03
 
 ### Fix: GPR training speed regression at Cores > 1 (single-output models)
