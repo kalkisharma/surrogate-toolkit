@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.2.1
+// Version: 1.2.2
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -767,8 +767,11 @@ function _buildDCorSection() {
   let _resp           = null;
   let _selCols        = [];
   let _dcorFs         = null;    // null = inherit _chartSettings.fontSize
-  let _dcorFontColor  = null;    // null = auto (inherit _chartSettings.fontColor)
-  let _dcorAnnot      = null;    // null = auto (true when ≤ 7 cols selected)
+  let _dcorFontColor  = null;    // null = auto
+  let _dcorAnnot      = null;    // null = use chart-function default (true)
+  let _dcorCellFs     = null;    // null = use chart-function default
+  let _dcorLabelFs    = null;    // null = use chart-function default
+  let _dcorColorbarFs = null;    // null = use chart-function default
   let _dcorScale      = "Viridis";
   let _dcorHeight     = 500;     // 500 px default; user can override via height input
   let _plotEl         = null;
@@ -785,11 +788,14 @@ function _buildDCorSection() {
     }
 
     renderDCorHeatmap(_plotEl, cols, subMatrix, {
-      fontSize:        _dcorFs         !== null ? _dcorFs         : (_chartSettings.fontSize ?? 11),
-      fontColor:       _dcorFontColor  !== null ? _dcorFontColor  : (_chartSettings.fontColor ?? null),
-      showAnnotations: _dcorAnnot      !== null ? _dcorAnnot      : (cols.length <= 7),
-      colorscale:      _dcorScale,
-      height:          _dcorHeight,
+      fontSize:         _dcorFs          !== null ? _dcorFs         : (_chartSettings.fontSize ?? 12),
+      fontColor:        _dcorFontColor   !== null ? _dcorFontColor  : (_chartSettings.fontColor ?? null),
+      showAnnotations:  _dcorAnnot       !== null ? _dcorAnnot      : undefined,
+      colorscale:       _dcorScale,
+      height:           _dcorHeight,
+      cellFontSize:     _dcorCellFs      !== null ? _dcorCellFs     : undefined,
+      labelFontSize:    _dcorLabelFs     !== null ? _dcorLabelFs    : undefined,
+      colorbarFontSize: _dcorColorbarFs  !== null ? _dcorColorbarFs : undefined,
     });
     requestAnimationFrame(() => Plotly.Plots.resize(_plotEl));
   }
@@ -894,9 +900,24 @@ function _buildDCorSection() {
         <div class="chart-settings-controls">
           <div class="settings-divider">Typography</div>
           <div class="chart-settings-group">
-            <label class="chart-settings-group__label" for="dcor-cs-font">Font size (px)</label>
+            <label class="chart-settings-group__label" for="dcor-cs-font">Base font (px)</label>
             <input id="dcor-cs-font" type="number" class="chart-settings-input"
-                   min="7" max="18" step="1" value="${_chartSettings.fontSize ?? 11}">
+                   min="7" max="24" step="1" value="${_chartSettings.fontSize ?? 12}">
+          </div>
+          <div class="chart-settings-group">
+            <label class="chart-settings-group__label" for="dcor-cs-cell-font">Cell value font (px)</label>
+            <input id="dcor-cs-cell-font" type="number" class="chart-settings-input"
+                   min="6" max="24" step="1" placeholder="auto" value="">
+          </div>
+          <div class="chart-settings-group">
+            <label class="chart-settings-group__label" for="dcor-cs-label-font">Axis label font (px)</label>
+            <input id="dcor-cs-label-font" type="number" class="chart-settings-input"
+                   min="6" max="24" step="1" placeholder="auto" value="">
+          </div>
+          <div class="chart-settings-group">
+            <label class="chart-settings-group__label" for="dcor-cs-colorbar-font">Colorbar font (px)</label>
+            <input id="dcor-cs-colorbar-font" type="number" class="chart-settings-input"
+                   min="6" max="24" step="1" placeholder="auto" value="">
           </div>
           <div class="chart-settings-group">
             <label class="chart-settings-group__label" for="dcor-cs-font-color">Font color</label>
@@ -932,7 +953,7 @@ function _buildDCorSection() {
           <div class="chart-settings-group">
             <span class="chart-settings-group__label">Cell values</span>
             <label class="chart-settings-check">
-              <input type="checkbox" id="dcor-cs-annot" ${autoAnnot ? "checked" : ""}> Show
+              <input type="checkbox" id="dcor-cs-annot" checked> Show
             </label>
           </div>
         </div>
@@ -943,8 +964,21 @@ function _buildDCorSection() {
 
       settingsPanel.querySelector("#dcor-cs-font").addEventListener("input", debounce((e) => {
         const v = parseInt(e.target.value, 10);
-        if (v >= 7 && v <= 18) { _dcorFs = v; _rerender(); }
+        if (v >= 7 && v <= 24) { _dcorFs = v; _rerender(); }
       }, 200));
+
+      // Separate font size inputs — empty string means "use auto"
+      const _wireDcorFont = (id, setter) => {
+        settingsPanel.querySelector(`#${id}`).addEventListener("input", debounce((e) => {
+          const raw = e.target.value.trim();
+          const v   = parseInt(raw, 10);
+          setter(raw === "" ? null : (isNaN(v) ? null : v));
+          _rerender();
+        }, 200));
+      };
+      _wireDcorFont("dcor-cs-cell-font",     v => { _dcorCellFs     = v; });
+      _wireDcorFont("dcor-cs-label-font",    v => { _dcorLabelFs    = v; });
+      _wireDcorFont("dcor-cs-colorbar-font", v => { _dcorColorbarFs = v; });
 
       const fontColorInput  = settingsPanel.querySelector("#dcor-cs-font-color");
       const fontColorAuto$  = settingsPanel.querySelector("#dcor-cs-font-color-auto");
@@ -996,13 +1030,16 @@ function _buildDCorSection() {
 
 const _SCATTER2D_KEY = "surrogate_data_scatter2d_settings";
 const _SCATTER2D_DEFAULTS = {
-  title: "", legendPosition: "top right", legendFontSize: 10,
-  fontSize: 11, tickFontSize: 9, titleFontSize: 12, fontColor: null,
+  title: "", titlePosition: "left", plotTitleFontSize: 14, axisTitleFontSize: 12,
+  legendPosition: "top right", legendFontSize: 10,
+  legendBgColor: null, legendBorderColor: "#cccccc", legendBorderWidth: 0,
+  fontSize: 11, tickFontSize: 9, fontColor: null,
   markerSize: 7, markerColor: "#3b5dd9",
   edgeColor: "#000000", edgeWidth: 0,
   includedOpacity: 0.75, excludedOpacity: 0.12,
   height: 380,
   plotBgColor: null, paperBgColor: null,
+  plotBorderWidth: 0, plotBorderColor: "#cccccc",
   showMajorGrid: true, majorGridColor: "#cccccc", majorGridOpacity: 1.0,
   showMinorGrid: false, minorGridColor: "#e0e0e0", minorGridOpacity: 0.6,
 };
@@ -1055,6 +1092,11 @@ function _buildScatter2DSection(containerEl, rows, columns) {
 
   const settingsPanel = document.createElement("details");
   settingsPanel.className = "chart-settings-panel";
+  const legendBgAuto   = s2d.legendBgColor === null;
+  const legendBgVal    = s2d.legendBgColor || "#ffffff";
+  const legendBorderOff = s2d.legendBorderWidth === 0;
+  const plotBorderOff  = s2d.plotBorderWidth === 0;
+
   settingsPanel.innerHTML = `
     <summary class="chart-settings-panel__summary">Plot Settings</summary>
     <div class="chart-settings-controls">
@@ -1065,10 +1107,22 @@ function _buildScatter2DSection(containerEl, rows, columns) {
         <input id="s2d-title" type="text" class="chart-settings-input" style="flex:1;min-width:0"
                placeholder="(none)" value="${s2d.title || ""}">
       </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-title-pos">Title position</label>
+        <select id="s2d-title-pos" class="chart-settings-select">
+          <option value="left"   ${s2d.titlePosition === "left"   ? "selected" : ""}>Left</option>
+          <option value="center" ${s2d.titlePosition === "center" ? "selected" : ""}>Center</option>
+          <option value="right"  ${s2d.titlePosition === "right"  ? "selected" : ""}>Right</option>
+        </select>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-plot-title-font">Title font (px)</label>
+        <input id="s2d-plot-title-font" type="number" class="chart-settings-input" min="8" max="36" step="1" value="${s2d.plotTitleFontSize}">
+      </div>
 
       <div class="settings-divider">Typography</div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="s2d-font-size">Label font (px)</label>
+        <label class="chart-settings-group__label" for="s2d-font-size">Base font (px)</label>
         <input id="s2d-font-size" type="number" class="chart-settings-input" min="8" max="36" step="1" value="${s2d.fontSize}">
       </div>
       <div class="chart-settings-group">
@@ -1076,8 +1130,8 @@ function _buildScatter2DSection(containerEl, rows, columns) {
         <input id="s2d-tick-font" type="number" class="chart-settings-input" min="6" max="28" step="1" value="${s2d.tickFontSize}">
       </div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="s2d-title-font">Title font (px)</label>
-        <input id="s2d-title-font" type="number" class="chart-settings-input" min="8" max="36" step="1" value="${s2d.titleFontSize}">
+        <label class="chart-settings-group__label" for="s2d-axis-title-font">Axis label font (px)</label>
+        <input id="s2d-axis-title-font" type="number" class="chart-settings-input" min="8" max="36" step="1" value="${s2d.axisTitleFontSize}">
       </div>
       <div class="chart-settings-group">
         <span class="chart-settings-group__label">Font color</span>
@@ -1148,6 +1202,15 @@ function _buildScatter2DSection(containerEl, rows, columns) {
           </label>
         </div>
       </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-plot-border-width">Plot border</label>
+        <div class="color-with-auto">
+          <input id="s2d-plot-border-width" type="number" class="chart-settings-input"
+                 min="0" max="4" step="1" value="${s2d.plotBorderWidth}" style="width:52px">
+          <input id="s2d-plot-border-color" type="color" class="chart-settings-color"
+                 value="${s2d.plotBorderColor}" ${plotBorderOff ? "disabled" : ""} style="opacity:${plotBorderOff ? "0.4" : "1"}">
+        </div>
+      </div>
 
       <div class="settings-divider">Legend</div>
       <div class="chart-settings-group">
@@ -1164,6 +1227,25 @@ function _buildScatter2DSection(containerEl, rows, columns) {
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="s2d-legend-font">Legend font (px)</label>
         <input id="s2d-legend-font" type="number" class="chart-settings-input" min="6" max="28" step="1" value="${s2d.legendFontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-legend-bg">Legend bg</label>
+        <div class="color-with-auto">
+          <input id="s2d-legend-bg" type="color" class="chart-settings-color"
+                 value="${legendBgVal}" ${legendBgAuto ? "disabled" : ""} style="opacity:${legendBgAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="s2d-legend-bg-auto" ${legendBgAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-legend-border-width">Legend border</label>
+        <div class="color-with-auto">
+          <input id="s2d-legend-border-width" type="number" class="chart-settings-input"
+                 min="0" max="4" step="1" value="${s2d.legendBorderWidth}" style="width:52px">
+          <input id="s2d-legend-border-color" type="color" class="chart-settings-color"
+                 value="${s2d.legendBorderColor}" ${legendBorderOff ? "disabled" : ""} style="opacity:${legendBorderOff ? "0.4" : "1"}">
+        </div>
       </div>
 
       <div class="settings-divider">Gridlines</div>
@@ -1326,32 +1408,42 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   function _chk(id)   { return _getEl(id).checked; }
 
   function _applySettings() {
-    const fontAuto     = _chk("s2d-font-color-auto");
-    const plotBgAutoC  = _chk("s2d-plot-bg-auto");
-    const paperBgAutoC = _chk("s2d-paper-bg-auto");
+    const fontAuto        = _chk("s2d-font-color-auto");
+    const plotBgAutoC     = _chk("s2d-plot-bg-auto");
+    const paperBgAutoC    = _chk("s2d-paper-bg-auto");
+    const legendBgAutoC   = _chk("s2d-legend-bg-auto");
+    const plotBorderW     = _num("s2d-plot-border-width");
+    const legendBorderW   = _num("s2d-legend-border-width");
     s2d = {
-      title:            _str("s2d-title"),
-      legendPosition:   _str("s2d-legend-pos"),
-      legendFontSize:   _num("s2d-legend-font"),
-      fontSize:         _num("s2d-font-size"),
-      tickFontSize:     _num("s2d-tick-font"),
-      titleFontSize:    _num("s2d-title-font"),
-      fontColor:        fontAuto     ? null : _str("s2d-font-color"),
-      markerSize:       _num("s2d-marker-size"),
-      markerColor:      _str("s2d-marker-color"),
-      edgeWidth:        _num("s2d-edge-width"),
-      edgeColor:        _str("s2d-edge-color"),
-      includedOpacity:  parseFloat(_str("s2d-inc-opacity")),
-      excludedOpacity:  parseFloat(_str("s2d-exc-opacity")),
-      height:           _num("s2d-height"),
-      plotBgColor:      plotBgAutoC  ? null : _str("s2d-plot-bg"),
-      paperBgColor:     paperBgAutoC ? null : _str("s2d-paper-bg"),
-      showMajorGrid:    _chk("s2d-major-grid"),
-      majorGridColor:   _str("s2d-major-grid-color"),
-      majorGridOpacity: parseFloat(_str("s2d-major-grid-opacity")),
-      showMinorGrid:    _chk("s2d-minor-grid"),
-      minorGridColor:   _str("s2d-minor-grid-color"),
-      minorGridOpacity: parseFloat(_str("s2d-minor-grid-opacity")),
+      title:              _str("s2d-title"),
+      titlePosition:      _str("s2d-title-pos"),
+      plotTitleFontSize:  _num("s2d-plot-title-font"),
+      axisTitleFontSize:  _num("s2d-axis-title-font"),
+      legendPosition:     _str("s2d-legend-pos"),
+      legendFontSize:     _num("s2d-legend-font"),
+      legendBgColor:      legendBgAutoC   ? null : _str("s2d-legend-bg"),
+      legendBorderWidth:  legendBorderW,
+      legendBorderColor:  _str("s2d-legend-border-color"),
+      fontSize:           _num("s2d-font-size"),
+      tickFontSize:       _num("s2d-tick-font"),
+      fontColor:          fontAuto        ? null : _str("s2d-font-color"),
+      markerSize:         _num("s2d-marker-size"),
+      markerColor:        _str("s2d-marker-color"),
+      edgeWidth:          _num("s2d-edge-width"),
+      edgeColor:          _str("s2d-edge-color"),
+      includedOpacity:    parseFloat(_str("s2d-inc-opacity")),
+      excludedOpacity:    parseFloat(_str("s2d-exc-opacity")),
+      height:             _num("s2d-height"),
+      plotBgColor:        plotBgAutoC     ? null : _str("s2d-plot-bg"),
+      paperBgColor:       paperBgAutoC    ? null : _str("s2d-paper-bg"),
+      plotBorderWidth:    plotBorderW,
+      plotBorderColor:    _str("s2d-plot-border-color"),
+      showMajorGrid:      _chk("s2d-major-grid"),
+      majorGridColor:     _str("s2d-major-grid-color"),
+      majorGridOpacity:   parseFloat(_str("s2d-major-grid-opacity")),
+      showMinorGrid:      _chk("s2d-minor-grid"),
+      minorGridColor:     _str("s2d-minor-grid-color"),
+      minorGridOpacity:   parseFloat(_str("s2d-minor-grid-opacity")),
     };
     _saveScatter2DSettings(s2d);
     _draw();
@@ -1376,9 +1468,10 @@ function _buildScatter2DSection(containerEl, rows, columns) {
       _applySettings();
     });
   }
-  _wireAutoToggle("s2d-font-color-auto", "s2d-font-color");
-  _wireAutoToggle("s2d-plot-bg-auto",    "s2d-plot-bg");
-  _wireAutoToggle("s2d-paper-bg-auto",   "s2d-paper-bg");
+  _wireAutoToggle("s2d-font-color-auto",  "s2d-font-color");
+  _wireAutoToggle("s2d-plot-bg-auto",     "s2d-plot-bg");
+  _wireAutoToggle("s2d-paper-bg-auto",    "s2d-paper-bg");
+  _wireAutoToggle("s2d-legend-bg-auto",   "s2d-legend-bg");
 
   function _wireGridToggle(chkId, colorId, opacityId) {
     const chk = _getEl(chkId), color = _getEl(colorId), op = _getEl(opacityId);
@@ -1392,17 +1485,24 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   _wireGridToggle("s2d-major-grid", "s2d-major-grid-color", "s2d-major-grid-opacity");
   _wireGridToggle("s2d-minor-grid", "s2d-minor-grid-color", "s2d-minor-grid-opacity");
 
-  _getEl("s2d-edge-width").addEventListener("change", () => {
-    const w    = parseFloat(_getEl("s2d-edge-width").value);
-    const eCol = _getEl("s2d-edge-color");
-    eCol.disabled = w === 0; eCol.style.opacity = w === 0 ? "0.4" : "1";
-    _applySettings();
-  });
+  // Width → enable/disable linked color picker
+  function _wireWidthColor(widthId, colorId) {
+    _getEl(widthId).addEventListener("change", () => {
+      const w = parseFloat(_getEl(widthId).value);
+      const c = _getEl(colorId);
+      c.disabled = w === 0; c.style.opacity = w === 0 ? "0.4" : "1";
+      _applySettings();
+    });
+  }
+  _wireWidthColor("s2d-edge-width",         "s2d-edge-color");
+  _wireWidthColor("s2d-plot-border-width",   "s2d-plot-border-color");
+  _wireWidthColor("s2d-legend-border-width", "s2d-legend-border-color");
 
-  ["s2d-title","s2d-legend-pos","s2d-legend-font",
-   "s2d-font-size","s2d-tick-font","s2d-title-font","s2d-font-color",
+  ["s2d-title","s2d-title-pos","s2d-plot-title-font","s2d-axis-title-font",
+   "s2d-legend-pos","s2d-legend-font","s2d-legend-bg","s2d-legend-border-color",
+   "s2d-font-size","s2d-tick-font","s2d-font-color",
    "s2d-marker-size","s2d-marker-color","s2d-edge-color",
-   "s2d-height","s2d-plot-bg","s2d-paper-bg",
+   "s2d-height","s2d-plot-bg","s2d-paper-bg","s2d-plot-border-color",
    "s2d-major-grid-color","s2d-minor-grid-color"].forEach(id => {
     const el2 = _getEl(id);
     if (el2) el2.addEventListener("change", _applySettings);

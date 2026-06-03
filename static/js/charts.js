@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.3
+// Version: 2.5.4
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -491,18 +491,20 @@ export function renderOutputFigure(containerEl, yTrue, yPred, colName, badgeCls 
 export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
   const isDark      = document.documentElement.getAttribute("data-theme") === "dark";
   const fontClr     = isDark ? "#8b94b3" : "#4b5478";
-  const fontSize    = options.fontSize       ?? 11;
-  const fontColor   = options.fontColor      ?? fontClr;
-  const colorscale  = options.colorscale     ?? "Viridis";
-  const showAnnot   = options.showAnnotations ?? (columns.length <= 7);
-  const height      = options.height         ?? Math.max(320, columns.length * 48 + 100);
+  const fontSize    = options.fontSize          ?? 12;
+  const fontColor   = options.fontColor         ?? fontClr;
+  const colorscale  = options.colorscale        ?? "Viridis";
+  const showAnnot   = options.showAnnotations   ?? true;
+  const height      = options.height            ?? Math.max(320, columns.length * 48 + 100);
 
-  // Scale annotation font down gracefully for many columns (min 7px)
-  const annotFontSize = Math.max(7, fontSize - Math.max(0, columns.length - 5));
+  // Separate font size controls — each falls back to a sensible computed default.
+  const _autoCell     = Math.max(7, fontSize - Math.max(0, columns.length - 5));
+  const _autoLabel    = Math.max(8, fontSize - 1);
+  const cellFontSize     = options.cellFontSize     ?? _autoCell;
+  const labelFontSize    = options.labelFontSize    ?? _autoLabel;
+  const colorbarFontSize = options.colorbarFontSize ?? _autoLabel;
 
-  // Per-colorscale annotation text: white on dark cells, dark on light cells.
-  // Blues/RdPu are light at low end → need dark text for low values.
-  // Viridis/Thermal are dark at low end → need white text for low values.
+  // Per-colorscale annotation text colour.
   const lightAtLow = colorscale === "Blues" || colorscale === "RdPu";
   const _annotColor = (val) =>
     lightAtLow ? (val > 0.5 ? "#ffffff" : fontColor)
@@ -524,7 +526,7 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
     colorbar: {
       thickness: 14,
       len:       0.8,
-      tickfont:  { size: Math.max(8, fontSize - 1), color: fontColor },
+      tickfont:  { size: colorbarFontSize, color: fontColor },
     },
   };
 
@@ -535,7 +537,7 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
           y:         columns[ri],
           text:      val,
           showarrow: false,
-          font:      { size: annotFontSize, color: _annotColor(parseFloat(val)) },
+          font:      { size: cellFontSize, color: _annotColor(parseFloat(val)) },
         }))
       )
     : [];
@@ -546,8 +548,8 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
     height,
     margin:      { t: 20, b: 100, l: 100, r: 70 },
     font:        { color: fontColor, family: "Inter, system-ui, sans-serif", size: fontSize },
-    xaxis:       { tickangle: -40, tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
-    yaxis:       { tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
+    xaxis:       { tickangle: -40, tickfont: { size: labelFontSize }, automargin: true },
+    yaxis:       { tickfont: { size: labelFontSize }, automargin: true },
     annotations,
   };
 
@@ -1535,32 +1537,45 @@ const _S2D_LEGEND_POS = {
   "top center":   { x: 0.5, y: 1.08, xanchor: "center", yanchor: "bottom" },
 };
 
+const _S2D_TITLE_POS = {
+  left:   { x: 0.04, xanchor: "left"   },
+  center: { x: 0.5,  xanchor: "center" },
+  right:  { x: 0.96, xanchor: "right"  },
+};
+
 export function renderDataScatter2D(containerEl, rows, opts = {}) {
   const {
     xCol, yCol,
-    filterRanges     = {},
-    title            = "",
-    legendPosition   = "top right",
-    legendFontSize   = 10,
-    fontSize         = 11,
-    tickFontSize     = 9,
-    titleFontSize    = 12,
-    fontColor        = null,
-    markerSize       = 7,
-    markerColor      = "#3b5dd9",
-    edgeColor        = "#000000",
-    edgeWidth        = 0,
-    includedOpacity  = 0.75,
-    excludedOpacity  = 0.12,
-    height           = 380,
-    plotBgColor      = null,
-    paperBgColor     = null,
-    showMajorGrid    = true,
-    majorGridColor   = "#cccccc",
-    majorGridOpacity = 1.0,
-    showMinorGrid    = false,
-    minorGridColor   = "#e0e0e0",
-    minorGridOpacity = 0.6,
+    filterRanges      = {},
+    title             = "",
+    titlePosition     = "left",
+    plotTitleFontSize = 14,
+    axisTitleFontSize = 12,
+    legendPosition    = "top right",
+    legendFontSize    = 10,
+    legendBgColor     = null,
+    legendBorderColor = "#cccccc",
+    legendBorderWidth = 0,
+    fontSize          = 11,
+    tickFontSize      = 9,
+    fontColor         = null,
+    markerSize        = 7,
+    markerColor       = "#3b5dd9",
+    edgeColor         = "#000000",
+    edgeWidth         = 0,
+    includedOpacity   = 0.75,
+    excludedOpacity   = 0.12,
+    height            = 380,
+    plotBgColor       = null,
+    paperBgColor      = null,
+    plotBorderWidth   = 0,
+    plotBorderColor   = "#cccccc",
+    showMajorGrid     = true,
+    majorGridColor    = "#cccccc",
+    majorGridOpacity  = 1.0,
+    showMinorGrid     = false,
+    minorGridColor    = "#e0e0e0",
+    minorGridOpacity  = 0.6,
   } = opts;
 
   const isDark   = document.documentElement.getAttribute("data-theme") === "dark";
@@ -1571,6 +1586,7 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
   const minGridC = showMinorGrid ? _hexToRgba(minorGridColor, minorGridOpacity) : "rgba(0,0,0,0)";
   const markerLn = edgeWidth > 0 ? { width: edgeWidth, color: edgeColor } : { width: 0 };
   const hideLegend = legendPosition === "hidden";
+  const hasBorder  = plotBorderWidth > 0;
 
   const included = rows.filter(row =>
     Object.entries(filterRanges).every(([col, [lo, hi]]) =>
@@ -1604,25 +1620,37 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     hovertemplate: `${xCol}: %{x}<br>${yCol}: %{y}<extra></extra>`,
   });
 
+  const borderAttrs = hasBorder
+    ? { showline: true, linecolor: plotBorderColor, linewidth: plotBorderWidth, mirror: true }
+    : {};
   const axisBase = {
     showgrid: showMajorGrid, gridcolor: gridClr, automargin: true,
     tickfont: { size: tickFontSize },
+    ...borderAttrs,
     ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: minGridC } } : {}),
   };
 
-  const legendPos = _S2D_LEGEND_POS[legendPosition] ?? _S2D_LEGEND_POS["top right"];
-  const topMargin = title ? 44 : 32;
+  const legendPos  = _S2D_LEGEND_POS[legendPosition] ?? _S2D_LEGEND_POS["top right"];
+  const titlePos   = _S2D_TITLE_POS[titlePosition]   ?? _S2D_TITLE_POS.left;
+  const topMargin  = title ? 48 : 32;
+  const legendBg   = legendBgColor !== null ? legendBgColor : "rgba(0,0,0,0)";
 
   // eslint-disable-next-line no-undef
   Plotly.react(containerEl, traces, {
     paper_bgcolor: paperBg, plot_bgcolor: plotBg,
     height, margin: { t: topMargin, b: 52, l: 60, r: 24 },
     font: { color: fontClr, family: "Inter, system-ui, sans-serif", size: fontSize },
-    ...(title ? { title: { text: title, font: { size: titleFontSize }, x: 0.04 } } : {}),
-    xaxis: { ...axisBase, title: { text: xCol, font: { size: titleFontSize } } },
-    yaxis: { ...axisBase, title: { text: yCol, font: { size: titleFontSize } } },
+    ...(title ? { title: { text: title, font: { size: plotTitleFontSize }, ...titlePos } } : {}),
+    xaxis: { ...axisBase, title: { text: xCol, font: { size: axisTitleFontSize } } },
+    yaxis: { ...axisBase, title: { text: yCol, font: { size: axisTitleFontSize } } },
     showlegend: showLegend,
-    legend: showLegend ? { ...legendPos, font: { size: legendFontSize } } : undefined,
+    legend: showLegend ? {
+      ...legendPos,
+      font: { size: legendFontSize },
+      bgcolor: legendBg,
+      bordercolor: legendBorderWidth > 0 ? legendBorderColor : "rgba(0,0,0,0)",
+      borderwidth: legendBorderWidth,
+    } : undefined,
   }, {
     responsive: true, displayModeBar: true, displaylogo: false,
     modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
