@@ -9,7 +9,7 @@ PURPOSE: Bridge correction multi-fidelity model.  Trains a LF surrogate on
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-19
 LAST MODIFIED: 2026-05-19
-VERSION: 1.0.0
+VERSION: 1.0.1
 ================================================================================
 """
 
@@ -131,6 +131,16 @@ class BridgeCorrectionModel(BaseSurrogateModel):
         if correction.ndim == 1:
             correction = correction.reshape(-1, 1)
         return lf_pred + correction
+
+    def predict_std(self, X: np.ndarray) -> np.ndarray:
+        """Return zero uncertainty — bridge correction does not produce calibrated std estimates.
+
+        Returns an array of the correct shape so callers can treat all multi-fidelity
+        models uniformly without an AttributeError.
+        """
+        self._check_fitted()
+        X = np.asarray(X, dtype=float)
+        return np.zeros((X.shape[0], self._n_outputs))
 
     def get_param_grid(self) -> dict:
         return {}
