@@ -8,8 +8,8 @@ PURPOSE: Blueprint for /api/learning/* — serves static learning content from
          in STATE.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-19
-LAST MODIFIED: 2026-05-29
-VERSION: 3.2.0
+LAST MODIFIED: 2026-06-02
+VERSION: 3.3.0
 ================================================================================
 """
 
@@ -23,6 +23,7 @@ import numpy as np
 from flask import Blueprint, current_app, jsonify, request
 from werkzeug.utils import secure_filename
 
+from app.api.data_api import _detect_error_columns
 from app.data.ingestion import ingest_csv
 from app.state.schema import append_audit_event
 from config.settings import DEFAULT_CV_FOLDS, DEFAULT_TEST_SPLIT
@@ -236,6 +237,8 @@ def start_exercise(exercise_id: str):
         if meta["null_counts"][col] > 0
     }
 
+    error_columns = _detect_error_columns(df)
+
     ds_meta = {
         "filename":            meta["filename"],
         "upload_timestamp":    meta["upload_timestamp"],
@@ -247,6 +250,7 @@ def start_exercise(exercise_id: str):
         "coercion_warnings":   meta["coercion_warnings"],
         "missing_data_report": missing_data_report,
         "data_type":           None,
+        "error_columns":       error_columns,
         "preview_rows":        _numpy_to_python(df.head(10).where(df.head(10).notna(), other=None).to_dict(orient="records")),
         "summary_stats":       _build_summary_stats(df),
     }
@@ -372,6 +376,7 @@ def start_exercise(exercise_id: str):
             "input_columns":        [],
             "output_columns":       [],
             "normalization_method": None,
+            "error_columns":        error_columns,
         },
         "preview": {
             "columns":    meta["columns"],
