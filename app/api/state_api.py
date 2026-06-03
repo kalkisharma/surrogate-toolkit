@@ -17,7 +17,7 @@ VERSION: 1.3.0
 from flask import Blueprint, jsonify, send_file
 
 from app.state.schema import append_audit_event, get_state_json_safe, reset_state
-from config.settings import DEFAULT_CV_FOLDS, DEFAULT_TEST_SPLIT
+from config.settings import DEFAULT_CV_FOLDS, DEFAULT_TEST_SPLIT, SUPPORTED_CLASSIFICATIONS
 
 bp = Blueprint("state", __name__)
 
@@ -67,16 +67,23 @@ def update_session():
 
     Returns:
         JSON: {"success": True, "session": <updated session dict>}
-
-    Future:
-        Validate experience_level against SUPPORTED_EXPERIENCE_LEVELS.
-        Validate classification against SUPPORTED_CLASSIFICATIONS.
     """
     from flask import current_app, request
 
     state = current_app.config["STATE"]
     session = state["session"]
     data = request.get_json(silent=True) or {}
+
+    if "classification" in data and data["classification"] not in SUPPORTED_CLASSIFICATIONS:
+        return (
+            jsonify({
+                "success":    False,
+                "error_code": "INVALID_CLASSIFICATION",
+                "message":    f"Invalid classification '{data['classification']}'. "
+                              f"Must be one of: {', '.join(SUPPORTED_CLASSIFICATIONS)}.",
+            }),
+            400,
+        )
 
     allowed_fields = {
         "data_type",
