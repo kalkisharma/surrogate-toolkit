@@ -297,6 +297,10 @@ def upload():
     primary["raw"]   = ds_entry["raw"]
     primary["clean"] = ds_entry["clean"]
     primary["metadata"].update(ds_meta)
+    # n_rows_clean is only updated by _apply_clean(); initialise it here so
+    # sessions that skip cleaning always have a non-None row count.
+    if primary["metadata"].get("n_rows_clean") is None:
+        primary["metadata"]["n_rows_clean"] = primary["metadata"].get("n_rows_original")
 
     # New uploads always start with no trained model
     surrogate = state["surrogate_sessions"]["primary"]
@@ -985,6 +989,7 @@ def _apply_clean(state, active_key, ds, result_df, save_prev=True):
     ds["clean"]  = result_df
     state["datasets"]["primary"]["clean"] = result_df
     ds["metadata"]["n_rows_clean"]  = len(result_df)
+    state["datasets"]["primary"]["metadata"]["n_rows_clean"] = len(result_df)
     ds["metadata"]["summary_stats"] = None   # invalidate stats cache
     ds["metadata"]["dcor_matrix"]   = None   # invalidate dCor cache
 
@@ -1212,6 +1217,7 @@ def undo_clean():
     ds["clean"] = prev_df
     state["datasets"]["primary"]["clean"] = prev_df
     ds["metadata"]["n_rows_clean"]  = len(prev_df)
+    state["datasets"]["primary"]["metadata"]["n_rows_clean"] = len(prev_df)
     ds["metadata"]["summary_stats"] = None
 
     append_audit_event(state, "cleaning_undo", {
