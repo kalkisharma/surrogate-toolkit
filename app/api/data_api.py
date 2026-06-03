@@ -283,12 +283,24 @@ def upload():
             f"LRU eviction (memory cap): removed '{evicted_name}'"
         )
 
-    # ── Save current surrogate session before switching active dataset ────────
+    # ── Save full surrogate session before switching active dataset ───────────
+    # Saves models, config, pca, and workflow metadata so switching back to a
+    # previously-worked dataset restores all steps (designation, normalization, PCA).
     prev_key = state["datasets"].get("active_dataset_key")
     if prev_key and prev_key in _datasets and prev_key != safe_name:
+        prev_primary_meta = state["datasets"]["primary"]["metadata"]
         _datasets[prev_key]["surrogate_session"] = {
             "models": state["surrogate_sessions"]["primary"]["models"],
             "config": {**state["surrogate_sessions"]["primary"]["config"]},
+            "pca":    state["surrogate_sessions"]["primary"].get("pca"),
+            "workflow_meta": {
+                "input_columns":        prev_primary_meta.get("input_columns", []),
+                "output_columns":       prev_primary_meta.get("output_columns", []),
+                "normalization_method": prev_primary_meta.get("normalization_method"),
+                "normalization_applied":prev_primary_meta.get("normalization_applied", False),
+                "pca_applied":          prev_primary_meta.get("pca_applied", False),
+                "n_rows_clean":         prev_primary_meta.get("n_rows_clean"),
+            },
         }
 
     # ── Mirror active dataset to primary ─────────────────────────────────────
@@ -297,19 +309,37 @@ def upload():
     primary["raw"]   = ds_entry["raw"]
     primary["clean"] = ds_entry["clean"]
     primary["metadata"].update(ds_meta)
-    # n_rows_clean is only updated by _apply_clean(); initialise it here so
-    # sessions that skip cleaning always have a non-None row count.
-    if primary["metadata"].get("n_rows_clean") is None:
-        primary["metadata"]["n_rows_clean"] = primary["metadata"].get("n_rows_original")
 
-    # New uploads always start with no trained model
+    # Restore saved workflow state if this dataset was worked on before;
+    # otherwise reset all workflow fields so stale state from the previous
+    # dataset never contaminates this one.
     surrogate = state["surrogate_sessions"]["primary"]
-    surrogate["models"] = {}
-    surrogate["config"]  = {
-        "model_type": None,
-        "test_split":  DEFAULT_TEST_SPLIT,
-        "cv_folds":    DEFAULT_CV_FOLDS,
-    }
+    saved_session = ds_entry.get("surrogate_session")
+    if saved_session:
+        surrogate["models"] = saved_session.get("models", {})
+        surrogate["config"] = saved_session.get("config", {
+            "model_type": None, "test_split": DEFAULT_TEST_SPLIT, "cv_folds": DEFAULT_CV_FOLDS,
+        })
+        surrogate["pca"] = saved_session.get("pca")
+        wm = saved_session.get("workflow_meta", {})
+        primary["metadata"].update(wm)
+    else:
+        surrogate["models"] = {}
+        surrogate["config"] = {
+            "model_type": None,
+            "test_split":  DEFAULT_TEST_SPLIT,
+            "cv_folds":    DEFAULT_CV_FOLDS,
+        }
+        surrogate["pca"] = None
+        primary["metadata"]["input_columns"]        = []
+        primary["metadata"]["output_columns"]       = []
+        primary["metadata"]["normalization_method"] = None
+        primary["metadata"]["normalization_applied"]= False
+        primary["metadata"]["pca_applied"]          = False
+
+    # n_rows_clean must always be set — use original row count as floor.
+    if not primary["metadata"].get("n_rows_clean"):
+        primary["metadata"]["n_rows_clean"] = primary["metadata"].get("n_rows_original")
 
     append_audit_event(state, "upload", {
         "filename": safe_name,
