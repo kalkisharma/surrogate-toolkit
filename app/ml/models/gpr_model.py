@@ -5,8 +5,8 @@ MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-02
-VERSION: 1.5.2
+LAST MODIFIED: 2026-06-03
+VERSION: 1.5.3
 ================================================================================
 """
 
@@ -105,7 +105,13 @@ class GPRModel(BaseSurrogateModel):
             n_restarts_optimizer=self._n_restarts,
             random_state=DEFAULT_RANDOM_STATE,
         )
-        self._model = MultiOutputRegressor(single_gpr, n_jobs=self._n_jobs)
+        # MultiOutputRegressor parallelises across outputs only — cap n_jobs to
+        # n_outputs so we never spawn more loky workers than there are tasks.
+        # With 1 output and n_jobs=16, joblib would otherwise spawn 16 processes
+        # for a single task, paying 10–15 s of process-spawn overhead on Windows.
+        n_outputs = y.shape[1]
+        effective_mor_jobs = min(self._n_jobs, n_outputs)
+        self._model = MultiOutputRegressor(single_gpr, n_jobs=effective_mor_jobs)
 
         self._model.fit(X, y)
         self._noise_active = noise_array is not None
