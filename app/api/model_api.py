@@ -635,9 +635,13 @@ def train():
 
     # ── PCA metadata (for predict panel reverse mapping) ─────────────────────
     _pca_state = state["surrogate_sessions"]["primary"].get("pca")
-    _pca_applied = bool(meta.get("pca_applied", False)) and _pca_state is not None
+    _orig_df   = _clean if _clean is not None else df
+    _pca_applied = (
+        bool(meta.get("pca_applied", False))
+        and _pca_state is not None
+        and all(col in _orig_df.columns for col in (_pca_state.get("original_inputs") or []))
+    )
     _orig_inputs = _pca_state["original_inputs"] if _pca_applied else None
-    _orig_df     = _clean if _clean is not None else df
 
     # ── Persist to STATE ──────────────────────────────────────────────────────
     results = {
