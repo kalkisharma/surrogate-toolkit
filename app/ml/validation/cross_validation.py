@@ -27,11 +27,16 @@ from config.settings import DEFAULT_RANDOM_STATE
 def _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns,
               n_jobs_per_fold=1, n_blas_per_fold=None):
     """Train one CV fold and return predictions on the validation slice."""
-    from threadpoolctl import threadpool_limits
     fold_model = copy.deepcopy(model)
     fold_model.set_n_jobs(n_jobs_per_fold)
     if n_blas_per_fold is not None:
-        with threadpool_limits(limits=n_blas_per_fold):
+        try:
+            from threadpoolctl import threadpool_limits
+            with threadpool_limits(limits=n_blas_per_fold):
+                fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
+        except Exception:
+            # threadpoolctl can fail on certain Anaconda/Windows DLL combinations;
+            # fall through to an uncapped fit rather than crashing the training run.
             fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
     else:
         fold_model.fit(X[train_idx], y[train_idx], input_columns, output_columns)
