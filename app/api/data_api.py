@@ -1474,11 +1474,11 @@ def clean_transform():
 @bp.route("/screen", methods=["POST"])
 def screen_inputs():
     """
-    Compute Pearson |r| matrix, VIF, flagged pairs, low-variance flags, and
+    Compute distance correlation matrix, VIF, flagged pairs, low-variance flags, and
     (if available) Sobol ST rankings for all designated input columns.
 
     Body JSON (optional):
-        threshold    (float, default 0.9)  — |r| threshold for correlated-pair flag
+        threshold    (float, default 0.9)  — dCor threshold for correlated-pair flag
         cv_threshold (float, default 0.01) — CV threshold for low-variance flag
     """
     data         = request.get_json(silent=True) or {}
