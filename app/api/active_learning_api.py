@@ -237,7 +237,7 @@ def _get_training_data(state):
         return None, None, {
             "success": False,
             "error_code": "NO_TRAINED_MODEL",
-            "message": "No trained model. Complete Step 7 — Configure Training first.",
+            "message": "No trained model. Complete Step 8 — Model first.",
         }
 
     input_cols = results["input_columns"]

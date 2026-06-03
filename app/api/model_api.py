@@ -272,7 +272,7 @@ def tune():
             jsonify({
                 "success": False, "error_code": "CONFIG_REQUIRED",
                 "message": "Training configuration has not been saved. "
-                           "Complete Step 7 — Configure Training first.",
+                           "Complete Step 8 — Model first.",
                 "detail": "", "recoverable": True, "allowed_actions": ["configure"],
             }),
             422,
@@ -510,7 +510,7 @@ def train():
             jsonify({
                 "success": False, "error_code": "CONFIG_REQUIRED",
                 "message": "Training configuration has not been saved. "
-                           "Complete Step 6 — Configure Training first.",
+                           "Complete Step 8 — Model first.",
                 "detail": "", "recoverable": True, "allowed_actions": ["configure"],
             }),
             422,
