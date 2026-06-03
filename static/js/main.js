@@ -281,7 +281,7 @@ function _renderInlineGate(uploadSection, uploadResponse) {
 
 // ── Workflow exploration view ─────────────────────────────────────────────────
 
-/** Render the workflow panel router (sidebar + 8 lazy-init panels) into #app. */
+/** Render the workflow panel router (sidebar + 15 lazy-init panels) into #app. */
 async function _renderExploration(uploadResponse) {
   const app = getApp();
   clearEl(app);

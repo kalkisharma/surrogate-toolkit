@@ -6,7 +6,7 @@ A dual-purpose surrogate modeling tool for engineers and their teams.
 
 **Teaching tool** — junior engineers learn surrogate modeling concepts through guided workflows, contextual explanations, and a learning mode toggle.
 
-**Current version:** v3.0.0 — Milestone 3 (M3) complete.
+**Current version:** v3.5.52
 
 ---
 
@@ -34,24 +34,25 @@ Open `http://127.0.0.1:5000` in your browser.
 
 ## What it does
 
-The toolkit guides engineers through a 14-step sidebar workflow:
+The toolkit guides engineers through a 15-step sidebar workflow:
 
 | Step | Name | Description |
 |---|---|---|
 | 1 | Upload | CSV upload with full validation (size, encoding, headers, row/column counts) |
 | 2 | Preview | 10-row data preview table with null highlighting |
-| 3 | Explore | Scatter plot matrix (up to 12 columns), per-column statistics, correlation matrix |
+| 3 | Explore | Scatter plot matrix (up to 12 columns), per-column statistics, distance correlation heatmap, 2D scatter plot with per-column range filters |
 | 4 | Clean | Null imputation, outlier removal (IQR), duplicate removal, log-transform |
-| 5 | Designate | Label each column as input, output, or unused |
+| 5 | Assign | Label each column as input, output, or unused |
 | 6 | Normalize | Min-max or z-score normalization of input columns |
-| 7 | Configure | Select model type (GPR, RF, Linear), test split, CV folds, hyperparameters |
-| 8 | Results | Test metrics (R², RMSE, MAE), parity plots, residual plots, CV summary; GPR gets ±1.96σ error bars |
-| 9 | Predict | Single-point and batch prediction with extrapolation warnings |
-| 10 | Optimize | Single-objective (differential evolution) and multi-objective (NSGA-II/pymoo) optimization |
-| 11 | Interpret | Sobol global sensitivity indices, one-at-a-time response curves, GPR/RF uncertainty intervals |
-| 12 | Active | Active learning recommendations — coverage mode (uncertainty) and objective mode (expected improvement) |
-| 13 | Compare | Side-by-side comparison of two trained surrogates: metrics table, prediction scatter, bias histogram, linear error model |
-| 14 | Export | Self-contained HTML analysis report with classification watermark; ITAR/EAR acknowledgment gate; export audit log |
+| 7 | Filter | Distance correlation heatmap, VIF, low-variance flags; select input columns for training |
+| 8 | Model | Select model type (GPR, RF, Linear), test split, CV folds, hyperparameters |
+| 9 | Results | Test set: R², NRMSE (%), MAE with color badges; CV summary with fold timing; parity and residual plots; GPR ±1.96σ error bars; model config shows cores and optimizer restarts |
+| 10 | Predict | Single-point and batch prediction with extrapolation warnings |
+| 11 | Optimize | Single-objective (differential evolution) and multi-objective (NSGA-II/pymoo) optimization |
+| 12 | Interpret | Sobol global sensitivity indices, one-at-a-time response curves, GPR/RF uncertainty intervals |
+| 13 | Sample | Active learning recommendations — coverage mode (uncertainty) and objective mode (expected improvement) |
+| 14 | Compare | Side-by-side comparison of two trained surrogates: metrics table, prediction scatter, bias histogram, linear error model |
+| 15 | Export | Self-contained HTML analysis report with classification watermark; ITAR/EAR acknowledgment gate; export audit log |
 
 ---
 
