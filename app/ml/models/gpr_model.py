@@ -6,7 +6,7 @@ PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-03
-VERSION: 1.5.4
+VERSION: 1.5.5
 ================================================================================
 """
 
@@ -77,16 +77,19 @@ class GPRModel(BaseSurrogateModel):
             y = y.reshape(-1, 1)
 
         # Build ARD kernel now that n_features is known.
+        # Bounds raised to (1e-3, 1e6): default upper bound of 1e5 causes ConvergenceWarning
+        # when ARD drives irrelevant-input length scales to the boundary.
         n_features = X.shape[1]
         ls = np.ones(n_features)
+        ls_bounds = (1e-3, 1e10)
         if self._kernel_name == "matern15":
-            k = Matern(length_scale=ls, nu=1.5)
+            k = Matern(length_scale=ls, length_scale_bounds=ls_bounds, nu=1.5)
         elif self._kernel_name == "matern25":
-            k = Matern(length_scale=ls, nu=2.5)
+            k = Matern(length_scale=ls, length_scale_bounds=ls_bounds, nu=2.5)
         elif self._kernel_name == "rq":
             k = RationalQuadratic()  # isotropic — ARD causes bounds mismatch in scipy optimizer
         else:
-            k = RBF(length_scale=ls)
+            k = RBF(length_scale=ls, length_scale_bounds=ls_bounds)
 
         # sklearn's GaussianProcessRegressor does not expose n_jobs for its
         # internal optimizer restarts — each restart runs the same L-BFGS-B
@@ -131,14 +134,15 @@ class GPRModel(BaseSurrogateModel):
         GridSearchCV receives a real estimator before fit() is ever called."""
         self._n_features = n_features
         ls = np.ones(n_features)
+        ls_bounds = (1e-3, 1e10)
         if self._kernel_name == "matern15":
-            k = Matern(length_scale=ls, nu=1.5)
+            k = Matern(length_scale=ls, length_scale_bounds=ls_bounds, nu=1.5)
         elif self._kernel_name == "matern25":
-            k = Matern(length_scale=ls, nu=2.5)
+            k = Matern(length_scale=ls, length_scale_bounds=ls_bounds, nu=2.5)
         elif self._kernel_name == "rq":
             k = RationalQuadratic()  # isotropic — ARD causes bounds mismatch in scipy optimizer
         else:
-            k = RBF(length_scale=ls)
+            k = RBF(length_scale=ls, length_scale_bounds=ls_bounds)
         single_gpr = GaussianProcessRegressor(
             kernel=k,
             alpha=self._alpha,

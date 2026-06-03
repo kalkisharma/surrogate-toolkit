@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.49] — 2026-06-03
+
+### Fix: GPR ARD ConvergenceWarning — length_scale upper bound raised to 1e10
+
+#### Fixed
+
+- **`gpr_model.py`** — ARD length scale optimizer was hitting sklearn's default upper bound of `1e5`, generating `ConvergenceWarning` for every input dimension the optimizer identified as irrelevant to a given output. The warning is benign (the model still finds a good solution) but noisy and technically indicates the optimizer couldn't confirm convergence. Raised `length_scale_bounds` to `(1e-3, 1e10)` on all ARD kernels (RBF, Matern 1.5, Matern 2.5). At `1e10` no dimension hits the bound on any tested dataset, eliminating all warnings.
+
+---
+
 ## [3.5.48] — 2026-06-03
 
 ### Fix: GPR multi-output fit slow at high core counts on Windows (threading backend)
