@@ -1446,6 +1446,66 @@ body,
   margin-top: var(--space-6);
 }
 
+/* ── 2D Scatter Plot section ─────────────────────────────────────────────────── */
+
+.scatter2d-section {
+  margin-top: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: var(--color-bg-surface);
+}
+
+.scatter2d-section .explore-subsection-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-3);
+}
+
+.scatter2d-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.scatter2d-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.scatter2d-filter-label {
+  min-width: 100px;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scatter2d-filter-range-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scatter2d-filter-vals {
+  display: flex;
+  gap: var(--space-1);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  min-width: 110px;
+  justify-content: flex-end;
+}
+
+.scatter2d-chart {
+  margin-top: var(--space-2);
+}
+
 .dcor-content {
   margin-top: var(--space-4);
   display: flex;

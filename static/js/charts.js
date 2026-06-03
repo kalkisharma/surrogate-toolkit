@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.1
+// Version: 2.5.2
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -43,6 +43,18 @@ const _PALETTES = {
   tealAmber: {
     light: { normal: "rgba(13,148,136,0.75)",  outlier: "rgba(217,119,6,0.90)"  },
     dark:  { normal: "rgba(20,184,166,0.65)",  outlier: "rgba(245,158,11,0.85)" },
+  },
+  purpleGold: {
+    light: { normal: "rgba(124,58,237,0.75)",  outlier: "rgba(202,138,4,0.90)"  },
+    dark:  { normal: "rgba(139,92,246,0.65)",  outlier: "rgba(234,179,8,0.85)"  },
+  },
+  indigoOrange: {
+    light: { normal: "rgba(67,56,202,0.75)",   outlier: "rgba(234,88,12,0.90)"  },
+    dark:  { normal: "rgba(99,102,241,0.65)",  outlier: "rgba(251,146,60,0.85)" },
+  },
+  crimsonCyan: {
+    light: { normal: "rgba(185,28,28,0.75)",   outlier: "rgba(6,182,212,0.90)"  },
+    dark:  { normal: "rgba(239,68,68,0.65)",   outlier: "rgba(34,211,238,0.85)" },
   },
 };
 
@@ -1503,5 +1515,99 @@ export function renderContourExplorer(containerEl, result, opts = {}) {
     responsive: true, displayModeBar: true, displaylogo: false,
     modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
     toImageButtonOptions: { filename: `contour_${result.x_col}_${result.y_col}_${result.output_col}`, scale: 2 },
+  });
+}
+
+/**
+ * Render a 2D scatter plot with included/excluded point separation.
+ * Excluded points (outside any filterRanges boundary) are drawn at low opacity
+ * behind the included points — they remain visible rather than hidden.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {Object[]}    rows        - Array of row objects keyed by column name.
+ * @param {Object}      opts
+ */
+export function renderDataScatter2D(containerEl, rows, opts = {}) {
+  const {
+    xCol, yCol,
+    filterRanges     = {},
+    fontSize         = 11,
+    tickFontSize     = 9,
+    titleFontSize    = 12,
+    fontColor        = null,
+    markerSize       = 7,
+    markerColor      = "#3b5dd9",
+    edgeColor        = "#000000",
+    edgeWidth        = 0,
+    includedOpacity  = 0.75,
+    excludedOpacity  = 0.12,
+    height           = 380,
+    plotBgColor      = null,
+    paperBgColor     = null,
+    showMajorGrid    = true,
+    majorGridColor   = "#cccccc",
+    majorGridOpacity = 1.0,
+    showMinorGrid    = false,
+    minorGridColor   = "#e0e0e0",
+    minorGridOpacity = 0.6,
+  } = opts;
+
+  const isDark   = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr  = fontColor   !== null ? fontColor   : (isDark ? "#8b94b3" : "#4b5478");
+  const plotBg   = plotBgColor  !== null ? plotBgColor  : "rgba(0,0,0,0)";
+  const paperBg  = paperBgColor !== null ? paperBgColor : "rgba(0,0,0,0)";
+  const gridClr  = showMajorGrid ? _hexToRgba(majorGridColor, majorGridOpacity) : "rgba(0,0,0,0)";
+  const minGridC = showMinorGrid ? _hexToRgba(minorGridColor, minorGridOpacity) : "rgba(0,0,0,0)";
+  const markerLn = edgeWidth > 0 ? { width: edgeWidth, color: edgeColor } : { width: 0 };
+
+  const included = rows.filter(row =>
+    Object.entries(filterRanges).every(([col, [lo, hi]]) =>
+      row[col] == null || (row[col] >= lo && row[col] <= hi)
+    )
+  );
+  const excluded = rows.filter(row =>
+    Object.entries(filterRanges).some(([col, [lo, hi]]) =>
+      row[col] != null && (row[col] < lo || row[col] > hi)
+    )
+  );
+
+  const traces = [];
+  if (excluded.length) {
+    traces.push({
+      type: "scatter", mode: "markers", name: "Excluded",
+      x: excluded.map(r => r[xCol]),
+      y: excluded.map(r => r[yCol]),
+      marker: { color: markerColor, size: markerSize, opacity: excludedOpacity, line: markerLn },
+      showlegend: true,
+      hovertemplate: `${xCol}: %{x}<br>${yCol}: %{y}<extra>excluded</extra>`,
+    });
+  }
+  traces.push({
+    type: "scatter", mode: "markers", name: "Included",
+    x: included.map(r => r[xCol]),
+    y: included.map(r => r[yCol]),
+    marker: { color: markerColor, size: markerSize, opacity: includedOpacity, line: markerLn },
+    showlegend: excluded.length > 0,
+    hovertemplate: `${xCol}: %{x}<br>${yCol}: %{y}<extra></extra>`,
+  });
+
+  const axisBase = {
+    showgrid: showMajorGrid, gridcolor: gridClr, automargin: true,
+    tickfont: { size: tickFontSize },
+    ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: minGridC } } : {}),
+  };
+
+  // eslint-disable-next-line no-undef
+  Plotly.react(containerEl, traces, {
+    paper_bgcolor: paperBg, plot_bgcolor: plotBg,
+    height, margin: { t: 32, b: 52, l: 60, r: 24 },
+    font: { color: fontClr, family: "Inter, system-ui, sans-serif", size: fontSize },
+    xaxis: { ...axisBase, title: { text: xCol, font: { size: titleFontSize } } },
+    yaxis: { ...axisBase, title: { text: yCol, font: { size: titleFontSize } } },
+    legend: { font: { size: fontSize } },
+  }, {
+    responsive: true, displayModeBar: true, displaylogo: false,
+    modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
+    toImageButtonOptions: { filename: `scatter2d_${xCol}_vs_${yCol}`, scale: 2 },
   });
 }

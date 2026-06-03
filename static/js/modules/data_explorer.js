@@ -2,12 +2,12 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.1.2
+// Version: 1.2.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
 
-import { renderScatterMatrix, renderDCorHeatmap } from "../charts.js";
+import { renderScatterMatrix, renderDCorHeatmap, renderDataScatter2D } from "../charts.js";
 import { registerPrimer, registerTooltip } from "../learning_mode.js";
 import { mean, stdDev, median, skewness, detectOutliers, el, formatNum, clearEl } from "../utils.js";
 import { get } from "../api.js";
@@ -246,6 +246,9 @@ export async function initExploration(containerEl, uploadResponse) {
   // ── Distance Correlation heatmap (lazy — fetched on first expand) ─────────
   containerEl.appendChild(_buildDCorSection());
 
+  // ── 2D Scatter Plot ───────────────────────────────────────────────────────
+  _buildScatter2DSection(containerEl, plotRows, columns);
+
   // ── Initial render ────────────────────────────────────────────────────────
   // Set height synchronously so the stats section below is positioned correctly.
   // Defer one frame so the browser commits layout before Plotly reads clientHeight.
@@ -337,6 +340,9 @@ function _renderSettingsPanel(currentMarkerSize, currentHeight) {
           <option value="blueRed"     ${s.palette === "blueRed"     ? "selected" : ""}>Blue / Red</option>
           <option value="greenOrange" ${s.palette === "greenOrange" ? "selected" : ""}>Green / Orange</option>
           <option value="tealAmber"   ${s.palette === "tealAmber"   ? "selected" : ""}>Teal / Amber</option>
+          <option value="purpleGold"  ${s.palette === "purpleGold"  ? "selected" : ""}>Purple / Gold</option>
+          <option value="indigoOrange" ${s.palette === "indigoOrange" ? "selected" : ""}>Indigo / Orange</option>
+          <option value="crimsonCyan" ${s.palette === "crimsonCyan" ? "selected" : ""}>Crimson / Cyan</option>
         </select>
       </div>
       <div class="chart-settings-group">
@@ -764,7 +770,7 @@ function _buildDCorSection() {
   let _dcorFontColor  = null;    // null = auto (inherit _chartSettings.fontColor)
   let _dcorAnnot      = null;    // null = auto (true when ≤ 7 cols selected)
   let _dcorScale      = "Viridis";
-  let _dcorHeight     = null;    // null = auto from column count
+  let _dcorHeight     = 500;     // 500 px default; user can override via height input
   let _plotEl         = null;
 
   function _rerender() {
@@ -985,6 +991,381 @@ function _buildDCorSection() {
   })();
 
   return card;
+}
+
+// ── 2D Scatter Plot section ───────────────────────────────────────────────────
+
+const _SCATTER2D_KEY = "surrogate_data_scatter2d_settings";
+const _SCATTER2D_DEFAULTS = {
+  fontSize: 11, tickFontSize: 9, titleFontSize: 12, fontColor: null,
+  markerSize: 7, markerColor: "#3b5dd9",
+  edgeColor: "#000000", edgeWidth: 0,
+  includedOpacity: 0.75, excludedOpacity: 0.12,
+  height: 380,
+  plotBgColor: null, paperBgColor: null,
+  showMajorGrid: true, majorGridColor: "#cccccc", majorGridOpacity: 1.0,
+  showMinorGrid: false, minorGridColor: "#e0e0e0", minorGridOpacity: 0.6,
+};
+
+function _loadScatter2DSettings() {
+  try {
+    const raw = localStorage.getItem(_SCATTER2D_KEY);
+    if (raw) return { ..._SCATTER2D_DEFAULTS, ...JSON.parse(raw) };
+  } catch (_) { /* ignore */ }
+  return { ..._SCATTER2D_DEFAULTS };
+}
+
+function _saveScatter2DSettings(s) {
+  try { localStorage.setItem(_SCATTER2D_KEY, JSON.stringify(s)); } catch (_) { /* ignore */ }
+}
+
+function _buildScatter2DSection(containerEl, rows, columns) {
+  if (!columns || columns.length < 2 || !rows || !rows.length) return;
+
+  let s2d = _loadScatter2DSettings();
+
+  // Compute min/max for each column
+  const colMins = {}, colMaxs = {};
+  for (const col of columns) {
+    const vals = rows.map(r => r[col]).filter(v => v != null && isFinite(+v)).map(Number);
+    if (vals.length) {
+      colMins[col] = Math.min(...vals);
+      colMaxs[col] = Math.max(...vals);
+    }
+  }
+  const numericCols = columns.filter(c => colMins[c] !== undefined);
+  if (numericCols.length < 2) return;
+
+  const filterRanges = {};
+
+  // ── Section card ─────────────────────────────────────────────────────────
+  const section = el("div", { cls: "scatter2d-section" });
+  section.innerHTML = `<h3 class="explore-subsection-title">2D Scatter Plot</h3>`;
+  containerEl.appendChild(section);
+
+  // ── Settings panel ───────────────────────────────────────────────────────
+  const settingsPanel = document.createElement("details");
+  settingsPanel.className = "chart-settings-panel";
+
+  const fontColorAuto    = s2d.fontColor   === null;
+  const fontColorVal     = s2d.fontColor   || "#4b5478";
+  const plotBgAuto       = s2d.plotBgColor  === null;
+  const plotBgVal        = s2d.plotBgColor  || "#ffffff";
+  const paperBgAuto      = s2d.paperBgColor === null;
+  const paperBgVal       = s2d.paperBgColor || "#f5f6fa";
+  const edgeColorDisabled = s2d.edgeWidth === 0 ? "disabled" : "";
+  const edgeColorOpacity  = s2d.edgeWidth === 0 ? "0.4" : "1";
+
+  settingsPanel.innerHTML = `
+    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <div class="chart-settings-controls">
+
+      <div class="settings-divider">Typography</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-font-size">Label font (px)</label>
+        <input id="s2d-font-size" type="number" class="chart-settings-input" min="8" max="18" step="1" value="${s2d.fontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-tick-font">Tick font (px)</label>
+        <input id="s2d-tick-font" type="number" class="chart-settings-input" min="6" max="14" step="1" value="${s2d.tickFontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-title-font">Title font (px)</label>
+        <input id="s2d-title-font" type="number" class="chart-settings-input" min="8" max="18" step="1" value="${s2d.titleFontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Font color</span>
+        <div class="color-with-auto">
+          <input id="s2d-font-color" type="color" class="chart-settings-color"
+                 value="${fontColorVal}" ${fontColorAuto ? "disabled" : ""} style="opacity:${fontColorAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="s2d-font-color-auto" ${fontColorAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-divider">Markers</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-marker-size">Marker size</label>
+        <input id="s2d-marker-size" type="number" class="chart-settings-input" min="3" max="18" step="1" value="${s2d.markerSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-marker-color">Marker color</label>
+        <input id="s2d-marker-color" type="color" class="chart-settings-color" value="${s2d.markerColor}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-edge-width">Edge width</label>
+        <input id="s2d-edge-width" type="number" class="chart-settings-input" min="0" max="3" step="0.5" value="${s2d.edgeWidth}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-edge-color">Edge color</label>
+        <input id="s2d-edge-color" type="color" class="chart-settings-color"
+               value="${s2d.edgeColor}" ${edgeColorDisabled} style="opacity:${edgeColorOpacity}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Included opacity</span>
+        <div class="range-with-value">
+          <input id="s2d-inc-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${s2d.includedOpacity}">
+          <span id="s2d-inc-opacity-val" class="chart-settings-range-val">${s2d.includedOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Excluded opacity</span>
+        <div class="range-with-value">
+          <input id="s2d-exc-opacity" type="range" class="chart-settings-range" min="0.02" max="0.5" step="0.02" value="${s2d.excludedOpacity}">
+          <span id="s2d-exc-opacity-val" class="chart-settings-range-val">${s2d.excludedOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <div class="settings-divider">Figure</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-height">Height (px)</label>
+        <input id="s2d-height" type="number" class="chart-settings-input" min="200" max="900" step="50" value="${s2d.height}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-plot-bg">Plot bg</label>
+        <div class="color-with-auto">
+          <input id="s2d-plot-bg" type="color" class="chart-settings-color"
+                 value="${plotBgVal}" ${plotBgAuto ? "disabled" : ""} style="opacity:${plotBgAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="s2d-plot-bg-auto" ${plotBgAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-paper-bg">Paper bg</label>
+        <div class="color-with-auto">
+          <input id="s2d-paper-bg" type="color" class="chart-settings-color"
+                 value="${paperBgVal}" ${paperBgAuto ? "disabled" : ""} style="opacity:${paperBgAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="s2d-paper-bg-auto" ${paperBgAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-divider">Gridlines</div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Major grid</span>
+        <div class="color-with-auto">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="s2d-major-grid" ${s2d.showMajorGrid ? "checked" : ""}> On
+          </label>
+          <input id="s2d-major-grid-color" type="color" class="chart-settings-color"
+                 value="${s2d.majorGridColor}" ${!s2d.showMajorGrid ? "disabled" : ""} style="opacity:${s2d.showMajorGrid ? "1" : "0.4"}">
+          <div class="range-with-value">
+            <input id="s2d-major-grid-opacity" type="range" class="chart-settings-range"
+                   min="0.1" max="1.0" step="0.05" value="${s2d.majorGridOpacity}" ${!s2d.showMajorGrid ? "disabled" : ""}>
+            <span id="s2d-major-grid-opacity-val" class="chart-settings-range-val">${s2d.majorGridOpacity.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Minor grid</span>
+        <div class="color-with-auto">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="s2d-minor-grid" ${s2d.showMinorGrid ? "checked" : ""}> On
+          </label>
+          <input id="s2d-minor-grid-color" type="color" class="chart-settings-color"
+                 value="${s2d.minorGridColor}" ${!s2d.showMinorGrid ? "disabled" : ""} style="opacity:${s2d.showMinorGrid ? "1" : "0.4"}">
+          <div class="range-with-value">
+            <input id="s2d-minor-grid-opacity" type="range" class="chart-settings-range"
+                   min="0.1" max="1.0" step="0.05" value="${s2d.minorGridOpacity}" ${!s2d.showMinorGrid ? "disabled" : ""}>
+            <span id="s2d-minor-grid-opacity-val" class="chart-settings-range-val">${s2d.minorGridOpacity.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  `;
+  section.appendChild(settingsPanel);
+
+  // ── Axis selectors ───────────────────────────────────────────────────────
+  const axisRow = el("div", { cls: "explore-controls-row" });
+  axisRow.innerHTML = `
+    <label class="explore-controls-row__label">X axis</label>
+    <select id="s2d-x-axis" class="explore-select"></select>
+    <label class="explore-controls-row__label" style="margin-left:var(--space-4)">Y axis</label>
+    <select id="s2d-y-axis" class="explore-select"></select>
+  `;
+  section.appendChild(axisRow);
+
+  const xSel = axisRow.querySelector("#s2d-x-axis");
+  const ySel = axisRow.querySelector("#s2d-y-axis");
+  numericCols.forEach((col, i) => {
+    xSel.add(new Option(col, col, i === 0, i === 0));
+    ySel.add(new Option(col, col, i === 1, i === 1));
+  });
+
+  // ── Filter panel ─────────────────────────────────────────────────────────
+  const filterWrap = el("div", { cls: "scatter2d-filters" });
+  section.appendChild(filterWrap);
+
+  function _buildFilterSliders() {
+    clearEl(filterWrap);
+    for (const col of numericCols) {
+      const lo = colMins[col], hi = colMaxs[col];
+      if (lo === hi) continue;
+      filterRanges[col] = [lo, hi];
+
+      const row = el("div", { cls: "scatter2d-filter-row" });
+      const loId = `s2d-lo-${col}`, hiId = `s2d-hi-${col}`;
+      const loValId = `s2d-lo-val-${col}`, hiValId = `s2d-hi-val-${col}`;
+      row.innerHTML = `
+        <span class="scatter2d-filter-label">${col}</span>
+        <span class="scatter2d-filter-range-wrap">
+          <input id="${loId}" type="range" class="chart-settings-range scatter2d-range-lo"
+                 min="${lo}" max="${hi}" step="${(hi - lo) / 200 || 0.001}" value="${lo}">
+          <input id="${hiId}" type="range" class="chart-settings-range scatter2d-range-hi"
+                 min="${lo}" max="${hi}" step="${(hi - lo) / 200 || 0.001}" value="${hi}">
+        </span>
+        <span class="scatter2d-filter-vals">
+          <span id="${loValId}">${formatNum(lo)}</span>
+          <span>–</span>
+          <span id="${hiValId}">${formatNum(hi)}</span>
+        </span>
+      `;
+      filterWrap.appendChild(row);
+
+      const loInput = row.querySelector(`#${loId}`);
+      const hiInput = row.querySelector(`#${hiId}`);
+      const loValEl = row.querySelector(`#${loValId}`);
+      const hiValEl = row.querySelector(`#${hiValId}`);
+
+      loInput.addEventListener("input", () => {
+        const lv = parseFloat(loInput.value);
+        const hv = parseFloat(hiInput.value);
+        if (lv > hv) { loInput.value = hv; return; }
+        filterRanges[col][0] = lv;
+        loValEl.textContent = formatNum(lv);
+        _draw();
+      });
+      hiInput.addEventListener("input", () => {
+        const lv = parseFloat(loInput.value);
+        const hv = parseFloat(hiInput.value);
+        if (hv < lv) { hiInput.value = lv; return; }
+        filterRanges[col][1] = hv;
+        hiValEl.textContent = formatNum(hv);
+        _draw();
+      });
+    }
+  }
+  _buildFilterSliders();
+
+  // ── Chart container ──────────────────────────────────────────────────────
+  const chartEl = el("div", { cls: "scatter2d-chart" });
+  section.appendChild(chartEl);
+
+  function _draw() {
+    renderDataScatter2D(chartEl, rows, {
+      xCol: xSel.value, yCol: ySel.value,
+      filterRanges: { ...filterRanges },
+      ...s2d,
+    });
+  }
+
+  _draw();
+
+  // Re-render on theme toggle
+  document.addEventListener("theme:changed", _draw);
+
+  // ── Axis change ──────────────────────────────────────────────────────────
+  xSel.addEventListener("change", _draw);
+  ySel.addEventListener("change", _draw);
+
+  // ── Settings wiring ──────────────────────────────────────────────────────
+  function _getEl(id) { return settingsPanel.querySelector(`#${id}`); }
+  function _num(id)   { return parseFloat(_getEl(id).value) || 0; }
+  function _str(id)   { return _getEl(id).value; }
+  function _chk(id)   { return _getEl(id).checked; }
+
+  function _applySettings() {
+    const edgeW = _num("s2d-edge-width");
+    const fontAuto    = _chk("s2d-font-color-auto");
+    const plotBgAutoC = _chk("s2d-plot-bg-auto");
+    const paperBgAutoC= _chk("s2d-paper-bg-auto");
+    s2d = {
+      fontSize:         _num("s2d-font-size"),
+      tickFontSize:     _num("s2d-tick-font"),
+      titleFontSize:    _num("s2d-title-font"),
+      fontColor:        fontAuto    ? null : _str("s2d-font-color"),
+      markerSize:       _num("s2d-marker-size"),
+      markerColor:      _str("s2d-marker-color"),
+      edgeWidth:        edgeW,
+      edgeColor:        _str("s2d-edge-color"),
+      includedOpacity:  parseFloat(_str("s2d-inc-opacity")),
+      excludedOpacity:  parseFloat(_str("s2d-exc-opacity")),
+      height:           _num("s2d-height"),
+      plotBgColor:      plotBgAutoC  ? null : _str("s2d-plot-bg"),
+      paperBgColor:     paperBgAutoC ? null : _str("s2d-paper-bg"),
+      showMajorGrid:    _chk("s2d-major-grid"),
+      majorGridColor:   _str("s2d-major-grid-color"),
+      majorGridOpacity: parseFloat(_str("s2d-major-grid-opacity")),
+      showMinorGrid:    _chk("s2d-minor-grid"),
+      minorGridColor:   _str("s2d-minor-grid-color"),
+      minorGridOpacity: parseFloat(_str("s2d-minor-grid-opacity")),
+    };
+    _saveScatter2DSettings(s2d);
+    _draw();
+  }
+
+  // Range slider live display helpers
+  function _wireRange(id, valId) {
+    const input = _getEl(id), span = _getEl(valId);
+    if (!input || !span) return;
+    input.addEventListener("input", () => { span.textContent = parseFloat(input.value).toFixed(2); _applySettings(); });
+  }
+  _wireRange("s2d-inc-opacity",        "s2d-inc-opacity-val");
+  _wireRange("s2d-exc-opacity",        "s2d-exc-opacity-val");
+  _wireRange("s2d-major-grid-opacity", "s2d-major-grid-opacity-val");
+  _wireRange("s2d-minor-grid-opacity", "s2d-minor-grid-opacity-val");
+
+  // Auto-toggle helpers for color pickers
+  function _wireAutoToggle(chkId, colorId) {
+    const chk   = _getEl(chkId);
+    const color = _getEl(colorId);
+    if (!chk || !color) return;
+    chk.addEventListener("change", () => {
+      color.disabled = chk.checked;
+      color.style.opacity = chk.checked ? "0.4" : "1";
+      _applySettings();
+    });
+  }
+  _wireAutoToggle("s2d-font-color-auto", "s2d-font-color");
+  _wireAutoToggle("s2d-plot-bg-auto",    "s2d-plot-bg");
+  _wireAutoToggle("s2d-paper-bg-auto",   "s2d-paper-bg");
+
+  // Grid on/off toggles disable associated color/opacity inputs
+  function _wireGridToggle(chkId, colorId, opacityId) {
+    const chk    = _getEl(chkId);
+    const color  = _getEl(colorId);
+    const opSlider = _getEl(opacityId);
+    if (!chk) return;
+    chk.addEventListener("change", () => {
+      if (color)    { color.disabled = !chk.checked; color.style.opacity = chk.checked ? "1" : "0.4"; }
+      if (opSlider) { opSlider.disabled = !chk.checked; }
+      _applySettings();
+    });
+  }
+  _wireGridToggle("s2d-major-grid", "s2d-major-grid-color", "s2d-major-grid-opacity");
+  _wireGridToggle("s2d-minor-grid", "s2d-minor-grid-color", "s2d-minor-grid-opacity");
+
+  // Edge width disables edge color when 0
+  _getEl("s2d-edge-width").addEventListener("change", () => {
+    const w     = parseFloat(_getEl("s2d-edge-width").value);
+    const eCol  = _getEl("s2d-edge-color");
+    eCol.disabled = w === 0;
+    eCol.style.opacity = w === 0 ? "0.4" : "1";
+    _applySettings();
+  });
+
+  // All remaining inputs that just need _applySettings on change
+  ["s2d-font-size","s2d-tick-font","s2d-title-font","s2d-font-color",
+   "s2d-marker-size","s2d-marker-color","s2d-edge-color",
+   "s2d-height","s2d-plot-bg","s2d-paper-bg",
+   "s2d-major-grid-color","s2d-minor-grid-color"].forEach(id => {
+    const el2 = _getEl(id);
+    if (el2) el2.addEventListener("change", _applySettings);
+  });
 }
 
 // ── Column selector (chip row) ────────────────────────────────────────────────
