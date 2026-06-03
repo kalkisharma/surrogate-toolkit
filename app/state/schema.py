@@ -7,7 +7,7 @@ PURPOSE: Defines the canonical STATE dict shape and helpers to reset, read, and
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 3.2.0
+VERSION: 3.2.1
 ================================================================================
 """
 
@@ -272,6 +272,8 @@ def get_state_json_safe() -> dict:
     """
     import pandas as pd
 
+    import numpy as np
+
     def _safe(obj):
         if isinstance(obj, pd.DataFrame):
             return {
@@ -288,6 +290,16 @@ def get_state_json_safe() -> dict:
             return {k: _safe(v) for k, v in obj.items()}
         if isinstance(obj, list):
             return [_safe(i) for i in obj]
+        # numpy scalars and arrays — common in STATE sub-dicts
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        # Any remaining non-JSON-primitive (sklearn PCA, custom objects, etc.)
+        if not isinstance(obj, (bool, int, float, str, type(None))):
+            return {"_type": type(obj).__name__, "_unserializable": True}
         return obj
 
     # Walk STATE directly rather than deep-copying first: deep-copying a fitted

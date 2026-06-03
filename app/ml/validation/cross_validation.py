@@ -6,7 +6,7 @@ PURPOSE: K-fold cross-validation for surrogate models
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-05-12
-VERSION: 0.7.1
+VERSION: 0.7.2
 ================================================================================
 """
 
@@ -98,8 +98,10 @@ def run_cross_validation(
     kf     = KFold(n_splits=n_folds, shuffle=True, random_state=DEFAULT_RANDOM_STATE)
     splits = list(kf.split(X))
 
-    # Run folds in parallel when n_jobs > 1; n_jobs=1 is fully sequential (no overhead).
-    fold_preds = Parallel(n_jobs=n_jobs)(
+    # prefer="threads" avoids process-spawn overhead on all platforms and works
+    # correctly for sklearn models whose C extensions release the GIL.
+    # joblib's threadpoolctl integration prevents BLAS thread oversubscription.
+    fold_preds = Parallel(n_jobs=n_jobs, prefer="threads")(
         delayed(_fit_fold)(model, X, y, ti, vi, input_columns, output_columns)
         for ti, vi in splits
     )
