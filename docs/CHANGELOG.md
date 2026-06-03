@@ -19,6 +19,17 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.48] — 2026-06-03
+
+### Fix: GPR multi-output fit slow at high core counts on Windows (threading backend)
+
+#### Fixed
+
+- **`gpr_model.py`** — `MultiOutputRegressor.fit()` now uses `joblib.parallel_backend("threading")` instead of the default loky (process) backend. On Windows, loky spawns a fresh Python worker process per output column, paying 2–3 s of import overhead per process before any GPR math begins. For a 4-output model the spawn cost alone reached ~9 s, making 16-core training 2.8× *slower* than single-core. Threads share the parent process's imports with zero spawn overhead; the actual GPR fit for 4 outputs now takes ~0.35 s regardless of core count.
+- **`gpr_model.py`** — `effective_mor_jobs` is now capped to `min(n_jobs, n_outputs)` so no idle worker threads are spawned when the output count is smaller than the requested core count.
+
+---
+
 ## [3.5.47] — 2026-06-03
 
 ### Fix: filter step state not fully saved or cleared on dataset switch

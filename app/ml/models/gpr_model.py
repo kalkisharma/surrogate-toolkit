@@ -6,7 +6,7 @@ PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-03
-VERSION: 1.5.3
+VERSION: 1.5.4
 ================================================================================
 """
 
@@ -106,14 +106,21 @@ class GPRModel(BaseSurrogateModel):
             random_state=DEFAULT_RANDOM_STATE,
         )
         # MultiOutputRegressor parallelises across outputs only — cap n_jobs to
-        # n_outputs so we never spawn more loky workers than there are tasks.
-        # With 1 output and n_jobs=16, joblib would otherwise spawn 16 processes
-        # for a single task, paying 10–15 s of process-spawn overhead on Windows.
+        # n_outputs so we never spawn more workers than there are tasks.
+        # Use the threading backend instead of the default loky (process) backend:
+        # loky spawns a fresh Python process per worker, paying 2–3 s of import
+        # overhead per process on Windows. For GPR on typical surrogate datasets
+        # (< 1 000 rows) the actual fit takes < 1 s per output, so process spawn
+        # cost dominates entirely. Threads share the parent process's imports and
+        # have zero spawn overhead; the GIL limits Python-bound code to near-serial
+        # speed at worst, which is still far better than paying loky spawn cost.
         n_outputs = y.shape[1]
         effective_mor_jobs = min(self._n_jobs, n_outputs)
         self._model = MultiOutputRegressor(single_gpr, n_jobs=effective_mor_jobs)
 
-        self._model.fit(X, y)
+        import joblib
+        with joblib.parallel_backend("threading"):
+            self._model.fit(X, y)
         self._noise_active = noise_array is not None
         self._input_columns = list(input_columns)
         self._output_columns = list(output_columns)
