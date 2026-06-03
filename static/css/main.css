@@ -1463,48 +1463,130 @@ body,
   margin-bottom: var(--space-3);
 }
 
-.scatter2d-filters {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+.scatter2d-chart {
   margin-top: var(--space-3);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-1);
 }
 
-.scatter2d-filter-row {
+/* ── Filter panel (collapsible, below chart) ─────────────────────────────────── */
+
+.scatter2d-filter-panel {
+  margin-top: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.scatter2d-filter-summary {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  background: var(--color-bg-elevated);
+  user-select: none;
+  list-style: none;
+}
+.scatter2d-filter-summary::-webkit-details-marker { display: none; }
+.scatter2d-filter-summary::before {
+  content: "▶";
+  font-size: 0.625rem;
+  transition: transform 0.15s;
+  color: var(--color-text-muted);
+}
+.scatter2d-filter-panel[open] .scatter2d-filter-summary::before { transform: rotate(90deg); }
+
+.scatter2d-filter-badge {
+  margin-left: auto;
+  font-size: 0.6875rem;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+.scatter2d-filter-badge--active {
+  background: rgba(59,130,246,0.12);
+  border-color: rgba(59,130,246,0.35);
+  color: #3b82f6;
+  font-weight: 500;
 }
 
-.scatter2d-filter-label {
-  min-width: 100px;
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary);
+/* Grid: 2 columns so many-input datasets don't stack infinitely */
+.scatter2d-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.scatter2d-filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+  min-width: 0;
+}
+
+.scatter2d-filter-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.scatter2d-filter-item-label {
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.scatter2d-filter-range-wrap {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.scatter2d-filter-reset {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  padding: 0 2px;
+  line-height: 1;
+}
+.scatter2d-filter-reset:hover { color: var(--color-text-primary); }
+
+.scatter2d-filter-controls {
+  display: grid;
+  grid-template-columns: 60px 1fr 1fr 60px;
+  align-items: center;
+  gap: 4px;
 }
 
-.scatter2d-filter-vals {
-  display: flex;
-  gap: var(--space-1);
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  min-width: 110px;
-  justify-content: flex-end;
+/* Compact number inputs for manual min/max */
+.scatter2d-num {
+  width: 100%;
+  padding: 2px 4px;
+  font-size: 0.6875rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  text-align: center;
+  -moz-appearance: textfield;
 }
+.scatter2d-num::-webkit-inner-spin-button,
+.scatter2d-num::-webkit-outer-spin-button { -webkit-appearance: none; }
 
-.scatter2d-chart {
-  margin-top: var(--space-2);
-}
+.scatter2d-slider { width: 100%; cursor: pointer; }
 
 .dcor-content {
   margin-top: var(--space-4);

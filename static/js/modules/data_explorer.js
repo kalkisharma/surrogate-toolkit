@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.2.0
+// Version: 1.2.1
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -880,7 +880,7 @@ function _buildDCorSection() {
       const autoAnnot  = resp.columns.length <= 7;
       const autoHeight = Math.max(320, resp.columns.length * 48 + 100);
       _dcorAnnot  = null;
-      _dcorHeight = null;
+      // _dcorHeight stays at 500 (set at closure init); do not reset to null here
 
       const isDark         = document.documentElement.getAttribute("data-theme") === "dark";
       const fontColorAuto  = _dcorFontColor === null;
@@ -914,10 +914,9 @@ function _buildDCorSection() {
             <label class="chart-settings-group__label" for="dcor-cs-height">Height (px)</label>
             <div class="width-control">
               <input id="dcor-cs-height" type="number" class="chart-settings-input"
-                     min="200" max="1200" step="50" value="${autoHeight}"
-                     ${_dcorHeight === null ? "disabled" : ""}>
+                     min="200" max="1200" step="50" value="500">
               <label class="chart-settings-check">
-                <input type="checkbox" id="dcor-cs-height-auto" checked> Auto
+                <input type="checkbox" id="dcor-cs-height-auto"> Auto
               </label>
             </div>
           </div>
@@ -997,6 +996,7 @@ function _buildDCorSection() {
 
 const _SCATTER2D_KEY = "surrogate_data_scatter2d_settings";
 const _SCATTER2D_DEFAULTS = {
+  title: "", legendPosition: "top right", legendFontSize: 10,
   fontSize: 11, tickFontSize: 9, titleFontSize: 12, fontColor: null,
   markerSize: 7, markerColor: "#3b5dd9",
   edgeColor: "#000000", edgeWidth: 0,
@@ -1024,19 +1024,20 @@ function _buildScatter2DSection(containerEl, rows, columns) {
 
   let s2d = _loadScatter2DSettings();
 
-  // Compute min/max for each column
+  // Compute min/max for each numeric column once
   const colMins = {}, colMaxs = {};
   for (const col of columns) {
     const vals = rows.map(r => r[col]).filter(v => v != null && isFinite(+v)).map(Number);
-    if (vals.length) {
-      colMins[col] = Math.min(...vals);
-      colMaxs[col] = Math.max(...vals);
-    }
+    if (vals.length) { colMins[col] = Math.min(...vals); colMaxs[col] = Math.max(...vals); }
   }
   const numericCols = columns.filter(c => colMins[c] !== undefined);
   if (numericCols.length < 2) return;
 
+  // Active filter state: [lo, hi] per column, initialised to full range
   const filterRanges = {};
+  for (const col of numericCols) {
+    if (colMins[col] !== colMaxs[col]) filterRanges[col] = [colMins[col], colMaxs[col]];
+  }
 
   // ── Section card ─────────────────────────────────────────────────────────
   const section = el("div", { cls: "scatter2d-section" });
@@ -1044,34 +1045,39 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   containerEl.appendChild(section);
 
   // ── Settings panel ───────────────────────────────────────────────────────
+  const fontColorAuto  = s2d.fontColor   === null;
+  const fontColorVal   = s2d.fontColor   || "#4b5478";
+  const plotBgAuto     = s2d.plotBgColor  === null;
+  const plotBgVal      = s2d.plotBgColor  || "#ffffff";
+  const paperBgAuto    = s2d.paperBgColor === null;
+  const paperBgVal     = s2d.paperBgColor || "#f5f6fa";
+  const edgeOff        = s2d.edgeWidth === 0;
+
   const settingsPanel = document.createElement("details");
   settingsPanel.className = "chart-settings-panel";
-
-  const fontColorAuto    = s2d.fontColor   === null;
-  const fontColorVal     = s2d.fontColor   || "#4b5478";
-  const plotBgAuto       = s2d.plotBgColor  === null;
-  const plotBgVal        = s2d.plotBgColor  || "#ffffff";
-  const paperBgAuto      = s2d.paperBgColor === null;
-  const paperBgVal       = s2d.paperBgColor || "#f5f6fa";
-  const edgeColorDisabled = s2d.edgeWidth === 0 ? "disabled" : "";
-  const edgeColorOpacity  = s2d.edgeWidth === 0 ? "0.4" : "1";
-
   settingsPanel.innerHTML = `
     <summary class="chart-settings-panel__summary">Plot Settings</summary>
     <div class="chart-settings-controls">
 
+      <div class="settings-divider">Title</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-title">Title text</label>
+        <input id="s2d-title" type="text" class="chart-settings-input" style="flex:1;min-width:0"
+               placeholder="(none)" value="${s2d.title || ""}">
+      </div>
+
       <div class="settings-divider">Typography</div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="s2d-font-size">Label font (px)</label>
-        <input id="s2d-font-size" type="number" class="chart-settings-input" min="8" max="18" step="1" value="${s2d.fontSize}">
+        <input id="s2d-font-size" type="number" class="chart-settings-input" min="8" max="36" step="1" value="${s2d.fontSize}">
       </div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="s2d-tick-font">Tick font (px)</label>
-        <input id="s2d-tick-font" type="number" class="chart-settings-input" min="6" max="14" step="1" value="${s2d.tickFontSize}">
+        <input id="s2d-tick-font" type="number" class="chart-settings-input" min="6" max="28" step="1" value="${s2d.tickFontSize}">
       </div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="s2d-title-font">Title font (px)</label>
-        <input id="s2d-title-font" type="number" class="chart-settings-input" min="8" max="18" step="1" value="${s2d.titleFontSize}">
+        <input id="s2d-title-font" type="number" class="chart-settings-input" min="8" max="36" step="1" value="${s2d.titleFontSize}">
       </div>
       <div class="chart-settings-group">
         <span class="chart-settings-group__label">Font color</span>
@@ -1087,7 +1093,7 @@ function _buildScatter2DSection(containerEl, rows, columns) {
       <div class="settings-divider">Markers</div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="s2d-marker-size">Marker size</label>
-        <input id="s2d-marker-size" type="number" class="chart-settings-input" min="3" max="18" step="1" value="${s2d.markerSize}">
+        <input id="s2d-marker-size" type="number" class="chart-settings-input" min="3" max="30" step="1" value="${s2d.markerSize}">
       </div>
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="s2d-marker-color">Marker color</label>
@@ -1100,17 +1106,17 @@ function _buildScatter2DSection(containerEl, rows, columns) {
       <div class="chart-settings-group">
         <label class="chart-settings-group__label" for="s2d-edge-color">Edge color</label>
         <input id="s2d-edge-color" type="color" class="chart-settings-color"
-               value="${s2d.edgeColor}" ${edgeColorDisabled} style="opacity:${edgeColorOpacity}">
+               value="${s2d.edgeColor}" ${edgeOff ? "disabled" : ""} style="opacity:${edgeOff ? "0.4" : "1"}">
       </div>
       <div class="chart-settings-group">
-        <span class="chart-settings-group__label">Included opacity</span>
+        <span class="chart-settings-group__label">Incl. opacity</span>
         <div class="range-with-value">
           <input id="s2d-inc-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${s2d.includedOpacity}">
           <span id="s2d-inc-opacity-val" class="chart-settings-range-val">${s2d.includedOpacity.toFixed(2)}</span>
         </div>
       </div>
       <div class="chart-settings-group">
-        <span class="chart-settings-group__label">Excluded opacity</span>
+        <span class="chart-settings-group__label">Excl. opacity</span>
         <div class="range-with-value">
           <input id="s2d-exc-opacity" type="range" class="chart-settings-range" min="0.02" max="0.5" step="0.02" value="${s2d.excludedOpacity}">
           <span id="s2d-exc-opacity-val" class="chart-settings-range-val">${s2d.excludedOpacity.toFixed(2)}</span>
@@ -1141,6 +1147,23 @@ function _buildScatter2DSection(containerEl, rows, columns) {
             <input type="checkbox" id="s2d-paper-bg-auto" ${paperBgAuto ? "checked" : ""}> Auto
           </label>
         </div>
+      </div>
+
+      <div class="settings-divider">Legend</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-legend-pos">Position</label>
+        <select id="s2d-legend-pos" class="chart-settings-select">
+          <option value="top right"    ${s2d.legendPosition === "top right"    ? "selected" : ""}>Top Right</option>
+          <option value="top left"     ${s2d.legendPosition === "top left"     ? "selected" : ""}>Top Left</option>
+          <option value="bottom right" ${s2d.legendPosition === "bottom right" ? "selected" : ""}>Bottom Right</option>
+          <option value="bottom left"  ${s2d.legendPosition === "bottom left"  ? "selected" : ""}>Bottom Left</option>
+          <option value="top center"   ${s2d.legendPosition === "top center"   ? "selected" : ""}>Top Center</option>
+          <option value="hidden"       ${s2d.legendPosition === "hidden"       ? "selected" : ""}>Hidden</option>
+        </select>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="s2d-legend-font">Legend font (px)</label>
+        <input id="s2d-legend-font" type="number" class="chart-settings-input" min="6" max="28" step="1" value="${s2d.legendFontSize}">
       </div>
 
       <div class="settings-divider">Gridlines</div>
@@ -1196,62 +1219,7 @@ function _buildScatter2DSection(containerEl, rows, columns) {
     ySel.add(new Option(col, col, i === 1, i === 1));
   });
 
-  // ── Filter panel ─────────────────────────────────────────────────────────
-  const filterWrap = el("div", { cls: "scatter2d-filters" });
-  section.appendChild(filterWrap);
-
-  function _buildFilterSliders() {
-    clearEl(filterWrap);
-    for (const col of numericCols) {
-      const lo = colMins[col], hi = colMaxs[col];
-      if (lo === hi) continue;
-      filterRanges[col] = [lo, hi];
-
-      const row = el("div", { cls: "scatter2d-filter-row" });
-      const loId = `s2d-lo-${col}`, hiId = `s2d-hi-${col}`;
-      const loValId = `s2d-lo-val-${col}`, hiValId = `s2d-hi-val-${col}`;
-      row.innerHTML = `
-        <span class="scatter2d-filter-label">${col}</span>
-        <span class="scatter2d-filter-range-wrap">
-          <input id="${loId}" type="range" class="chart-settings-range scatter2d-range-lo"
-                 min="${lo}" max="${hi}" step="${(hi - lo) / 200 || 0.001}" value="${lo}">
-          <input id="${hiId}" type="range" class="chart-settings-range scatter2d-range-hi"
-                 min="${lo}" max="${hi}" step="${(hi - lo) / 200 || 0.001}" value="${hi}">
-        </span>
-        <span class="scatter2d-filter-vals">
-          <span id="${loValId}">${formatNum(lo)}</span>
-          <span>–</span>
-          <span id="${hiValId}">${formatNum(hi)}</span>
-        </span>
-      `;
-      filterWrap.appendChild(row);
-
-      const loInput = row.querySelector(`#${loId}`);
-      const hiInput = row.querySelector(`#${hiId}`);
-      const loValEl = row.querySelector(`#${loValId}`);
-      const hiValEl = row.querySelector(`#${hiValId}`);
-
-      loInput.addEventListener("input", () => {
-        const lv = parseFloat(loInput.value);
-        const hv = parseFloat(hiInput.value);
-        if (lv > hv) { loInput.value = hv; return; }
-        filterRanges[col][0] = lv;
-        loValEl.textContent = formatNum(lv);
-        _draw();
-      });
-      hiInput.addEventListener("input", () => {
-        const lv = parseFloat(loInput.value);
-        const hv = parseFloat(hiInput.value);
-        if (hv < lv) { hiInput.value = lv; return; }
-        filterRanges[col][1] = hv;
-        hiValEl.textContent = formatNum(hv);
-        _draw();
-      });
-    }
-  }
-  _buildFilterSliders();
-
-  // ── Chart container ──────────────────────────────────────────────────────
+  // ── Chart (ABOVE filters) ────────────────────────────────────────────────
   const chartEl = el("div", { cls: "scatter2d-chart" });
   section.appendChild(chartEl);
 
@@ -1264,13 +1232,92 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   }
 
   _draw();
-
-  // Re-render on theme toggle
   document.addEventListener("theme:changed", _draw);
-
-  // ── Axis change ──────────────────────────────────────────────────────────
   xSel.addEventListener("change", _draw);
   ySel.addEventListener("change", _draw);
+
+  // ── Filter panel (BELOW chart) ───────────────────────────────────────────
+  const filterableCount = Object.keys(filterRanges).length;
+  const filterDetails = document.createElement("details");
+  filterDetails.className = "scatter2d-filter-panel";
+  const filterSummary = el("summary", { cls: "scatter2d-filter-summary" });
+  const filterBadge   = el("span",   { cls: "scatter2d-filter-badge", text: "0 active" });
+  filterSummary.appendChild(document.createTextNode(`Filters (${filterableCount} column${filterableCount !== 1 ? "s" : ""})`));
+  filterSummary.appendChild(filterBadge);
+  filterDetails.appendChild(filterSummary);
+
+  const filterGrid = el("div", { cls: "scatter2d-filter-grid" });
+  filterDetails.appendChild(filterGrid);
+  section.appendChild(filterDetails);
+
+  // Track how many filters are currently narrowed from full range
+  function _updateBadge() {
+    let active = 0;
+    for (const col of Object.keys(filterRanges)) {
+      const [lo, hi] = filterRanges[col];
+      if (lo > colMins[col] || hi < colMaxs[col]) active++;
+    }
+    filterBadge.textContent = `${active} active`;
+    filterBadge.classList.toggle("scatter2d-filter-badge--active", active > 0);
+  }
+
+  // Build one filter card per numeric column with slider + number inputs
+  for (const col of numericCols) {
+    const lo = colMins[col], hi = colMaxs[col];
+    if (lo === hi) continue;  // constant column — no range to filter
+    const step = (hi - lo) / 500 || 0.0001;
+    const dec  = step < 0.01 ? 4 : step < 0.1 ? 3 : step < 1 ? 2 : 1;
+
+    const card   = el("div", { cls: "scatter2d-filter-item" });
+    const header = el("div", { cls: "scatter2d-filter-item-header" });
+    const label  = el("span", { cls: "scatter2d-filter-item-label" });
+    label.textContent = col;
+    label.title       = col;
+    const resetBtn = el("button", { cls: "scatter2d-filter-reset", type: "button", text: "↺" });
+    resetBtn.title = "Reset to full range";
+    header.appendChild(label);
+    header.appendChild(resetBtn);
+
+    const controls = el("div", { cls: "scatter2d-filter-controls" });
+    controls.innerHTML = `
+      <input type="number" class="scatter2d-num" id="s2d-nlo-${col}"
+             min="${lo}" max="${hi}" step="${step}" value="${lo.toFixed(dec)}">
+      <input type="range"  class="scatter2d-slider" id="s2d-slo-${col}"
+             min="${lo}" max="${hi}" step="${step}" value="${lo}">
+      <input type="range"  class="scatter2d-slider" id="s2d-shi-${col}"
+             min="${lo}" max="${hi}" step="${step}" value="${hi}">
+      <input type="number" class="scatter2d-num" id="s2d-nhi-${col}"
+             min="${lo}" max="${hi}" step="${step}" value="${hi.toFixed(dec)}">
+    `;
+
+    card.appendChild(header);
+    card.appendChild(controls);
+    filterGrid.appendChild(card);
+
+    const nLo = controls.querySelector(`#s2d-nlo-${col}`);
+    const nHi = controls.querySelector(`#s2d-nhi-${col}`);
+    const sLo = controls.querySelector(`#s2d-slo-${col}`);
+    const sHi = controls.querySelector(`#s2d-shi-${col}`);
+
+    function _clamp(v, mn, mx) { return Math.min(Math.max(v, mn), mx); }
+
+    function _sync(newLo, newHi) {
+      newLo = _clamp(newLo, lo, hi);
+      newHi = _clamp(newHi, lo, hi);
+      if (newLo > newHi) newLo = newHi;
+      filterRanges[col] = [newLo, newHi];
+      sLo.value = newLo; sHi.value = newHi;
+      nLo.value = newLo.toFixed(dec); nHi.value = newHi.toFixed(dec);
+      _updateBadge();
+      _draw();
+    }
+
+    sLo.addEventListener("input", () => _sync(parseFloat(sLo.value), filterRanges[col][1]));
+    sHi.addEventListener("input", () => _sync(filterRanges[col][0], parseFloat(sHi.value)));
+    nLo.addEventListener("change", () => _sync(parseFloat(nLo.value), filterRanges[col][1]));
+    nHi.addEventListener("change", () => _sync(filterRanges[col][0], parseFloat(nHi.value)));
+    resetBtn.addEventListener("click", () => _sync(lo, hi));
+  }
 
   // ── Settings wiring ──────────────────────────────────────────────────────
   function _getEl(id) { return settingsPanel.querySelector(`#${id}`); }
@@ -1279,18 +1326,20 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   function _chk(id)   { return _getEl(id).checked; }
 
   function _applySettings() {
-    const edgeW = _num("s2d-edge-width");
-    const fontAuto    = _chk("s2d-font-color-auto");
-    const plotBgAutoC = _chk("s2d-plot-bg-auto");
-    const paperBgAutoC= _chk("s2d-paper-bg-auto");
+    const fontAuto     = _chk("s2d-font-color-auto");
+    const plotBgAutoC  = _chk("s2d-plot-bg-auto");
+    const paperBgAutoC = _chk("s2d-paper-bg-auto");
     s2d = {
+      title:            _str("s2d-title"),
+      legendPosition:   _str("s2d-legend-pos"),
+      legendFontSize:   _num("s2d-legend-font"),
       fontSize:         _num("s2d-font-size"),
       tickFontSize:     _num("s2d-tick-font"),
       titleFontSize:    _num("s2d-title-font"),
-      fontColor:        fontAuto    ? null : _str("s2d-font-color"),
+      fontColor:        fontAuto     ? null : _str("s2d-font-color"),
       markerSize:       _num("s2d-marker-size"),
       markerColor:      _str("s2d-marker-color"),
-      edgeWidth:        edgeW,
+      edgeWidth:        _num("s2d-edge-width"),
       edgeColor:        _str("s2d-edge-color"),
       includedOpacity:  parseFloat(_str("s2d-inc-opacity")),
       excludedOpacity:  parseFloat(_str("s2d-exc-opacity")),
@@ -1308,7 +1357,6 @@ function _buildScatter2DSection(containerEl, rows, columns) {
     _draw();
   }
 
-  // Range slider live display helpers
   function _wireRange(id, valId) {
     const input = _getEl(id), span = _getEl(valId);
     if (!input || !span) return;
@@ -1319,10 +1367,8 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   _wireRange("s2d-major-grid-opacity", "s2d-major-grid-opacity-val");
   _wireRange("s2d-minor-grid-opacity", "s2d-minor-grid-opacity-val");
 
-  // Auto-toggle helpers for color pickers
   function _wireAutoToggle(chkId, colorId) {
-    const chk   = _getEl(chkId);
-    const color = _getEl(colorId);
+    const chk = _getEl(chkId), color = _getEl(colorId);
     if (!chk || !color) return;
     chk.addEventListener("change", () => {
       color.disabled = chk.checked;
@@ -1334,32 +1380,27 @@ function _buildScatter2DSection(containerEl, rows, columns) {
   _wireAutoToggle("s2d-plot-bg-auto",    "s2d-plot-bg");
   _wireAutoToggle("s2d-paper-bg-auto",   "s2d-paper-bg");
 
-  // Grid on/off toggles disable associated color/opacity inputs
   function _wireGridToggle(chkId, colorId, opacityId) {
-    const chk    = _getEl(chkId);
-    const color  = _getEl(colorId);
-    const opSlider = _getEl(opacityId);
+    const chk = _getEl(chkId), color = _getEl(colorId), op = _getEl(opacityId);
     if (!chk) return;
     chk.addEventListener("change", () => {
-      if (color)    { color.disabled = !chk.checked; color.style.opacity = chk.checked ? "1" : "0.4"; }
-      if (opSlider) { opSlider.disabled = !chk.checked; }
+      if (color) { color.disabled = !chk.checked; color.style.opacity = chk.checked ? "1" : "0.4"; }
+      if (op)    { op.disabled = !chk.checked; }
       _applySettings();
     });
   }
   _wireGridToggle("s2d-major-grid", "s2d-major-grid-color", "s2d-major-grid-opacity");
   _wireGridToggle("s2d-minor-grid", "s2d-minor-grid-color", "s2d-minor-grid-opacity");
 
-  // Edge width disables edge color when 0
   _getEl("s2d-edge-width").addEventListener("change", () => {
-    const w     = parseFloat(_getEl("s2d-edge-width").value);
-    const eCol  = _getEl("s2d-edge-color");
-    eCol.disabled = w === 0;
-    eCol.style.opacity = w === 0 ? "0.4" : "1";
+    const w    = parseFloat(_getEl("s2d-edge-width").value);
+    const eCol = _getEl("s2d-edge-color");
+    eCol.disabled = w === 0; eCol.style.opacity = w === 0 ? "0.4" : "1";
     _applySettings();
   });
 
-  // All remaining inputs that just need _applySettings on change
-  ["s2d-font-size","s2d-tick-font","s2d-title-font","s2d-font-color",
+  ["s2d-title","s2d-legend-pos","s2d-legend-font",
+   "s2d-font-size","s2d-tick-font","s2d-title-font","s2d-font-color",
    "s2d-marker-size","s2d-marker-color","s2d-edge-color",
    "s2d-height","s2d-plot-bg","s2d-paper-bg",
    "s2d-major-grid-color","s2d-minor-grid-color"].forEach(id => {

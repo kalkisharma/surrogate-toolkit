@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.2
+// Version: 2.5.3
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -1527,10 +1527,21 @@ export function renderContourExplorer(containerEl, result, opts = {}) {
  * @param {Object[]}    rows        - Array of row objects keyed by column name.
  * @param {Object}      opts
  */
+const _S2D_LEGEND_POS = {
+  "top right":    { x: 1,   y: 1,    xanchor: "right",  yanchor: "top"    },
+  "top left":     { x: 0,   y: 1,    xanchor: "left",   yanchor: "top"    },
+  "bottom right": { x: 1,   y: 0,    xanchor: "right",  yanchor: "bottom" },
+  "bottom left":  { x: 0,   y: 0,    xanchor: "left",   yanchor: "bottom" },
+  "top center":   { x: 0.5, y: 1.08, xanchor: "center", yanchor: "bottom" },
+};
+
 export function renderDataScatter2D(containerEl, rows, opts = {}) {
   const {
     xCol, yCol,
     filterRanges     = {},
+    title            = "",
+    legendPosition   = "top right",
+    legendFontSize   = 10,
     fontSize         = 11,
     tickFontSize     = 9,
     titleFontSize    = 12,
@@ -1553,12 +1564,13 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
   } = opts;
 
   const isDark   = document.documentElement.getAttribute("data-theme") === "dark";
-  const fontClr  = fontColor   !== null ? fontColor   : (isDark ? "#8b94b3" : "#4b5478");
+  const fontClr  = fontColor    !== null ? fontColor    : (isDark ? "#8b94b3" : "#4b5478");
   const plotBg   = plotBgColor  !== null ? plotBgColor  : "rgba(0,0,0,0)";
   const paperBg  = paperBgColor !== null ? paperBgColor : "rgba(0,0,0,0)";
   const gridClr  = showMajorGrid ? _hexToRgba(majorGridColor, majorGridOpacity) : "rgba(0,0,0,0)";
   const minGridC = showMinorGrid ? _hexToRgba(minorGridColor, minorGridOpacity) : "rgba(0,0,0,0)";
   const markerLn = edgeWidth > 0 ? { width: edgeWidth, color: edgeColor } : { width: 0 };
+  const hideLegend = legendPosition === "hidden";
 
   const included = rows.filter(row =>
     Object.entries(filterRanges).every(([col, [lo, hi]]) =>
@@ -1571,6 +1583,7 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     )
   );
 
+  const showLegend = excluded.length > 0 && !hideLegend;
   const traces = [];
   if (excluded.length) {
     traces.push({
@@ -1578,7 +1591,7 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
       x: excluded.map(r => r[xCol]),
       y: excluded.map(r => r[yCol]),
       marker: { color: markerColor, size: markerSize, opacity: excludedOpacity, line: markerLn },
-      showlegend: true,
+      showlegend: !hideLegend,
       hovertemplate: `${xCol}: %{x}<br>${yCol}: %{y}<extra>excluded</extra>`,
     });
   }
@@ -1587,7 +1600,7 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     x: included.map(r => r[xCol]),
     y: included.map(r => r[yCol]),
     marker: { color: markerColor, size: markerSize, opacity: includedOpacity, line: markerLn },
-    showlegend: excluded.length > 0,
+    showlegend: showLegend,
     hovertemplate: `${xCol}: %{x}<br>${yCol}: %{y}<extra></extra>`,
   });
 
@@ -1597,14 +1610,19 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     ...(showMinorGrid ? { minor: { showgrid: true, gridcolor: minGridC } } : {}),
   };
 
+  const legendPos = _S2D_LEGEND_POS[legendPosition] ?? _S2D_LEGEND_POS["top right"];
+  const topMargin = title ? 44 : 32;
+
   // eslint-disable-next-line no-undef
   Plotly.react(containerEl, traces, {
     paper_bgcolor: paperBg, plot_bgcolor: plotBg,
-    height, margin: { t: 32, b: 52, l: 60, r: 24 },
+    height, margin: { t: topMargin, b: 52, l: 60, r: 24 },
     font: { color: fontClr, family: "Inter, system-ui, sans-serif", size: fontSize },
+    ...(title ? { title: { text: title, font: { size: titleFontSize }, x: 0.04 } } : {}),
     xaxis: { ...axisBase, title: { text: xCol, font: { size: titleFontSize } } },
     yaxis: { ...axisBase, title: { text: yCol, font: { size: titleFontSize } } },
-    legend: { font: { size: fontSize } },
+    showlegend: showLegend,
+    legend: showLegend ? { ...legendPos, font: { size: legendFontSize } } : undefined,
   }, {
     responsive: true, displayModeBar: true, displaylogo: false,
     modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
