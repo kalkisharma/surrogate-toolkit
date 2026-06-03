@@ -19,6 +19,26 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.53] — 2026-06-03
+
+### Full codebase team review — 6 fixes
+
+#### Fixed
+
+- **`charts.js`** — Removed dead `renderCorrelationHeatmap` export (Pearson heatmap replaced by `renderDCorHeatmap` in v3.5.52; old function was never deleted, risking accidental future import of the wrong heatmap).
+- **`active_learning_api.py`, `model_api.py`** — Corrected step numbers in three API error messages that directed users to the wrong sidebar step after the Filter step was inserted as Step 7 in the 15-step workflow. Configure/Model is now Step 8; messages previously read Step 6 or Step 7.
+- **`model_api.py`, `data_api.py`, `settings.py`** — Extracted two hardcoded `0.95` magic numbers into named constants in `settings.py`: `CI_CONFIDENCE = 0.95` (GPR uncertainty interval level) and `PCA_VARIANCE_THRESHOLD = 0.95` (auto n_components cumulative variance target). Both API files now import and use these constants.
+- **`state_api.py`** — `PUT /api/state/session` now validates the `classification` field against `SUPPORTED_CLASSIFICATIONS` before writing to STATE, returning HTTP 400 `INVALID_CLASSIFICATION` for any value not in the list (e.g. `"SECRET"`). Previously any arbitrary string could be persisted and appear in the compliance banner and exported reports.
+- **`bridge_correction.py`** — Added `predict_std()` to `BridgeCorrectionModel` returning zeros of the correct shape. Bridge correction has no mechanism for calibrated uncertainty, but the method was missing entirely — any downstream caller treating multi-fidelity models uniformly would have hit `AttributeError`. Zeros are explicit and safe.
+- **`settings.py`** — Synced file header version comment from stale `3.5.48` to `3.5.52`.
+
+#### Changed
+
+- **`README.md`** — Corrected step count from 14 to 15; added missing Filter step (Step 7); updated step names and descriptions to match current sidebar (Explore now mentions distance correlation heatmap and 2D scatter; Results mentions NRMSE and timing); renumbered steps 8–15.
+- **`main.js`** — Fixed stale panel count comment (8 → 15).
+
+---
+
 ## [3.5.52] — 2026-06-03
 
 ### Q1–Q4 UX improvements: SPLOM label truncation, Results config additions, dCor in Filter, 2D scatter export filters
