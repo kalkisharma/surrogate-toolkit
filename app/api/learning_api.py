@@ -287,6 +287,8 @@ def start_exercise(exercise_id: str):
     primary["raw"]   = ds_entry["raw"]
     primary["clean"] = ds_entry["clean"]
     primary["metadata"].update(ds_meta)
+    if primary["metadata"].get("n_rows_clean") is None:
+        primary["metadata"]["n_rows_clean"] = primary["metadata"].get("n_rows_original")
 
     # Reset surrogate session for fresh start
     state["surrogate_sessions"]["primary"]["models"] = {}
