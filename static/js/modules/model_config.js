@@ -18,7 +18,7 @@ import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
 import { renderModelComparisonTable } from "../charts.js";
 import { runDecisionTree } from "./learning_guide.js";
-import { getPath, getAvailableCores } from "../state.js";
+import { getPath, getAvailableCores, refreshState } from "../state.js";
 
 const HYPERPARAM_DEFAULTS = {
   gpr:     { kernel: "rbf", alpha: 0.1, n_restarts: 2 },
@@ -70,6 +70,7 @@ export async function initModelConfig(containerEl, onTrain) {
   const [configResp, datasetsResp] = await Promise.all([
     get("/api/model/config"),
     get("/api/data/datasets"),
+    refreshState(),   // ensure _state has current metadata before rendering the cores prompt
   ]);
   hideSpinner(containerEl);
 
