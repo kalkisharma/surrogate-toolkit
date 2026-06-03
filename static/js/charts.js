@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.4
+// Version: 2.5.5
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -504,11 +504,21 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
   const labelFontSize    = options.labelFontSize    ?? _autoLabel;
   const colorbarFontSize = options.colorbarFontSize ?? _autoLabel;
 
-  // Per-colorscale annotation text colour.
-  const lightAtLow = colorscale === "Blues" || colorscale === "RdPu";
-  const _annotColor = (val) =>
-    lightAtLow ? (val > 0.5 ? "#ffffff" : fontColor)
-               : (val < 0.5 ? "#ffffff" : fontColor);
+  // Annotation text must contrast with the cell colour, not with the background.
+  // We choose #ffffff or #222222 based on the approximate luminance of each colorscale.
+  const _annotColor = (val) => {
+    switch (colorscale) {
+      case "Blues":
+      case "RdPu":
+        // Light→dark: low values are near-white, high values are deep blue/purple.
+        return val < 0.5 ? "#222222" : "#ffffff";
+      case "Thermal":
+        // Very dark at 0, bright yellow-green at mid, dark red at 1.
+        return (val < 0.22 || val > 0.85) ? "#ffffff" : "#222222";
+      default: // Viridis and any future additions: dark at 0, bright yellow at 1.
+        return val < 0.5 ? "#ffffff" : "#222222";
+    }
+  };
 
   const z     = columns.map(r => columns.map(c => matrix[r]?.[c] ?? 0));
   const zText = z.map(row => row.map(v => v.toFixed(2)));
@@ -576,10 +586,15 @@ export function renderDCorHeatmap(containerEl, columns, matrix, options = {}) {
 export function renderCorrelationHeatmap(containerEl, labels, matrix, threshold = 0.9, options = {}) {
   const isDark     = document.documentElement.getAttribute("data-theme") === "dark";
   const fontColor  = options.fontColor ?? (isDark ? "#8b94b3" : "#4b5478");
-  const fontSize   = options.fontSize  ?? 11;
-  const showAnnot  = options.showAnnotations ?? (labels.length <= 12);
+  const fontSize   = options.fontSize  ?? 12;
+  const showAnnot  = options.showAnnotations ?? true;
   const height     = options.height ?? Math.max(280, labels.length * 44 + 100);
-  const annotSize  = Math.max(7, fontSize - Math.max(0, labels.length - 6));
+
+  const _autoCell    = Math.max(7, fontSize - Math.max(0, labels.length - 6));
+  const _autoLabel   = Math.max(8, fontSize - 1);
+  const cellFontSize     = options.cellFontSize     ?? _autoCell;
+  const labelFontSize    = options.labelFontSize    ?? _autoLabel;
+  const colorbarFontSize = options.colorbarFontSize ?? _autoLabel;
 
   // Build z matrix from absolute values for display
   const z     = labels.map(r => labels.map(c => Math.abs(matrix[r]?.[c] ?? 0)));
@@ -602,10 +617,10 @@ export function renderCorrelationHeatmap(containerEl, labels, matrix, threshold 
     hovertemplate: "%{y} vs %{x}: |r| = %{z:.3f}<extra></extra>",
     showscale:     true,
     colorbar: {
-      title:     { text: "|r|", font: { size: fontSize, color: fontColor } },
+      title:     { text: "|r|", font: { size: colorbarFontSize, color: fontColor } },
       thickness: 14,
       len:       0.8,
-      tickfont:  { size: Math.max(8, fontSize - 1), color: fontColor },
+      tickfont:  { size: colorbarFontSize, color: fontColor },
       tickvals:  [0, 0.5, 1],
       ticktext:  ["0", "0.5", "1"],
     },
@@ -616,13 +631,15 @@ export function renderCorrelationHeatmap(containerEl, labels, matrix, threshold 
         row.map((val, ci) => {
           const v     = parseFloat(val);
           const above = v >= threshold;
+          // For flagged cells (above threshold) use white; below threshold use contrast black/white.
+          // The correlation heatmap colorscale goes light→amber→red, so high values need white text.
+          const txtColor = above ? "#ffffff" : (v < 0.35 ? fontColor : "#ffffff");
           return {
             x:         labels[ci],
             y:         labels[ri],
             text:      val,
             showarrow: false,
-            font:      { size: annotSize, color: above ? "#ffffff" : fontColor,
-                         weight: above ? 700 : 400 },
+            font:      { size: cellFontSize, color: txtColor, weight: above ? 700 : 400 },
           };
         })
       )
@@ -634,8 +651,8 @@ export function renderCorrelationHeatmap(containerEl, labels, matrix, threshold 
     height,
     margin:      { t: 20, b: 100, l: 100, r: 70 },
     font:        { color: fontColor, family: "Inter, system-ui, sans-serif", size: fontSize },
-    xaxis:       { tickangle: -40, tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
-    yaxis:       { tickfont: { size: Math.max(8, fontSize - 1) }, automargin: true },
+    xaxis:       { tickangle: -40, tickfont: { size: labelFontSize }, automargin: true },
+    yaxis:       { tickfont: { size: labelFontSize }, automargin: true },
     annotations,
     shapes: labels.flatMap((r, ri) =>
       labels.map((c, ci) => {
@@ -1599,7 +1616,7 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     )
   );
 
-  const showLegend = excluded.length > 0 && !hideLegend;
+  // Legend shows the "Included" entry always (unless hidden); "Excluded" only when active.
   const traces = [];
   if (excluded.length) {
     traces.push({
@@ -1616,7 +1633,7 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     x: included.map(r => r[xCol]),
     y: included.map(r => r[yCol]),
     marker: { color: markerColor, size: markerSize, opacity: includedOpacity, line: markerLn },
-    showlegend: showLegend,
+    showlegend: !hideLegend,   // always visible so the legend box appears immediately
     hovertemplate: `${xCol}: %{x}<br>${yCol}: %{y}<extra></extra>`,
   });
 
@@ -1643,8 +1660,8 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     ...(title ? { title: { text: title, font: { size: plotTitleFontSize }, ...titlePos } } : {}),
     xaxis: { ...axisBase, title: { text: xCol, font: { size: axisTitleFontSize } } },
     yaxis: { ...axisBase, title: { text: yCol, font: { size: axisTitleFontSize } } },
-    showlegend: showLegend,
-    legend: showLegend ? {
+    showlegend: !hideLegend,
+    legend: !hideLegend ? {
       ...legendPos,
       font: { size: legendFontSize },
       bgcolor: legendBg,

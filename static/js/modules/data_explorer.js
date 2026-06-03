@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.2.2
+// Version: 1.2.3
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, and expandable plot settings.
 // =============================================================================
@@ -1122,7 +1122,7 @@ function _buildScatter2DSection(containerEl, rows, columns) {
 
       <div class="settings-divider">Typography</div>
       <div class="chart-settings-group">
-        <label class="chart-settings-group__label" for="s2d-font-size">Base font (px)</label>
+        <label class="chart-settings-group__label" for="s2d-font-size">General font (px)</label>
         <input id="s2d-font-size" type="number" class="chart-settings-input" min="8" max="36" step="1" value="${s2d.fontSize}">
       </div>
       <div class="chart-settings-group">

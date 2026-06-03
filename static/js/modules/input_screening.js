@@ -24,6 +24,15 @@ let _cvThreshold = 0.01;
 let _selected    = null;   // Set of currently selected input columns
 let _pcaResp     = null;   // Last PCA preview response
 
+// ── Correlation heatmap display settings (persisted across re-renders) ────────
+let _corrHeatFs         = null;    // null = use chart default (12)
+let _corrHeatFontColor  = null;    // null = auto
+let _corrHeatAnnot      = null;    // null = use chart default (true)
+let _corrHeatCellFs     = null;
+let _corrHeatLabelFs    = null;
+let _corrHeatColorbarFs = null;
+let _corrHeatHeight     = null;    // null = auto
+
 // ── Public entry point ────────────────────────────────────────────────────────
 
 /**
@@ -163,10 +172,141 @@ function _renderResults(container, resp, rootEl) {
   // ── Correlation heatmap ───────────────────────────────────────────────────
   const heatSection = el("div", { cls: "screen-section" });
   heatSection.innerHTML = `<h3 class="screen-section-title">Correlation Matrix</h3>`;
+  container.appendChild(heatSection);
+
+  // Settings panel (same controls as dCor heatmap in Explore)
+  const _db = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  const isDark0       = document.documentElement.getAttribute("data-theme") === "dark";
+  const fcAuto0       = _corrHeatFontColor === null;
+  const fcVal0        = _corrHeatFontColor ?? (isDark0 ? "#8b94b3" : "#4b5478");
+  const hAutoChk0     = _corrHeatHeight === null;
+
+  const corrSettingsEl = document.createElement("details");
+  corrSettingsEl.className = "chart-settings-panel";
+  corrSettingsEl.innerHTML = `
+    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <div class="chart-settings-controls">
+      <div class="settings-divider">Typography</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="corr-cs-font">Base font (px)</label>
+        <input id="corr-cs-font" type="number" class="chart-settings-input"
+               min="7" max="24" step="1" value="${_corrHeatFs ?? 12}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="corr-cs-cell-font">Cell value font (px)</label>
+        <input id="corr-cs-cell-font" type="number" class="chart-settings-input"
+               min="6" max="24" step="1" placeholder="auto" value="${_corrHeatCellFs ?? ""}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="corr-cs-label-font">Axis label font (px)</label>
+        <input id="corr-cs-label-font" type="number" class="chart-settings-input"
+               min="6" max="24" step="1" placeholder="auto" value="${_corrHeatLabelFs ?? ""}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="corr-cs-colorbar-font">Colorbar font (px)</label>
+        <input id="corr-cs-colorbar-font" type="number" class="chart-settings-input"
+               min="6" max="24" step="1" placeholder="auto" value="${_corrHeatColorbarFs ?? ""}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="corr-cs-font-color">Font color</label>
+        <div class="color-with-auto">
+          <input id="corr-cs-font-color" type="color" class="chart-settings-color"
+                 value="${fcVal0}" ${fcAuto0 ? "disabled" : ""} style="opacity:${fcAuto0 ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="corr-cs-font-color-auto" ${fcAuto0 ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+      <div class="settings-divider">Figure</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="corr-cs-height">Height (px)</label>
+        <div class="width-control">
+          <input id="corr-cs-height" type="number" class="chart-settings-input"
+                 min="200" max="1200" step="50" value="${_corrHeatHeight ?? Math.max(280, resp.input_columns.length * 44 + 100)}"
+                 ${hAutoChk0 ? "disabled" : ""}>
+          <label class="chart-settings-check">
+            <input type="checkbox" id="corr-cs-height-auto" ${hAutoChk0 ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Cell values</span>
+        <label class="chart-settings-check">
+          <input type="checkbox" id="corr-cs-annot" ${_corrHeatAnnot !== false ? "checked" : ""}> Show
+        </label>
+      </div>
+    </div>
+  `;
+  heatSection.appendChild(corrSettingsEl);
+
   const heatWrap = el("div", { cls: "screen-heatmap-wrap" });
   heatSection.appendChild(heatWrap);
-  container.appendChild(heatSection);
-  renderCorrelationHeatmap(heatWrap, resp.input_columns, resp.correlation_matrix, resp.threshold);
+
+  function _redrawCorrHeat() {
+    renderCorrelationHeatmap(heatWrap, resp.input_columns, resp.correlation_matrix, resp.threshold, {
+      fontSize:         _corrHeatFs         !== null ? _corrHeatFs         : 12,
+      fontColor:        _corrHeatFontColor  !== null ? _corrHeatFontColor  : undefined,
+      showAnnotations:  _corrHeatAnnot      !== null ? _corrHeatAnnot      : undefined,
+      height:           _corrHeatHeight     !== null ? _corrHeatHeight     : undefined,
+      cellFontSize:     _corrHeatCellFs     !== null ? _corrHeatCellFs     : undefined,
+      labelFontSize:    _corrHeatLabelFs    !== null ? _corrHeatLabelFs    : undefined,
+      colorbarFontSize: _corrHeatColorbarFs !== null ? _corrHeatColorbarFs : undefined,
+    });
+  }
+  _redrawCorrHeat();
+
+  // Re-render on theme toggle
+  document.addEventListener("theme:changed", _redrawCorrHeat);
+
+  // Settings wiring
+  const _g = id => corrSettingsEl.querySelector(`#${id}`);
+
+  _g("corr-cs-font").addEventListener("input", _db((e) => {
+    const v = parseInt(e.target.value, 10);
+    if (v >= 7 && v <= 24) { _corrHeatFs = v; _redrawCorrHeat(); }
+  }, 200));
+
+  const _wireCorrFont = (id, setter) => {
+    _g(id).addEventListener("input", _db((e) => {
+      const raw = e.target.value.trim();
+      const v   = parseInt(raw, 10);
+      setter(raw === "" ? null : (isNaN(v) ? null : v));
+      _redrawCorrHeat();
+    }, 200));
+  };
+  _wireCorrFont("corr-cs-cell-font",     v => { _corrHeatCellFs     = v; });
+  _wireCorrFont("corr-cs-label-font",    v => { _corrHeatLabelFs    = v; });
+  _wireCorrFont("corr-cs-colorbar-font", v => { _corrHeatColorbarFs = v; });
+
+  const fcInput = _g("corr-cs-font-color");
+  const fcAuto$ = _g("corr-cs-font-color-auto");
+  fcAuto$.addEventListener("change", () => {
+    fcInput.disabled = fcAuto$.checked;
+    fcInput.style.opacity = fcAuto$.checked ? "0.4" : "1";
+    _corrHeatFontColor = fcAuto$.checked ? null : fcInput.value;
+    _redrawCorrHeat();
+  });
+  fcInput.addEventListener("input", _db((e) => {
+    if (!fcAuto$.checked) { _corrHeatFontColor = e.target.value; _redrawCorrHeat(); }
+  }, 200));
+
+  const hInput = _g("corr-cs-height");
+  const hAuto$ = _g("corr-cs-height-auto");
+  hAuto$.addEventListener("change", () => {
+    hInput.disabled = hAuto$.checked;
+    _corrHeatHeight = hAuto$.checked ? null : parseInt(hInput.value, 10);
+    _redrawCorrHeat();
+  });
+  hInput.addEventListener("input", _db((e) => {
+    if (!hAuto$.checked) {
+      const v = parseInt(e.target.value, 10);
+      if (v >= 200 && v <= 1200) { _corrHeatHeight = v; _redrawCorrHeat(); }
+    }
+  }, 200));
+
+  _g("corr-cs-annot").addEventListener("change", (e) => {
+    _corrHeatAnnot = e.target.checked; _redrawCorrHeat();
+  });
 
   // ── Flagged pairs ─────────────────────────────────────────────────────────
   const pairsSection = el("div", { cls: "screen-section" });
