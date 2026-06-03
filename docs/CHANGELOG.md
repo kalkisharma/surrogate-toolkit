@@ -19,6 +19,24 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.51] — 2026-06-03
+
+### Results tables aesthetic improvements (5-finding team review)
+
+#### Changed
+
+- **`results.js`** — Output column name font size raised from `text-xs` (12px) to `text-sm` (14px) to match the metric values in the same row; the column name is the primary identifier and should not be smaller than what it labels.
+- **`results.js`** — Test set table RMSE column replaced by **NRMSE** (normalized RMSE = RMSE ÷ training output range), expressed as a percentage with green/amber/red badge (< 10% green, < 25% amber, ≥ 25% red). Gives users a scale-independent quality signal comparable to R².
+- **`results.js`** — CV table RMSE and MAE values now wrapped in a neutral pill badge so all metric columns have consistent visual weight, matching the R² badge treatment.
+- **`results.js`** — CV table column headers simplified from `"R² mean ± std"` / `"RMSE mean ± std"` / `"MAE mean ± std"` to `"R²"` / `"RMSE"` / `"MAE"`, matching the test set table. A caption note below the table reads "Values shown as mean ± std across CV folds."
+- **`results.js`** — Added `_fmt()` adaptive number formatter: values in 0.001–9999 range keep 4 decimal places; values outside that range use `toExponential(2)` to avoid `0.0000` truncation or noisy large-number decimals. Applied to RMSE and MAE in both tables; R² retains `toFixed(4)`.
+- **`main.css`** — Zebra striping updated to `var(--color-row-stripe)` (theme-aware). Row hover state added using `var(--color-row-hover)` (indigo tint, matching Results panel accent color).
+- **`main.css`** — Added `.results-badge--neutral` and `.results-table-note` CSS classes.
+- **`variables.css`** — Added `--color-row-stripe` and `--color-row-hover` tokens with light and dark mode values.
+- **`model_api.py`** — `output_range` (training output max − min) added to each test metric dict so the frontend can compute NRMSE without an extra API call.
+
+---
+
 ## [3.5.50] — 2026-06-03
 
 ### Fix: GPR tune endpoint still generating ConvergenceWarning via get_param_grid()

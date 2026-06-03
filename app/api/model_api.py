@@ -620,6 +620,9 @@ def train():
     # ── Evaluate on held-out test set ─────────────────────────────────────────
     y_pred_test = model.predict(X_test)
     test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
+    for i, m in enumerate(test_metrics):
+        col_range = float(y_train[:, i].max() - y_train[:, i].min())
+        m["output_range"] = col_range if col_range > 0 else None
 
     train_time_s = round(time.perf_counter() - _t0, 2)
 

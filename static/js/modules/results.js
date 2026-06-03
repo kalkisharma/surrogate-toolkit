@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 3.5.41
+// Version: 3.5.51
 // Description: Step 9 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -745,12 +745,14 @@ function _buildMetricsTable(testMetrics) {
   const wrap  = el("div", { cls: "results-table-wrap" });
   const table = el("table", { cls: "results-table" });
 
+  const hasNrmse = testMetrics.length > 0 && testMetrics[0].output_range != null;
+
   const thead = el("thead");
   thead.innerHTML = `
     <tr>
       <th>Output column</th>
       <th>R²</th>
-      <th>RMSE</th>
+      <th>${hasNrmse ? "NRMSE" : "RMSE"}</th>
       <th>MAE</th>
     </tr>`;
   table.appendChild(thead);
@@ -759,11 +761,18 @@ function _buildMetricsTable(testMetrics) {
   for (const m of testMetrics) {
     const tr  = el("tr");
     const r2c = _r2Class(m.r2);
+    let rmseCell;
+    if (hasNrmse && m.output_range > 0) {
+      const nrmse = m.rmse / m.output_range;
+      rmseCell = `<span class="results-badge results-badge--${_nrmseClass(nrmse)}">${(nrmse * 100).toFixed(1)}%</span>`;
+    } else {
+      rmseCell = `<span class="results-metric">${_fmt(m.rmse)}</span>`;
+    }
     tr.innerHTML = `
       <td class="results-col-name">${m.column}</td>
       <td><span class="results-badge results-badge--${r2c}">${m.r2.toFixed(4)}</span></td>
-      <td class="results-metric">${m.rmse.toFixed(4)}</td>
-      <td class="results-metric">${m.mae.toFixed(4)}</td>`;
+      <td>${rmseCell}</td>
+      <td class="results-metric">${_fmt(m.mae)}</td>`;
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
@@ -779,9 +788,9 @@ function _buildCVTable(perOutput) {
   thead.innerHTML = `
     <tr>
       <th>Output column</th>
-      <th>R² mean ± std</th>
-      <th>RMSE mean ± std</th>
-      <th>MAE mean ± std</th>
+      <th>R²</th>
+      <th>RMSE</th>
+      <th>MAE</th>
     </tr>`;
   table.appendChild(thead);
 
@@ -793,14 +802,18 @@ function _buildCVTable(perOutput) {
       <td class="results-col-name">${m.column}</td>
       <td><span class="results-badge results-badge--${r2c}">${m.mean_r2.toFixed(4)}</span>
           <span class="results-std">± ${m.std_r2.toFixed(4)}</span></td>
-      <td class="results-metric">${m.mean_rmse.toFixed(4)}
-          <span class="results-std">± ${m.std_rmse.toFixed(4)}</span></td>
-      <td class="results-metric">${m.mean_mae.toFixed(4)}
-          <span class="results-std">± ${m.std_mae.toFixed(4)}</span></td>`;
+      <td><span class="results-badge results-badge--neutral">${_fmt(m.mean_rmse)}</span>
+          <span class="results-std">± ${_fmt(m.std_rmse)}</span></td>
+      <td><span class="results-badge results-badge--neutral">${_fmt(m.mean_mae)}</span>
+          <span class="results-std">± ${_fmt(m.std_mae)}</span></td>`;
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
+
+  const note = el("p", { cls: "results-table-note" });
+  note.textContent = "Values shown as mean ± std across CV folds.";
   wrap.appendChild(table);
+  wrap.appendChild(note);
   return wrap;
 }
 
@@ -888,6 +901,22 @@ function _r2Class(r2) {
   if (r2 >= R2_CAUTION)  return "green";
   if (r2 >= R2_MINIMUM)  return "amber";
   return "red";
+}
+
+function _nrmseClass(nrmse) {
+  if (nrmse < 0.10) return "green";
+  if (nrmse < 0.25) return "amber";
+  return "red";
+}
+
+// Adaptive numeric formatter: 4 decimals in the normal range,
+// scientific notation for very small or very large values.
+function _fmt(v) {
+  if (v == null || !isFinite(v)) return "—";
+  const abs = Math.abs(v);
+  if (abs === 0) return "0";
+  if (abs < 0.001 || abs >= 10000) return v.toExponential(2);
+  return v.toFixed(4);
 }
 
 // ── Scatter plot settings panel (ss-) ─────────────────────────────────────────
