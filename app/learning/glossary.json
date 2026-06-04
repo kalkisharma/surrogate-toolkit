@@ -1,4 +1,5 @@
-{
+﻿{
+  "last_updated": "2026-06-04",
   "terms": [
     {"term": "Surrogate Model", "definition": "A fast mathematical approximation of an expensive simulation or experiment, trained on a small set of known data points. Also called a response surface, metamodel, or emulator.", "category": "Core Concepts"},
     {"term": "Response Surface", "definition": "A mathematical surface mapping input variables to output variables. A surrogate model is a type of response surface. The term originates from experimental design in chemical engineering.", "category": "Core Concepts"},

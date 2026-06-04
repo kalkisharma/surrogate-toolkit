@@ -148,8 +148,13 @@ Sidebar navigation with curated topic articles and interactive decision trees.
 | `active_learning` | Space-filling vs goal-directed, LHS, EI acquisition, UCB, residual mode |
 | `data_cleaning` | Missing values, IQR outlier detection, log-transform, duplicates, correlation |
 | `normalization` | Min-Max vs Z-Score vs Log₁₀ decision guide; what happens without normalization |
+| `input_filtering` | Pearson r, VIF, low-variance drop, PCA dimensionality reduction, manual vs PCA trade-offs |
+| `multifidelity` | When to use MF, Bridge Correction, Co-Kriging, dataset preparation, interpreting MF results |
+| `model_troubleshooting` | Reading underfitting/overfitting signals, wrong model choice, high dimensionality, data quality checklist |
+| `optimization` | Single vs multi-objective, reading the Pareto front, constraints, when not to use surrogate optimization |
 | `model_selection` (decision tree) | 16-node flowchart: GPR vs RF vs Linear by dataset size, dimensionality, smoothness |
 | `cv_selection` (decision tree) | 12-node flowchart: fold count by dataset size, model type, auto-tune |
+| `kernel_selection` (decision tree) | RBF vs Matérn 1.5/2.5 vs Rational Quadratic selection; optimizer restarts; alpha noise floor |
 
 **Backend:** `GET /api/learning/content/<topic>` — reads from `app/learning/<topic>.json`.
 
@@ -197,9 +202,11 @@ The Exercises tab presents a library of guided workflow scripts. Each exercise:
 | `ex_05_active_learning` | Where to Run the Next Experiment | Intermediate | 20 | `sparse_4d.csv` |
 | `ex_06_pca_filter` | Correlated Inputs and PCA | Intermediate | 25 | `pca_correlated_6d.csv` |
 | `ex_07_multifidelity` | Bridge Correction — LF/HF Fusion | Intermediate | 30 | `multifidelity_lf.csv` + `multifidelity_hf.csv` |
+| `ex_08_model_selection` | Model Selection Comparison | Intermediate | 25 | `model_comparison_2d.csv` |
+| `ex_09_alpha_regularization` | Alpha Regularization | Intermediate | 20 | `alpha_noisy_2d.csv` |
+| `ex_10_optimization` | Surrogate-Based Optimization & Pareto Front | Intermediate | 30 | `aero_pareto_2d.csv` |
+| `ex_11_noise_weighting` | Heteroscedastic Noise Weighting | Expert | 25 | `hetero_noise_2d.csv` |
 | `ex_12_pce` | PCE and Analytical Sobol Indices | Expert | 25 | `ishigami_5d.csv` |
-
-Exercises 8–11 are reserved for future tuning-focused content.
 
 Synthetic datasets live in `app/learning/datasets/`. They are generated analytically (NumPy) — no real program data. Row counts are sized for fast GPR training (< 10 s).
 
