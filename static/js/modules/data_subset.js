@@ -2,11 +2,11 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_subset.js
-// Version: 1.2.0
+// Version: 1.3.0
 // Description: Step 5 — Subset. Per-column range filters that permanently
-//              slice the clean DataFrame via POST /api/data/subset. Excluded
-//              points are shown dimmed in a sticky live 2D scatter preview.
-//              Settings panel mirrors the Explore 2D scatter controls exactly.
+//              slice the clean DataFrame via POST /api/data/subset. Layout:
+//              filters on the left, sticky chart + commit button + settings on
+//              the right so the chart and commit action are always in view.
 // =============================================================================
 
 import { renderDataScatter2D } from "../charts.js";
@@ -35,7 +35,7 @@ const _S2D_DEFAULTS = {
   edgeWidth:          0,
   includedOpacity:   0.75,
   excludedOpacity:   0.12,
-  height:            380,
+  height:            420,
   plotBgColor:       null,
   paperBgColor:      null,
   plotBorderWidth:    0,
@@ -116,16 +116,33 @@ export async function initSubset(containerEl) {
   card.appendChild(descEl);
   containerEl.appendChild(card);
 
-  // ── Main two-column grid ───────────────────────────────────────────────────
+  // ── Status bar (full-width, below grid) ───────────────────────────────────
+  const statusBar = el("div", { cls: "subset-status hidden" });
+
+  function _showStatus(type, msg) {
+    statusBar.className = "subset-status";
+    if (type === "ok") {
+      statusBar.innerHTML = `<span class="subset-status-icon">✓</span> ${msg}`;
+    } else if (type === "error") {
+      statusBar.innerHTML = `<span class="subset-status-icon subset-status-icon--error">✗</span> ${msg}`;
+      statusBar.classList.add("subset-status--error");
+    } else {
+      statusBar.innerHTML = `<span class="subset-status-icon subset-status-icon--warn">⚠</span> ${msg}`;
+      statusBar.classList.add("subset-status--warn");
+    }
+    statusBar.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // ── Two-column grid ────────────────────────────────────────────────────────
   const hasChart = numericCols.length >= 2;
   const mainGrid = el("div", { cls: hasChart ? "subset-main-grid" : "subset-main-grid subset-main-grid--single" });
   card.appendChild(mainGrid);
+  card.appendChild(statusBar);
 
-  // Left column: filter section (always) + settings panel (only if chart)
+  // ── LEFT column: filters only ──────────────────────────────────────────────
   const leftCol = el("div", { cls: "subset-left-col" });
   mainGrid.appendChild(leftCol);
 
-  // ── Filter section ─────────────────────────────────────────────────────────
   const filterSection = el("div", { cls: "subset-filter-section" });
 
   const filterHeader = el("div", { cls: "subset-filter-header" });
@@ -142,14 +159,54 @@ export async function initSubset(containerEl) {
   filterSection.appendChild(filterList);
   leftCol.appendChild(filterSection);
 
-  // ── Right column + settings (only when chart is possible) ─────────────────
-  let chartEl = null;
+  // ── RIGHT column: commit header + axis selectors + chart + settings ────────
+  let chartEl      = null;
+  let settingsPanel = null;
   let xCol = numericCols[0] || null;
   let yCol = numericCols[1] || numericCols[0] || null;
-  let settingsPanel = null;
+
+  // Commit + Undo buttons — declared here so commit handler can reference them
+  const commitBtn = el("button", { cls: "btn btn--primary btn--sm", type: "button", text: "Commit Subset" });
+  const undoBtn   = el("button", { cls: "btn btn--ghost   btn--sm", type: "button", text: "Undo" });
+  undoBtn.disabled = true;
 
   if (hasChart) {
-    // Settings panel — exact chart-settings-panel format matching Explore 2D scatter
+    const rightCol = el("div", { cls: "subset-right-col" });
+    mainGrid.appendChild(rightCol);
+
+    // Header row: label + row count chip + action buttons
+    const rightHeader = el("div", { cls: "subset-right-header" });
+    const rightLabel  = el("span", { cls: "subset-filter-title", text: "Live Preview" });
+    const btnGroup    = el("div",  { cls: "subset-right-btngroup" });
+    btnGroup.appendChild(commitBtn);
+    btnGroup.appendChild(undoBtn);
+    rightHeader.appendChild(rightLabel);
+    rightHeader.appendChild(btnGroup);
+    rightCol.appendChild(rightHeader);
+
+    // Axis selectors
+    const axesRow = el("div", { cls: "subset-axes-row" });
+    const xLabel  = el("label", { cls: "subset-axis-label", text: "X" });
+    const xSel    = el("select", { cls: "explore-select subset-axis-sel" });
+    const yLabel  = el("label", { cls: "subset-axis-label", text: "Y" });
+    const ySel    = el("select", { cls: "explore-select subset-axis-sel" });
+    for (const col of numericCols) {
+      xSel.appendChild(new Option(col, col));
+      ySel.appendChild(new Option(col, col));
+    }
+    if (numericCols[1]) ySel.value = numericCols[1];
+    axesRow.appendChild(xLabel); axesRow.appendChild(xSel);
+    axesRow.appendChild(yLabel); axesRow.appendChild(ySel);
+    rightCol.appendChild(axesRow);
+
+    // Chart
+    chartEl = el("div", { cls: "subset-chart" });
+    rightCol.appendChild(chartEl);
+
+    xSel.addEventListener("change", () => { xCol = xSel.value; _drawPreview(); });
+    ySel.addEventListener("change", () => { yCol = ySel.value; _drawPreview(); });
+
+    // Settings panel — chart-settings-panel format, below the chart
     const fontColorAuto   = s2d.fontColor        === null;
     const fontColorVal    = s2d.fontColor         || "#4b5478";
     const plotBgAuto      = s2d.plotBgColor       === null;
@@ -163,7 +220,7 @@ export async function initSubset(containerEl) {
     const legendBorderOff = s2d.legendBorderWidth === 0;
 
     settingsPanel = document.createElement("details");
-    settingsPanel.className = "chart-settings-panel";
+    settingsPanel.className = "chart-settings-panel subset-chart-settings";
 
     settingsPanel.innerHTML = `
       <summary class="chart-settings-panel__summary">Plot Settings</summary>
@@ -350,35 +407,7 @@ export async function initSubset(containerEl) {
 
       </div>
     `;
-    leftCol.appendChild(settingsPanel);
-
-    // Right column: sticky preview header + chart
-    const rightCol = el("div", { cls: "subset-right-col" });
-    mainGrid.appendChild(rightCol);
-
-    const previewHeader = el("div", { cls: "subset-preview-header" });
-    const previewTitle  = el("span", { cls: "subset-filter-title", text: "Live Preview" });
-    const axesRow = el("div", { cls: "subset-axes-row" });
-    const xLabel  = el("label", { cls: "subset-axis-label", text: "X" });
-    const xSel    = el("select", { cls: "explore-select subset-axis-sel" });
-    const yLabel  = el("label", { cls: "subset-axis-label", text: "Y" });
-    const ySel    = el("select", { cls: "explore-select subset-axis-sel" });
-    for (const col of numericCols) {
-      xSel.appendChild(new Option(col, col));
-      ySel.appendChild(new Option(col, col));
-    }
-    if (numericCols[1]) ySel.value = numericCols[1];
-    axesRow.appendChild(xLabel); axesRow.appendChild(xSel);
-    axesRow.appendChild(yLabel); axesRow.appendChild(ySel);
-    previewHeader.appendChild(previewTitle);
-    previewHeader.appendChild(axesRow);
-    rightCol.appendChild(previewHeader);
-
-    chartEl = el("div", { cls: "subset-chart" });
-    rightCol.appendChild(chartEl);
-
-    xSel.addEventListener("change", () => { xCol = xSel.value; _drawPreview(); });
-    ySel.addEventListener("change", () => { yCol = ySel.value; _drawPreview(); });
+    rightCol.appendChild(settingsPanel);
 
     // ── Settings wiring ──────────────────────────────────────────────────────
     function _getEl(id) { return settingsPanel.querySelector(`#${id}`); }
@@ -475,9 +504,9 @@ export async function initSubset(containerEl) {
         _applySettings();
       });
     }
-    _wireWidthColor("ss-edge-width",          "ss-edge-color");
-    _wireWidthColor("ss-plot-border-width",    "ss-plot-border-color");
-    _wireWidthColor("ss-legend-border-width",  "ss-legend-border-color");
+    _wireWidthColor("ss-edge-width",         "ss-edge-color");
+    _wireWidthColor("ss-plot-border-width",   "ss-plot-border-color");
+    _wireWidthColor("ss-legend-border-width", "ss-legend-border-color");
 
     ["ss-title","ss-title-pos","ss-plot-title-font","ss-axis-title-font",
      "ss-legend-pos","ss-legend-font","ss-legend-bg","ss-legend-border-color",
@@ -488,19 +517,13 @@ export async function initSubset(containerEl) {
       const inputEl = _getEl(id);
       if (inputEl) inputEl.addEventListener("change", _applySettings);
     });
+  } else {
+    // No chart — commit/undo below filter section (single-column layout)
+    const actionRow = el("div", { cls: "subset-action-row" });
+    actionRow.appendChild(commitBtn);
+    actionRow.appendChild(undoBtn);
+    leftCol.appendChild(actionRow);
   }
-
-  // ── Action row + status bar ────────────────────────────────────────────────
-  const actionRow = el("div", { cls: "subset-action-row" });
-  const commitBtn = el("button", { cls: "btn btn--primary", type: "button", text: "Commit Subset" });
-  const undoBtn   = el("button", { cls: "btn btn--ghost",   type: "button", text: "Undo" });
-  undoBtn.disabled = true;
-  actionRow.appendChild(commitBtn);
-  actionRow.appendChild(undoBtn);
-  card.appendChild(actionRow);
-
-  const statusBar = el("div", { cls: "subset-status hidden" });
-  card.appendChild(statusBar);
 
   // ── Build filter rows ──────────────────────────────────────────────────────
   function _clamp(v, mn, mx) { return Math.min(Math.max(v, mn), mx); }
@@ -632,20 +655,6 @@ export async function initSubset(containerEl) {
     });
   }
 
-  // ── Status bar helper ──────────────────────────────────────────────────────
-  function _showStatus(type, msg) {
-    statusBar.className = "subset-status";
-    if (type === "ok") {
-      statusBar.innerHTML = `<span class="subset-status-icon">✓</span> ${msg}`;
-    } else if (type === "error") {
-      statusBar.innerHTML = `<span class="subset-status-icon subset-status-icon--error">✗</span> ${msg}`;
-      statusBar.classList.add("subset-status--error");
-    } else {
-      statusBar.innerHTML = `<span class="subset-status-icon subset-status-icon--warn">⚠</span> ${msg}`;
-      statusBar.classList.add("subset-status--warn");
-    }
-  }
-
   const _themeHandler = () => _drawPreview();
   document.addEventListener("theme:changed", _themeHandler);
 
@@ -664,14 +673,25 @@ export async function initSubset(containerEl) {
         "No filters applied — all rows would be kept. "
         + "Adjust at least one range before committing."
       );
-      showWarning("No filters applied — adjust at least one range before committing.");
       return;
     }
 
     commitBtn.disabled    = true;
     commitBtn.textContent = "Committing…";
     showSpinner("Applying subset…");
-    const resp = await post("/api/data/subset", { conditions });
+
+    let resp;
+    try {
+      resp = await post("/api/data/subset", { conditions });
+    } catch (err) {
+      hideSpinner();
+      commitBtn.disabled    = false;
+      commitBtn.textContent = "Commit Subset";
+      _showStatus("error", "Network error — is the server running?");
+      showError("Network error — could not reach the server.");
+      return;
+    }
+
     hideSpinner();
     commitBtn.disabled    = false;
     commitBtn.textContent = "Commit Subset";
@@ -686,7 +706,6 @@ export async function initSubset(containerEl) {
       `Subset applied — kept ${resp.rows_after.toLocaleString()} of `
       + `${resp.rows_before.toLocaleString()} rows.`
     );
-
     if (resp.zero_variance_columns?.length) {
       showWarning(
         `Zero-variance columns after subset: ${resp.zero_variance_columns.join(", ")}. `
@@ -718,7 +737,18 @@ export async function initSubset(containerEl) {
     undoBtn.disabled    = true;
     undoBtn.textContent = "Undoing…";
     showSpinner("Undoing subset…");
-    const resp = await post("/api/data/subset/undo", {});
+
+    let resp;
+    try {
+      resp = await post("/api/data/subset/undo", {});
+    } catch (err) {
+      hideSpinner();
+      undoBtn.disabled    = false;
+      undoBtn.textContent = "Undo";
+      showError("Network error — could not reach the server.");
+      return;
+    }
+
     hideSpinner();
     undoBtn.textContent = "Undo";
 

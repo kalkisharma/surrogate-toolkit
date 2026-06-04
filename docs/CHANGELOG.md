@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.57] — 2026-06-04
+
+### Changed — Subset step layout redesign
+- **Commit button**: moved into sticky right column header (always visible beside chart); Undo adjacent; no more scrolling to reach them
+- **Chart**: min-height 340px → 420px; right column 40/60 split gives chart substantially more width
+- **Settings panel**: moved below chart in right column (full 60% width, better proportioned); max-height 320px scroll when expanded
+- **Commit robustness**: try/catch wraps POST call — network errors now restore button and show clear status-bar message instead of leaving button permanently grayed
+- **No-filter warning**: shown in status bar only (removed duplicate showWarning call)
+- **Filter section**: left column only, scrolls independently of chart
+
 ## [3.5.56] — 2026-06-04
 
 ### Changed — Subset step UX overhaul
