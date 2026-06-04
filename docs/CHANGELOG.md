@@ -19,6 +19,13 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.69] — 2026-06-04
+
+### Improved — Row inspector Z-score column and outlier highlighting
+- Third column "Z-score" added to the inspector table: `(value − mean) / σ` computed per column; `|z| > 3` shown in red (bold), `|z| > 2` shown in amber; non-numeric or zero-variance columns show "—"
+- IQR-violating rows now have a stronger red-tinted background (`rgba 0.10`) plus a left red border; a `⚠` icon prefixes the column name in the violating cell
+- Column widths fixed at 42 / 33 / 25% so the three columns stay evenly proportioned
+
 ## [3.5.68] — 2026-06-04
 
 ### Added — Outlier row inspector in Step 3 — Explore

@@ -1614,11 +1614,12 @@ body,
 }
 
 .row-inspector-row--outlier {
-  background: rgba(220, 38, 38, 0.06);
+  background: rgba(220, 38, 38, 0.10);
+  border-left: 2px solid rgba(220, 38, 38, 0.5);
 }
 
 .row-inspector-col {
-  width: 45%;
+  width: 42%;
   color: var(--color-text);
   font-weight: var(--font-medium);
   overflow: hidden;
@@ -1626,9 +1627,36 @@ body,
   white-space: nowrap;
 }
 
+.row-inspector-warn {
+  color: var(--color-danger, #dc2626);
+  font-size: 0.7em;
+}
+
 .row-inspector-val {
+  width: 33%;
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
+}
+
+.row-inspector-z-th,
+.row-inspector-z {
+  width: 25%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-inspector-z {
+  color: var(--color-text-muted);
+}
+
+.row-inspector-z--high {
+  color: var(--color-danger, #dc2626);
+  font-weight: var(--font-semibold);
+}
+
+.row-inspector-z--med {
+  color: var(--color-warning, #d97706);
+  font-weight: var(--font-medium);
 }
 
 /* ── Column Distributions (Histograms) ──────────────────────────────────────── */

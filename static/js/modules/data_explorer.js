@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.6.0
+// Version: 1.6.1
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, expandable plot settings,
 //              column distribution histograms, dCor heatmap, and 2D scatter.
@@ -112,19 +112,27 @@ function _showRowInspector(rowIdx, rows, columns, inspectorEl) {
 
   const isOutlier = _outlierIndices.has(rowIdx);
 
-  // Which columns individually violate IQR for this row
+  // Per-column: IQR violation check + mean/std for Z-score
   const outlierCols = new Set();
+  const colStats    = {};
   for (const col of columns) {
     const vals = rows.map(r => r[col]).filter(v => v != null && isFinite(+v)).map(Number);
-    if (vals.length < 4) continue;
-    vals.sort((a, b) => a - b);
-    const q1  = vals[Math.floor(vals.length * 0.25)];
-    const q3  = vals[Math.floor(vals.length * 0.75)];
-    const iqr = q3 - q1;
-    if (iqr === 0) continue;
-    const v = row[col];
-    if (v != null && isFinite(+v) && (+v < q1 - 1.5 * iqr || +v > q3 + 1.5 * iqr)) {
-      outlierCols.add(col);
+    if (vals.length < 2) continue;
+    const m = mean(vals);
+    const s = stdDev(vals);
+    colStats[col] = { mean: m, std: s };
+
+    if (vals.length >= 4) {
+      vals.sort((a, b) => a - b);
+      const q1  = vals[Math.floor(vals.length * 0.25)];
+      const q3  = vals[Math.floor(vals.length * 0.75)];
+      const iqr = q3 - q1;
+      if (iqr > 0) {
+        const v = row[col];
+        if (v != null && isFinite(+v) && (+v < q1 - 1.5 * iqr || +v > q3 + 1.5 * iqr)) {
+          outlierCols.add(col);
+        }
+      }
     }
   }
 
@@ -151,20 +159,28 @@ function _showRowInspector(rowIdx, rows, columns, inspectorEl) {
   const tableWrap = el("div", { cls: "row-inspector-table-wrap" });
   const table = el("table", { cls: "row-inspector-table" });
   const thead = el("thead");
-  thead.innerHTML = "<tr><th>Column</th><th>Value</th></tr>";
+  thead.innerHTML = "<tr><th>Column</th><th>Value</th><th class='row-inspector-z-th'>Z-score</th></tr>";
   table.appendChild(thead);
   const tbody = el("tbody");
 
   for (const col of columns) {
-    const val = row[col];
+    const val      = row[col];
     const isOutCol = outlierCols.has(col);
-    const tr = document.createElement("tr");
+    const tr       = document.createElement("tr");
     if (isOutCol) tr.className = "row-inspector-row--outlier";
 
+    // Column name cell — warning icon for IQR-violating columns
     const tdCol = document.createElement("td");
     tdCol.className = "row-inspector-col";
-    tdCol.textContent = col;
+    if (isOutCol) {
+      const icon = document.createElement("span");
+      icon.className = "row-inspector-warn";
+      icon.textContent = "⚠ ";
+      tdCol.appendChild(icon);
+    }
+    tdCol.appendChild(document.createTextNode(col));
 
+    // Value cell
     const tdVal = document.createElement("td");
     tdVal.className = "row-inspector-val";
     if (val == null) {
@@ -176,8 +192,24 @@ function _showRowInspector(rowIdx, rows, columns, inspectorEl) {
       tdVal.textContent = String(val);
     }
 
+    // Z-score cell
+    const tdZ = document.createElement("td");
+    tdZ.className = "row-inspector-z";
+    const cs = colStats[col];
+    if (cs && cs.std > 0 && val != null && isFinite(+val)) {
+      const z    = (+val - cs.mean) / cs.std;
+      const sign = z >= 0 ? "+" : "";
+      tdZ.textContent = `${sign}${z.toFixed(2)}`;
+      if (Math.abs(z) > 3)      tdZ.classList.add("row-inspector-z--high");
+      else if (Math.abs(z) > 2) tdZ.classList.add("row-inspector-z--med");
+    } else {
+      tdZ.textContent = "—";
+      tdZ.style.color = "var(--color-text-muted)";
+    }
+
     tr.appendChild(tdCol);
     tr.appendChild(tdVal);
+    tr.appendChild(tdZ);
     tbody.appendChild(tr);
   }
 
