@@ -1609,6 +1609,93 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
 }
 
 /**
+ * Render a single Input × Output scatter panel for the small-multiples grid.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {number[]}    xVals       - Input column values.
+ * @param {number[]}    yVals       - Output column values (same length as xVals).
+ * @param {string}      xCol        - Input column name (X axis label).
+ * @param {string}      yCol        - Output column name (Y axis label / title).
+ * @param {object}      [opts]
+ */
+export function renderIOScatter(containerEl, xVals, yVals, xCol, yCol, opts = {}) {
+  const {
+    markerSize      = 5,
+    markerColor     = "#3b5dd9",
+    markerOpacity   = 0.65,
+    edgeWidth       = 0,
+    edgeColor       = "#000000",
+    showTrendLine   = true,
+    fontSize        = 10,
+    fontColor       = null,
+    height          = 200,
+    plotBgColor     = null,
+    paperBgColor    = null,
+  } = opts;
+
+  const isDark  = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr = fontColor ?? (isDark ? "#8b94b3" : "#4b5478");
+  const gridClr = isDark ? "#2a2d4a" : "#e5e7eb";
+  const plotBg  = plotBgColor  ?? (isDark ? "#1e2035" : "#ffffff");
+  const paperBg = paperBgColor ?? "rgba(0,0,0,0)";
+
+  const traces = [{
+    type: "scatter", mode: "markers",
+    x: xVals, y: yVals, name: "",
+    marker: {
+      size: markerSize, color: markerColor, opacity: markerOpacity,
+      line: edgeWidth > 0 ? { width: edgeWidth, color: edgeColor } : { width: 0 },
+    },
+    hovertemplate: `${xCol}: %{x:.3g}<br>${yCol}: %{y:.3g}<extra></extra>`,
+  }];
+
+  // Linear regression trend line
+  if (showTrendLine && xVals.length >= 2) {
+    const n = xVals.length;
+    const sx = xVals.reduce((a, b) => a + b, 0);
+    const sy = yVals.reduce((a, b) => a + b, 0);
+    const sxy = xVals.reduce((a, xi, i) => a + xi * yVals[i], 0);
+    const sx2 = xVals.reduce((a, xi) => a + xi * xi, 0);
+    const denom = n * sx2 - sx * sx;
+    if (Math.abs(denom) > 1e-12) {
+      const slope = (n * sxy - sx * sy) / denom;
+      const intercept = (sy - slope * sx) / n;
+      const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
+      traces.push({
+        type: "scatter", mode: "lines", name: "trend",
+        x: [xMin, xMax], y: [slope * xMin + intercept, slope * xMax + intercept],
+        line: { color: "rgba(239,68,68,0.7)", width: 1.5, dash: "dot" },
+        hoverinfo: "skip", showlegend: false,
+      });
+    }
+  }
+
+  Plotly.react(containerEl, traces, {
+    title: { text: xCol, font: { size: fontSize + 1, color: fontClr }, x: 0.5, xanchor: "center" },
+    xaxis: {
+      tickfont: { size: Math.max(fontSize - 1, 7), color: fontClr },
+      gridcolor: gridClr, showgrid: true, zeroline: false,
+    },
+    yaxis: {
+      tickfont: { size: Math.max(fontSize - 1, 7), color: fontClr },
+      gridcolor: gridClr, showgrid: true, zeroline: false,
+    },
+    height,
+    margin:        { t: Math.max(fontSize * 3, 26), b: 30, l: 40, r: 8 },
+    plot_bgcolor:  plotBg,
+    paper_bgcolor: paperBg,
+    font:          { size: fontSize, color: fontClr },
+    showlegend:    false,
+  }, {
+    responsive:     true,
+    displayModeBar: "hover",
+    displaylogo:    false,
+    modeBarButtons: [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
+    toImageButtonOptions: { filename: `io_${xCol}_vs_${yCol}`, scale: 2 },
+  });
+}
+
+/**
  * Render a single-column histogram into containerEl using Plotly.react.
  * Designed to be called for each column in a responsive grid.
  *

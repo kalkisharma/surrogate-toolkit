@@ -11,7 +11,7 @@
        start clean rather than inheriting a stale dark preference. -->
   <script>
     (function () {
-      var currentVer = "3.5.63";
+      var currentVer = "3.5.64";
       if (localStorage.getItem("app_version") !== currentVer) {
         localStorage.removeItem("theme");
         localStorage.setItem("app_version", currentVer);
@@ -28,11 +28,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <!-- Stylesheets — ?v= busts browser cache on version bumps -->
-  <link rel="stylesheet" href="/static/css/variables.css?v=3.5.63">
-  <link rel="stylesheet" href="/static/css/main.css?v=3.5.63">
-  <link rel="stylesheet" href="/static/css/notifications.css?v=3.5.63">
-  <link rel="stylesheet" href="/static/css/loading.css?v=3.5.63">
-  <link rel="stylesheet" href="/static/css/learning_mode.css?v=3.5.63">
+  <link rel="stylesheet" href="/static/css/variables.css?v=3.5.64">
+  <link rel="stylesheet" href="/static/css/main.css?v=3.5.64">
+  <link rel="stylesheet" href="/static/css/notifications.css?v=3.5.64">
+  <link rel="stylesheet" href="/static/css/loading.css?v=3.5.64">
+  <link rel="stylesheet" href="/static/css/learning_mode.css?v=3.5.64">
 </head>
 <body>
 
@@ -40,7 +40,7 @@
   <header id="global-header" role="banner" aria-label="Application header">
     <div class="global-header__brand">
       <span class="global-header__name">Surrogate Toolkit</span>
-      <span class="global-header__version">v3.5.63</span>
+      <span class="global-header__version">v3.5.64</span>
     </div>
     <nav class="global-header__controls" aria-label="Session controls">
 
@@ -107,7 +107,7 @@
   <script src="/static/vendor/plotly.min.js"></script>
 
   <!-- App entry point — ?v= busts browser cache on version bumps -->
-  <script type="module" src="/static/js/main.js?v=3.5.63"></script>
+  <script type="module" src="/static/js/main.js?v=3.5.64"></script>
 
 </body>
 </html>

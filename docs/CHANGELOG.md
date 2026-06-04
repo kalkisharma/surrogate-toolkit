@@ -19,6 +19,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.64] — 2026-06-04
+
+### Added — Input × Output scatter grid in Step 3 — Explore
+- New **Input × Output Relationships** card after Column Distributions, before dCor heatmap
+- `renderIOScatter()` in `charts.js` — scatter with optional linear regression trend line, hover tooltips, save/zoom/pan mode bar
+- `_buildIOSection()` in `data_explorer.js`: grouped by output column, output chip tabs to show/hide groups, 3-col responsive grid, settings panel, placeholder when not yet designated, localStorage persistence, theme re-render
+
+## [3.5.63] — 2026-06-04
+
+### Fixed — Histogram mode bar with save-plot button
+- `displayModeBar: "hover"` + `toImage`/zoom/pan/reset buttons on each histogram chart
+
 ## [3.5.62] — 2026-06-04
 
 ### Added — Column Distributions (Histograms) in Step 3 — Explore

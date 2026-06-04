@@ -1440,6 +1440,57 @@ body,
 }
 .stat-tier--primary .stat-pair__val { color: var(--color-text-primary); }
 
+/* ── Input × Output Scatter Grid ────────────────────────────────────────────── */
+
+.io-scatter-card {
+  margin-top: var(--space-6);
+}
+
+.io-tab-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}
+.io-tab-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.io-groups {
+  margin-top: var(--space-4);
+}
+.io-output-group {
+  margin-bottom: var(--space-5);
+}
+.io-output-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.io-scatter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+@media (max-width: 1100px) {
+  .io-scatter-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 640px) {
+  .io-scatter-grid { grid-template-columns: 1fr; }
+}
+
+.io-scatter-chart {
+  min-height: 160px;
+}
+
 /* ── Column Distributions (Histograms) ──────────────────────────────────────── */
 
 .histogram-card {

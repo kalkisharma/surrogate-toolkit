@@ -2,13 +2,13 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.3.0
+// Version: 1.4.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, expandable plot settings,
 //              column distribution histograms, dCor heatmap, and 2D scatter.
 // =============================================================================
 
-import { renderScatterMatrix, renderDCorHeatmap, renderDataScatter2D, renderColumnHistogram } from "../charts.js";
+import { renderScatterMatrix, renderDCorHeatmap, renderDataScatter2D, renderColumnHistogram, renderIOScatter } from "../charts.js";
 import { registerPrimer, registerTooltip } from "../learning_mode.js";
 import { mean, stdDev, median, skewness, detectOutliers, el, formatNum, clearEl } from "../utils.js";
 import { get } from "../api.js";
@@ -246,6 +246,14 @@ export async function initExploration(containerEl, uploadResponse) {
 
   // ── Column Distributions (histograms) ────────────────────────────────────
   _buildHistogramSection(containerEl, plotRows, _allColumns);
+
+  // ── Input × Output scatter grid ───────────────────────────────────────────
+  {
+    const meta2     = uploadResponse.metadata || {};
+    const inCols2   = (meta2.input_columns  || []).filter(c => columns.includes(c));
+    const outCols2  = (meta2.output_columns || []).filter(c => columns.includes(c));
+    _buildIOSection(containerEl, plotRows, inCols2, outCols2, columns);
+  }
 
   // ── Distance Correlation heatmap (lazy — fetched on first expand) ─────────
   containerEl.appendChild(_buildDCorSection());
@@ -734,6 +742,296 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
 
   section.appendChild(grid);
   return section;
+}
+
+// ── Input × Output Scatter Grid ──────────────────────────────────────────────
+
+const _IO_KEY = "surrogate_data_io_settings";
+const _IO_DEFAULTS = {
+  fontSize:      10,
+  fontColor:     null,
+  markerSize:    5,
+  markerColor:   "#3b5dd9",
+  markerOpacity: 0.65,
+  edgeWidth:     0,
+  edgeColor:     "#000000",
+  showTrendLine: true,
+  chartHeight:   200,
+  plotBgColor:   null,
+  paperBgColor:  null,
+};
+
+function _loadIOSettings() {
+  try {
+    const raw = localStorage.getItem(_IO_KEY);
+    if (raw) return { ..._IO_DEFAULTS, ...JSON.parse(raw) };
+  } catch (_) {}
+  return { ..._IO_DEFAULTS };
+}
+function _saveIOSettings(s) {
+  try { localStorage.setItem(_IO_KEY, JSON.stringify(s)); } catch (_) {}
+}
+
+/**
+ * Build the Input × Output scatter grid section.
+ * If no designation yet, renders a placeholder card instead.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {object[]}    rows       - Row data array.
+ * @param {string[]}    inputCols  - Designated input columns.
+ * @param {string[]}    outputCols - Designated output columns.
+ * @param {string[]}    allColumns - All dataset columns (for fallback display).
+ */
+function _buildIOSection(containerEl, rows, inputCols, outputCols, allColumns) {
+  const card = el("div", { cls: "card io-scatter-card" });
+  card.appendChild(el("h3", { cls: "section-title", text: "Input × Output Relationships" }));
+  containerEl.appendChild(card);
+
+  // Placeholder when columns aren't designated yet
+  if (!inputCols.length || !outputCols.length) {
+    card.appendChild(el("p", {
+      cls: "section-desc",
+      text: "Complete Step 6 — Assign to designate input and output columns. The scatter grid will populate here.",
+    }));
+    return;
+  }
+
+  let ios = _loadIOSettings();
+
+  // Pre-extract paired values for every (input, output) combination
+  const pairs = {};
+  for (const out of outputCols) {
+    pairs[out] = {};
+    for (const inp of inputCols) {
+      const xVals = [], yVals = [];
+      for (const row of rows) {
+        const x = row[inp], y = row[out];
+        if (x != null && isFinite(+x) && y != null && isFinite(+y)) {
+          xVals.push(+x); yVals.push(+y);
+        }
+      }
+      pairs[out][inp] = { xVals, yVals };
+    }
+  }
+
+  // ── Settings panel ─────────────────────────────────────────────────────────
+  const fontColorAuto  = ios.fontColor    === null;
+  const fontColorVal   = ios.fontColor    || "#4b5478";
+  const plotBgAuto     = ios.plotBgColor  === null;
+  const plotBgVal      = ios.plotBgColor  || "#ffffff";
+  const paperBgAuto    = ios.paperBgColor === null;
+  const paperBgVal     = ios.paperBgColor || "#f5f6fa";
+
+  const settingsPanel = document.createElement("details");
+  settingsPanel.className = "chart-settings-panel";
+  settingsPanel.innerHTML = `
+    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <div class="chart-settings-controls">
+
+      <div class="settings-divider">Typography</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-font-size">Font size (px)</label>
+        <input id="io-font-size" type="number" class="chart-settings-input" min="7" max="20" step="1" value="${ios.fontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Font color</span>
+        <div class="color-with-auto">
+          <input id="io-font-color" type="color" class="chart-settings-color"
+                 value="${fontColorVal}" ${fontColorAuto ? "disabled" : ""} style="opacity:${fontColorAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="io-font-color-auto" ${fontColorAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-divider">Markers</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-marker-size">Marker size</label>
+        <input id="io-marker-size" type="number" class="chart-settings-input" min="2" max="20" step="1" value="${ios.markerSize}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-marker-color">Marker color</label>
+        <input id="io-marker-color" type="color" class="chart-settings-color" value="${ios.markerColor}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Opacity</span>
+        <div class="range-with-value">
+          <input id="io-marker-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${ios.markerOpacity}">
+          <span id="io-marker-opacity-val" class="chart-settings-range-val">${ios.markerOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-edge-width">Edge width</label>
+        <input id="io-edge-width" type="number" class="chart-settings-input" min="0" max="3" step="0.5" value="${ios.edgeWidth}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-edge-color">Edge color</label>
+        <input id="io-edge-color" type="color" class="chart-settings-color" value="${ios.edgeColor}">
+      </div>
+
+      <div class="settings-divider">Figure</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-height">Chart height (px)</label>
+        <input id="io-height" type="number" class="chart-settings-input" min="100" max="600" step="20" value="${ios.chartHeight}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-plot-bg">Plot bg</label>
+        <div class="color-with-auto">
+          <input id="io-plot-bg" type="color" class="chart-settings-color"
+                 value="${plotBgVal}" ${plotBgAuto ? "disabled" : ""} style="opacity:${plotBgAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="io-plot-bg-auto" ${plotBgAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="io-paper-bg">Paper bg</label>
+        <div class="color-with-auto">
+          <input id="io-paper-bg" type="color" class="chart-settings-color"
+                 value="${paperBgVal}" ${paperBgAuto ? "disabled" : ""} style="opacity:${paperBgAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="io-paper-bg-auto" ${paperBgAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-divider">Options</div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Trend line</span>
+        <label class="chart-settings-check">
+          <input type="checkbox" id="io-trend-line" ${ios.showTrendLine ? "checked" : ""}> Show
+        </label>
+      </div>
+    </div>
+  `;
+  card.appendChild(settingsPanel);
+
+  // ── Output group tabs / chips ─────────────────────────────────────────────
+  // Let user show/hide individual output groups
+  let visibleOutputs = new Set(outputCols);
+
+  const tabWrap = el("div", { cls: "io-tab-wrap" });
+  const tabLabel = el("span", { cls: "io-tab-label", text: "Show outputs:" });
+  tabWrap.appendChild(tabLabel);
+  for (const out of outputCols) {
+    const chip = el("button", { cls: "col-chip col-chip--selected", type: "button" });
+    chip.textContent = out; chip.title = out; chip.dataset.out = out;
+    chip.addEventListener("click", () => {
+      if (visibleOutputs.has(out)) {
+        if (visibleOutputs.size <= 1) return;
+        visibleOutputs.delete(out);
+        chip.classList.remove("col-chip--selected");
+      } else {
+        visibleOutputs.add(out);
+        chip.classList.add("col-chip--selected");
+      }
+      _rebuildGroups();
+    });
+    tabWrap.appendChild(chip);
+  }
+  card.appendChild(tabWrap);
+
+  // ── Output groups ─────────────────────────────────────────────────────────
+  const groupsEl = el("div", { cls: "io-groups" });
+  card.appendChild(groupsEl);
+
+  // One persistent chart div per (input, output) pair
+  const chartEls = {};
+  for (const out of outputCols) {
+    chartEls[out] = {};
+    for (const inp of inputCols) {
+      const div = el("div", { cls: "io-scatter-chart" });
+      div.dataset.inp = inp; div.dataset.out = out;
+      chartEls[out][inp] = div;
+    }
+  }
+
+  function _renderPair(inp, out) {
+    const { xVals, yVals } = pairs[out][inp];
+    renderIOScatter(chartEls[out][inp], xVals, yVals, inp, out, {
+      markerSize:    ios.markerSize,
+      markerColor:   ios.markerColor,
+      markerOpacity: ios.markerOpacity,
+      edgeWidth:     ios.edgeWidth,
+      edgeColor:     ios.edgeColor,
+      showTrendLine: ios.showTrendLine,
+      fontSize:      ios.fontSize,
+      fontColor:     ios.fontColor,
+      height:        ios.chartHeight,
+      plotBgColor:   ios.plotBgColor,
+      paperBgColor:  ios.paperBgColor,
+    });
+  }
+
+  function _rebuildGroups() {
+    clearEl(groupsEl);
+    for (const out of outputCols) {
+      if (!visibleOutputs.has(out)) continue;
+      const group = el("div", { cls: "io-output-group" });
+      const groupHdr = el("div", { cls: "io-output-label" });
+      groupHdr.textContent = `→ ${out}`;
+      group.appendChild(groupHdr);
+      const grid = el("div", { cls: "io-scatter-grid" });
+      for (const inp of inputCols) {
+        grid.appendChild(chartEls[out][inp]);
+        _renderPair(inp, out);
+      }
+      group.appendChild(grid);
+      groupsEl.appendChild(group);
+    }
+  }
+
+  function _rerenderAll() {
+    for (const out of outputCols) {
+      for (const inp of inputCols) _renderPair(inp, out);
+    }
+  }
+
+  // ── Settings wiring ────────────────────────────────────────────────────────
+  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  const _g = id => settingsPanel.querySelector(`#${id}`);
+
+  function _applyIOSettings() {
+    ios = {
+      fontSize:      parseInt(_g("io-font-size").value)      || 10,
+      fontColor:     _g("io-font-color-auto").checked ? null : _g("io-font-color").value,
+      markerSize:    parseInt(_g("io-marker-size").value)    || 5,
+      markerColor:   _g("io-marker-color").value,
+      markerOpacity: parseFloat(_g("io-marker-opacity").value),
+      edgeWidth:     parseFloat(_g("io-edge-width").value),
+      edgeColor:     _g("io-edge-color").value,
+      showTrendLine: _g("io-trend-line").checked,
+      chartHeight:   parseInt(_g("io-height").value)         || 200,
+      plotBgColor:   _g("io-plot-bg-auto").checked  ? null : _g("io-plot-bg").value,
+      paperBgColor:  _g("io-paper-bg-auto").checked ? null : _g("io-paper-bg").value,
+    };
+    _saveIOSettings(ios);
+    _rerenderAll();
+  }
+
+  _g("io-marker-opacity").addEventListener("input", () => {
+    _g("io-marker-opacity-val").textContent = parseFloat(_g("io-marker-opacity").value).toFixed(2);
+    _applyIOSettings();
+  });
+
+  const _wireAuto = (chkId, colorId) => {
+    _g(chkId).addEventListener("change", () => {
+      const on = _g(chkId).checked;
+      _g(colorId).disabled = on; _g(colorId).style.opacity = on ? "0.4" : "1";
+      _applyIOSettings();
+    });
+  };
+  _wireAuto("io-font-color-auto", "io-font-color");
+  _wireAuto("io-plot-bg-auto",    "io-plot-bg");
+  _wireAuto("io-paper-bg-auto",   "io-paper-bg");
+
+  ["io-font-size","io-font-color","io-marker-size","io-marker-color",
+   "io-edge-width","io-edge-color","io-height","io-plot-bg","io-paper-bg","io-trend-line"
+  ].forEach(id => _g(id).addEventListener("change", debounce(_applyIOSettings, 150)));
+
+  document.addEventListener("theme:changed", _rerenderAll);
+
+  _rebuildGroups();
 }
 
 // ── Column Distributions (Histograms) ────────────────────────────────────────
