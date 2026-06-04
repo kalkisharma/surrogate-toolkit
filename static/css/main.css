@@ -1618,9 +1618,9 @@ body,
 }
 
 .row-inspector-col {
+  width: 45%;
   color: var(--color-text);
   font-weight: var(--font-medium);
-  max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1628,7 +1628,6 @@ body,
 
 .row-inspector-val {
   color: var(--color-text-muted);
-  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
