@@ -1,6 +1,6 @@
 # STATE Schema Reference
 
-**Version:** v3.0.0 | **Last updated:** 2026-05-20
+**Version:** v3.5.77 | **Last updated:** 2026-06-04
 
 The `STATE` dict is the single source of truth for all session data. It lives in `app/state/schema.py` and is stored in `app.config['STATE']`.
 
@@ -55,6 +55,25 @@ When the active dataset changes:
 The active dataset's model is always at `STATE['surrogate_sessions']['primary']['models']`.
 Non-active datasets' models are at `STATE['datasets']['_datasets'][key]['surrogate_session']['models']`.
 
+## Surrogate session structure
+
+```python
+session = STATE['surrogate_sessions']['primary']
+
+session['models']   # see Models dict structure below
+session['config']   # model_type, test_split, cv_folds, hyperparams, auto_tune_result
+session['pca']      # None if PCA was not applied; otherwise:
+                    # {
+                    #   'original_inputs': list[str],   # physical column names before PCA
+                    #   'component_names': list[str],   # ['PC1', 'PC2', ...]
+                    #   'pca_object':      PCA,          # fitted sklearn PCA (not JSON-safe)
+                    #   'n_components':    int,
+                    #   'explained_variance_ratio': list[float],
+                    # }
+```
+
+`session['pca']` is written by `PUT /api/data/screen/apply` (mode="pca") and cleared on retrain. The prediction pipeline checks for this dict and applies the PCA transform automatically before calling `model.predict()`. When PCA is active, `results['input_columns']` holds the PC names; `session['pca']['original_inputs']` holds the original physical names used in the Predict panel form.
+
 ## Models dict structure
 
 ```python
@@ -72,21 +91,25 @@ models_dict['interpretation'] # {output_col: {sensitivity, oat, uncertainty}}, s
 ```python
 results = models_dict['results']
 
-results['model_type']       # "gpr" | "rf" | "linear"
-results['n_train']          # int
-results['n_test']           # int
-results['input_columns']    # list[str]
-results['output_columns']   # list[str]
-results['test_metrics']     # list[{column, r2, rmse, mae}]
-results['cv_results']       # {folds, metrics: [...], mean_r2, std_r2, ...}
-results['warnings']         # list[str]
-results['y_test']           # list[list[float]] — n_test × n_outputs
-results['y_pred_test']      # list[list[float]] — n_test × n_outputs
-results['test_stds']        # list[list[float]] — GPR only; None otherwise
-results['test_inputs']      # list[list[float]] — n_test × n_inputs (for RF uncertainty)
-results['input_mins']       # {col: float}
-results['input_maxs']       # {col: float}
-results['input_means']      # {col: float}
+results['model_type']            # "gpr" | "rf" | "linear" | "rbf" | "pce"
+                                 # matches SUPPORTED_MODEL_TYPES in config/settings.py
+results['n_train']               # int
+results['n_test']                # int
+results['input_columns']         # list[str] — PC names if PCA is active
+results['output_columns']        # list[str]
+results['source_filename']       # str — original dataset filename
+results['test_metrics']          # list[{column, r2, rmse, mae}]
+results['cv_results']            # {folds, metrics: [...], mean_r2, std_r2, ...}
+results['warnings']              # list[str]
+results['normalization_warning'] # bool — True when model was trained without a normalized
+                                 # DataFrame; Results panel shows a yellow banner
+results['y_test']                # list[list[float]] — n_test × n_outputs
+results['y_pred_test']           # list[list[float]] — n_test × n_outputs
+results['test_stds']             # list[list[float]] — GPR only; None otherwise
+results['test_inputs']           # list[list[float]] — n_test × n_inputs (for RF uncertainty)
+results['input_mins']            # {col: float}
+results['input_maxs']            # {col: float}
+results['input_means']           # {col: float}
 ```
 
 ## Comparison cache

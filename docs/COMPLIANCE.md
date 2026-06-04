@@ -1,6 +1,6 @@
 # Compliance Guide
 
-**Version:** v3.0.0 | **Last updated:** 2026-05-20
+**Version:** v3.5.77 | **Last updated:** 2026-06-04
 
 Documents the classification, watermarking, and audit trail features implemented in Phase 11.
 
@@ -19,15 +19,17 @@ The toolkit supports four classification levels, configurable per session:
 
 ### Setting classification
 
-Classification is set in the **Export** panel (Step 14) via the classification selector. The selected level is stored in `STATE['compliance']['classification']` and applied to all exports generated in that session.
+Classification is set in the **Export** panel (Step 16) via the classification selector. The selected level is stored in `STATE['compliance']['classification']` and applied to all exports generated in that session.
 
 ### ITAR/EAR acknowledgment gate
 
-When ITAR or EAR is selected, the **Generate Report** button is disabled until the engineer explicitly checks an acknowledgment checkbox. The checkbox text reads:
+When ITAR or EAR is selected, all export actions (**Generate Report**, **Download Model (.zip)**, and **Export NumPy (.zip)**) are disabled until the engineer explicitly checks an acknowledgment checkbox. The gate is identical regardless of which export type is being generated.
 
-> "I acknowledge this report contains ITAR/EAR-controlled data and I am authorized to generate and distribute it under applicable regulations."
+The checkbox text reads:
 
-This acknowledgment is logged in the audit trail.
+> "I confirm this export complies with applicable export control regulations and I am authorized to share this information."
+
+This acknowledgment is logged in the audit trail for every export action taken while the checkbox is checked.
 
 ---
 
@@ -66,6 +68,35 @@ Example: `surrogate_report_ITAR_20260515_143022.html`
 ### Self-contained format
 
 Reports embed Plotly.js (CDN) and all chart data as inline JSON. The file has no external dependencies beyond an internet connection for the Plotly CDN. Charts are interactive in-browser and can be exported to PNG using the Plotly toolbar.
+
+---
+
+## Model export
+
+Step 16 — Export provides two model download buttons. Both pass through the same ITAR/EAR compliance gate as the HTML report and are logged in the export audit trail with SHA-256 hash.
+
+### Download Model (.zip) — standard sklearn bundle
+
+Contents: `model.joblib`, `scaler_input.joblib`, `scaler_output.joblib`, `surrogate.py` wrapper, `README.txt`. Requires numpy, pandas, joblib, and scikit-learn at prediction time. Supported for all model types (GPR, RF, Linear, RBF, PCE).
+
+Audit event: `model_exported`.
+
+### Export NumPy (.zip) — numpy-only bundle
+
+Contents: `surrogate.py` (weights embedded for Linear; separate `.npy` arrays for GPR), `README.txt`. Only numpy is required at prediction time — no scikit-learn or joblib. Supported for Linear and GPR models only (RF and PCE use the standard bundle).
+
+Audit event: `model_numpy_exported`.
+
+### Compliance behavior for model downloads
+
+| Classification | Gate | Audit logged | SHA-256 recorded |
+|---|---|---|---|
+| Unclassified | None | Yes | Yes |
+| CUI | None | Yes | Yes |
+| ITAR | Acknowledgment checkbox required | Yes | Yes |
+| EAR | Acknowledgment checkbox required | Yes | Yes |
+
+The audit log entry for a model download includes: timestamp, filename, classification, acknowledgment boolean, and SHA-256 hash of the ZIP bytes. These entries appear in `GET /api/export/log` and `GET /api/export/audit` alongside report entries.
 
 ---
 

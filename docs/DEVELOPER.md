@@ -1,5 +1,7 @@
 # Developer Guide
 
+**Last updated:** 2026-06-04
+
 > **New to the codebase?** Start with [`docs/CODEBASE_TOUR.md`](CODEBASE_TOUR.md) — a guided reading path with data flow diagrams (~90 min).
 
 ## Setup
@@ -58,7 +60,7 @@ gunicorn "app:create_app()"
 python -m pytest tests/ -v
 ```
 
-154 tests (65 unit, 89 integration). Target: 80%+ coverage on `app/data/ingestion.py`, `app/data/cleaning.py`, `app/api/data_api.py`, and `app/ml/`.
+Run `pytest --co -q` to get the current test count. Target: 80%+ coverage on `app/data/ingestion.py`, `app/data/cleaning.py`, `app/api/data_api.py`, and `app/ml/`.
 
 Test fixtures live in `tests/fixtures/`. They are synthetic — no real program data.
 
@@ -94,7 +96,7 @@ Flask serves `index.html` at `GET /`. All navigation happens in JavaScript — n
 - Only `notifications.js` renders toasts
 - Only `loading.js` renders spinners/skeletons
 
-**Panel router:** `main.js` drives a 14-step sidebar workflow. Each step has a panel container div. Panels are lazy-initialized on first click and never re-initialized unless explicitly invalidated (e.g., after cleaning, the explore panel is reset via `panelDone["explore"] = false`).
+**Panel router:** `main.js` drives a 16-step sidebar workflow. Each step has a panel container div. Panels are lazy-initialized on first click and never re-initialized unless explicitly invalidated (e.g., after cleaning, the explore panel is reset via `panelDone["explore"] = false`).
 
 ### API endpoints
 
@@ -153,6 +155,7 @@ Flask serves `index.html` at `GET /`. All navigation happens in JavaScript — n
 |---|---|---|
 | `POST` | `/api/active/coverage` | Recommend next experiment points via uncertainty sampling |
 | `POST` | `/api/active/objective` | Recommend next points via expected improvement (EI) |
+| `POST` | `/api/active/residual` | Recommend next points near high-residual test-set observations |
 | `GET` | `/api/active/history` | Return active learning recommendation history |
 
 #### Optimization (`/api/optimize/`)
@@ -179,6 +182,8 @@ Flask serves `index.html` at `GET /`. All navigation happens in JavaScript — n
 | `GET` | `/api/export/clean` | Download clean DataFrame as CSV |
 | `GET` | `/api/export/normalized` | Download normalized DataFrame as CSV |
 | `POST` | `/api/export/report` | Generate self-contained HTML analysis report |
+| `POST` | `/api/export/model` | Download full sklearn bundle (model.joblib + scalers + surrogate.py) |
+| `POST` | `/api/export/model/numpy` | Download numpy-only bundle (surrogate.py + optional .npy arrays; no sklearn at prediction time) |
 | `GET` | `/api/export/audit` | Download export audit log as CSV |
 | `GET` | `/api/export/log` | Return export log as JSON |
 
@@ -212,7 +217,7 @@ All constants live in `config/settings.py`. Never hardcode values elsewhere.
 This project uses an internal convention inspired by Semantic Versioning.
 It is **not** strict SemVer — there are no API compatibility guarantees.
 
-The project uses 24 phases across 4 milestones. See `docs/PHASES.md` for full phase definitions.
+The project uses 25 phases across 4 milestones. See `docs/PHASES.md` for full phase definitions.
 
 ### Milestone map
 
@@ -221,7 +226,7 @@ The project uses 24 phases across 4 milestones. See `docs/PHASES.md` for full ph
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–24 | Team deployment, auth, HPC integration | 🔲 In definition |
+| **M4** | v4.0.0 | 17–25 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
 
 ### Phase → version map
 
@@ -239,7 +244,7 @@ The project uses 24 phases across 4 milestones. See `docs/PHASES.md` for full ph
 | Phase 10 | Multi-Dataset Comparison | v1.6.0 | ✅ Complete |
 | Phase 11 | Export & Compliance | v1.4.0 | ✅ Complete |
 | Phase 12 | Experience Levels | v2.4.0 | ✅ Complete |
-| Phase 13 | Guided Learning & Reference Content | v3.0.0 | ✅ Complete (Phase 13A) |
+| Phase 13 | Guided Learning & Reference Content | v3.0.0 + v3.5.3 | ✅ Complete |
 | Phase 14 | Advanced Surrogate Models | v2.1.0 | ✅ Complete |
 | Phase 15 | Multi-Fidelity Modeling | v2.3.0 | ✅ Complete |
 | Phase 16 | Ensemble Surrogates | v2.2.0 | ✅ Complete |
@@ -247,21 +252,23 @@ The project uses 24 phases across 4 milestones. See `docs/PHASES.md` for full ph
 | Phase 18 | Input Filtering | v3.2.0 – v3.3.0 | ✅ Complete |
 | Phase 19 | Model Export Bundle | v3.4.0 | ✅ Complete |
 | Phase 20 | Design Space Explorer | v3.4.1 | ✅ Complete |
-| Phase 21 | Exercise Walkthrough Polish & Training Guardrails | v3.5.0 | 🔲 Not started |
-| Phase 22 | Authentication | v3.6.0 | 🔲 Not started |
-| Phase 23 | Surrogate Export & Sharing | v3.7.0 | 🔲 Not started |
-| Phase 24 | HPC Integration | v4.0.0 | 🔲 Not started |
+| Phase 21 | Exercise Walkthrough Polish & Training Guardrails | v3.4.8 – v3.5.10 | ✅ Complete |
+| Phase 22 | Per-Observation Noise (Heteroscedastic Inputs) | v3.6.0 | 🔲 Not started |
+| Phase 23 | Authentication | v3.7.0 | 🔲 Not started |
+| Phase 24 | Surrogate Export & Sharing | v3.8.0 | 🔲 Not started |
+| Phase 25 | HPC Integration | v4.0.0 | 🔲 Not started |
 
 ### Files to update on every version bump
 
 Update **all** of the following — do not skip any:
 
 1. `config/settings.py` — `VERSION = "x.y.z"`
-2. Header block of every **changed** file — `VERSION: x.y.z`
-3. `app/templates/index.html` — four locations:
+2. Header block of every **changed** file — `VERSION: x.y.z` and `LAST MODIFIED: YYYY-MM-DD`
+3. `README.md` — `**Current version:** vx.y.z | **Last updated:** YYYY-MM-DD`
+4. `app/templates/index.html` — six locations (use replace_all to catch them all):
    - Inline `<script>` — `var currentVer = "x.y.z";`
    - Header display span — `<span class="global-header__version">vx.y.z</span>`
-   - CSS cache-busters — `?v=x.y.z` (×5 stylesheet links)
+   - CSS cache-busters — `?v=x.y.z` (×4 stylesheet links)
    - JS entry point cache-buster — `src="/static/js/main.js?v=x.y.z"`
 
 ---

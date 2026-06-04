@@ -2,7 +2,8 @@
 
 **Status:** Open — Phase 2 task  
 **Assigned to:** UI Designer  
-**Raised by:** Engineering team, Sub-Phase 1 review (2026-05-11)  
+**Raised by:** Engineering team, Sub-Phase 1 review (2026-05-11)
+**Last updated:** 2026-06-04  
 **Context:** The Phase 1 scatter matrix uses Plotly SPLOM (Splom trace via `charts.js:renderScatterMatrix()`). Six readability issues were identified during first-use review. No code changes are made here — this document specifies requirements for the Phase 2 redesign.
 
 ---

@@ -2,7 +2,7 @@
 
 **Audience:** Python / ML engineers reviewing the codebase for the first time.
 **Time:** ~90 minutes to complete all four layers.
-**Version:** v3.0.0
+**Version:** v3.5.77 | **Last updated:** 2026-06-04
 
 ---
 
@@ -58,7 +58,7 @@ Read these first, in this order. Everything else makes sense after.
 | 2 | `app/state/schema.py` | Defines the shape of STATE. The comments on `raw` immutability and the `_datasets` accumulator are load-bearing. |
 | 3 | `app/__init__.py` | Flask factory. Blueprint registration order. Four error handlers. 200 lines, then you understand the server. |
 | 4 | `app/ml/models/base_model.py` | The ABC that every surrogate implements: `fit()`, `predict()`, `cross_validate()`, `get_summary()`. Reading this tells you the contract before you look at any concrete model. |
-| 5 | `static/js/main.js` lines 280–430 | The panel router. `STEP_KEYS`, `stepUnlocked`, `stepCompleted`, and the `_initPanel` switch. This is how the 14-step sidebar works. |
+| 5 | `static/js/main.js` | The panel router. Search for `STEP_KEYS`, `stepUnlocked`, `stepCompleted`, and the `_initPanel` switch. This is how the 16-step sidebar works. |
 
 ---
 
@@ -95,6 +95,20 @@ Read these first, in this order. Everything else makes sense after.
   POST /api/data/designate  → metadata.input_columns / output_columns
   POST /api/data/normalize  → app/data/normalization.py
   → STATE['primary']['normalized']
+         │
+         │  User filters inputs (optional — Step 8)
+         ▼
+  PUT /api/data/screen/apply (mode="columns")
+  → updates metadata.input_columns to the selected subset; clears trained model
+
+  PUT /api/data/screen/apply (mode="pca")
+  → fits PCA on normalized inputs; injects PC columns into normalized DataFrame
+  → STATE['surrogate_sessions']['primary']['pca'] = {
+        original_inputs, component_names, pca_object, n_components, ...
+    }
+  → metadata.input_columns updated to PC names ['PC1', 'PC2', ...]
+  NOTE: the prediction pipeline checks for STATE[...]['pca'] and applies the
+  transform automatically — raw physical inputs → PC space → model.predict()
          │
          │  User configures and trains
          ▼
@@ -156,7 +170,7 @@ Read these first, in this order. Everything else makes sense after.
 ```
 
 Key rules:
-- Panels are **lazy-initialized** — `_initPanel` only runs once per panel per session (unless `panelDone[key] = false` is set to force a refresh, e.g. after retraining).
+- Panels are **lazy-initialized** — `_initPanel` only runs once per panel per session (unless `panelDone[key] = false` is set to force a refresh, e.g. after retraining or re-normalization).
 - All HTTP calls go through `api.js` — `get()`, `post()`, `put()`. Never `fetch()` directly in a module.
 - All charts go through `charts.js`. Never `Plotly.*` in a module.
 - All toasts go through `notifications.js`. Never `alert()` or inline DOM.
@@ -165,7 +179,7 @@ Key rules:
 
 ## Multi-dataset sessions
 
-The STATE holds one "primary" slot (the active dataset) and a `_datasets` accumulator (all loaded datasets keyed by filename). Switching datasets:
+The STATE holds one "primary" slot (the active dataset) and a `_datasets` accumulator (all loaded datasets keyed by filename). Each dataset has its own trained model, results, interpretation cache, and PCA state. Switching datasets:
 
 ```
   User clicks dataset in switcher
@@ -197,6 +211,7 @@ Full recipe is in `docs/DEVELOPER.md`. In brief:
 4. Create `static/js/modules/yourkey.js` with `export async function initYourKey(containerEl)`
 5. Create `app/api/yourkey_api.py` Blueprint; register it in `app/__init__.py`
 6. Wire the unlock condition (after which step does this become available?)
+7. If the new step stores anything in STATE, document it in `docs/SCHEMA.md`
 
 ---
 
@@ -223,6 +238,6 @@ Full recipe is in `docs/DEVELOPER.md`. In brief:
 5. `app/data/ingestion.py` — 10 min (what happens to a CSV on upload)
 6. `app/ml/models/base_model.py` → `gpr_model.py` — 15 min (model interface + one concrete example)
 7. `app/api/model_api.py` — 15 min (how train/results/interpret endpoints work)
-8. `static/js/main.js` lines 280–430 — 10 min (panel router)
+8. `static/js/main.js` — 10 min (search for `STEP_KEYS` to find the panel router)
 9. `static/js/modules/results.js` — 10 min (a representative frontend module)
 10. `tests/integration/test_full_workflow.py` — 10 min (end-to-end in code)

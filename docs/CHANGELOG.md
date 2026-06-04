@@ -1,5 +1,7 @@
 # Changelog
 
+**Last updated:** 2026-06-04
+
 All notable changes to the Surrogate Modeling Toolkit are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 Versioning follows [Semantic Versioning](https://semver.org/).
@@ -16,6 +18,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M4** | v4.0.0 | 17–25 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.5.78] — 2026-06-04
+
+### Changed — Full documentation audit and update
+- Added "Last updated" field to all .md files that were missing it (README.md, DEVELOPER.md, CHANGELOG.md, CODEBASE_TOUR.md, ui_designer_handoff.md, placeholder.md)
+- **USERGUIDE.md** — rewritten for 16-step workflow: added Step 5 (Subset) and Step 8 (Filter) which were missing entirely; corrected all step numbers from Step 6 onward; added 2D Scatter section to Step 3; added Log₁₀ to Step 7; added Design Space Explorer tab to Step 10; added residual mode to Step 14; added both model download buttons to Step 16; updated Global Header controls table
+- **TEACHING_GUIDE.md** — rewritten from planning/future-tense to accurate description of the live system: all six Guide modal tabs (Glossary, Model Guide, Topics, Exercises, Symbols, Equations) documented; full exercise list (ex_01–ex_07, ex_12) with JSON schema, backend endpoints, and how to add exercises; primer table updated to all 16 steps; experience level table reflects live behavior
+- **DEVELOPER.md** — hardcoded test count replaced with `pytest --co -q`; panel router updated to 16 steps; residual mode added to Active Learning API table; both model export endpoints added to Export API table; phase table corrected to 25 phases with Phase 21 marked complete; version bump checklist corrected (6 index.html locations + README.md)
+- **SCHEMA.md** — surrogate session `pca` dict documented with all fields and prediction pipeline note; `normalization_warning` added to results dict shape; `model_type` values updated to match `SUPPORTED_MODEL_TYPES`
+- **COMPLIANCE.md** — step number corrected (14 → 16); ITAR/EAR gate clarified to apply to all three export actions; new "Model export" section documents standard and numpy-only bundles, audit events, and a compliance behavior table
+- **CODEBASE_TOUR.md** — line numbers removed from "five files" table; PCA transform step added to data flow diagram with prediction pipeline note; "14-step" references updated to "16-step"; new sidebar step recipe gains step 7 (document STATE additions in SCHEMA.md)
 
 ---
 
