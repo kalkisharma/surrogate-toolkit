@@ -1,4 +1,19 @@
-"""Helper script to generate stub Python files. Run once during scaffold."""
+"""
+================================================================================
+FILE: gen_stubs.py
+MODULE: scripts/
+PURPOSE: One-time scaffold helper — generates all stub Python files for the
+         project layout with standard headers and copyright notices. Run once
+         during initial project setup; safe to re-run (overwrites stubs only).
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
+CREATED: 2026-05-11
+LAST MODIFIED: 2026-05-11
+VERSION: 1.0.0
+================================================================================
+"""
+
+# Copyright © 2026 Kalki Sharma. All rights reserved.
+
 import os
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

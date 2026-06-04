@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/utils.js
+// Version: 1.0.0
 // Description: Shared utility functions used across all modules.
 // =============================================================================
 

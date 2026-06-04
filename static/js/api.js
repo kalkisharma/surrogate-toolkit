@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/api.js
+// Version: 1.0.0
 // Description: Thin fetch wrapper — all HTTP calls go through here.
 //              Handles FormData vs JSON body, and maps non-OK responses to
 //              the standard error envelope format.

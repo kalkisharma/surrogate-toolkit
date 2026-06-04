@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/loading.js
+// Version: 1.0.0
 // Description: Spinner overlay, inline progress bars, and skeleton screens.
 //              Import and call these helpers — never build loading UI inline.
 // =============================================================================

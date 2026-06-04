@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/learning_mode.js
+// Version: 1.0.0
 // Description: Learning mode toggle (global header button), collapsible
 //              primers, and expanded tooltips. All modules call registerPrimer
 //              and registerTooltip rather than implementing their own UI.

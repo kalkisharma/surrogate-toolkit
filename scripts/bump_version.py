@@ -1,17 +1,19 @@
 """
-bump_version.py — update the version string across all canonical locations.
-
-Usage:
-    python scripts/bump_version.py 3.5.54
-
-Files updated:
-    config/settings.py      — VERSION constant + file header comment
-    app/templates/index.html — version display span + all ?v= cache busters
-
-The script reads the current version from settings.py, validates the new
-version is a valid semver-style string, performs the substitution in each
-file, and prints a summary of every line changed.
+================================================================================
+FILE: bump_version.py
+MODULE: scripts/
+PURPOSE: Update the version string across all canonical locations: VERSION
+         constant in config/settings.py, file header comment in settings.py,
+         and all cache-buster query strings in app/templates/index.html.
+         Usage: python scripts/bump_version.py <new_version>  (e.g. 3.5.54)
+MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
+CREATED: 2026-05-27
+LAST MODIFIED: 2026-05-27
+VERSION: 1.0.0
+================================================================================
 """
+
+# Copyright © 2026 Kalki Sharma. All rights reserved.
 
 import re
 import sys

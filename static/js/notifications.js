@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/notifications.js
+// Version: 1.0.0
 // Description: Centralised toast notification system. All modules call
 //              showSuccess/showError/showWarning/showInfo — never implement
 //              toast logic elsewhere.

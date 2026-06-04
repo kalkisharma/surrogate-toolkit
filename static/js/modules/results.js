@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 3.5.51
+// Version: 1.0.0
 // Description: Step 10 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic

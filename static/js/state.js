@@ -2,6 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/state.js
+// Version: 1.0.0
 // Description: Client-side STATE cache. Fetches STATE from /api/state/ after
 //              every mutating POST. Read-path uses the local copy to avoid
 //              redundant network calls.

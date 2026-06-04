@@ -6,6 +6,7 @@ PURPOSE: Blueprint and routes for /api/optimize/*. Single-objective and
          multi-objective surrogate optimization endpoints.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-15
+LAST MODIFIED: 2026-05-15
 VERSION: 1.0.0
 ================================================================================
 """
