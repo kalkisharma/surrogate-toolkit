@@ -19,6 +19,17 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.77] — 2026-06-04
+
+### Added — NumPy-only export for Linear and GPR models
+- New `app/ml/export/numpy_bundle.py`: builds a self-contained ZIP containing only `surrogate.py` (+ optional `.npy` data files) that runs with only `numpy` — no scikit-learn or joblib required at prediction time
+- Registry pattern: `NUMPY_SUPPORTED_MODELS = {"linear", "gpr"}`, `NUMPY_SUPPORTED_KERNELS = {"rbf", "matern15", "matern25", "rq"}` — unsupported additions fail loudly rather than silently producing wrong predictions
+- GPR export handles `normalize_y=True` denormalization, ARD length-scale arrays, and all four supported kernels (RBF, Matérn 1.5, Matérn 2.5, Rational Quadratic)
+- New `POST /api/export/model/numpy` route in `export_api.py` — same ITAR/EAR compliance flow as standard export; RF and unsupported kernels return 422 with a clear message
+- New "Export NumPy (.zip)" button in Step 16 — Export panel; greyed out with tooltip for unsupported model types; success toast instructs user to open `surrogate.py`
+
+---
+
 ## [3.5.76] — 2026-06-04
 
 ### Added — Learning guide: glossary entries, Exercise 3 row inspector, Exercise 12 PCE

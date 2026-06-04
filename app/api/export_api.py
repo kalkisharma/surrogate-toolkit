@@ -7,8 +7,8 @@ PURPOSE: Blueprint and routes for /api/export/*. Provides CSV download of
          export, and surrogate model bundle download.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-26
-VERSION: 1.2.0
+LAST MODIFIED: 2026-06-04
+VERSION: 1.3.0
 ================================================================================
 """
 
@@ -22,6 +22,7 @@ from flask import Blueprint, Response, current_app, jsonify, render_template, re
 from app.compliance.audit import format_audit_csv, record_export, set_file_hash
 from app.compliance.classification import requires_confirmation
 from app.ml.export.bundle import build_export_bundle
+from app.ml.export.numpy_bundle import NUMPY_SUPPORTED_MODELS, build_numpy_export_bundle
 from app.report.generator import build_report_data
 from app.state.schema import append_audit_event
 
@@ -213,6 +214,74 @@ def export_model():
     })
 
     current_app.logger.info(f"Model bundle exported — {zip_name} [{classification}]")
+
+    return send_file(
+        io.BytesIO(zip_bytes),
+        attachment_filename=zip_name,
+        as_attachment=True,
+        mimetype="application/zip",
+    )
+
+
+# ── NumPy-only model bundle download ─────────────────────────────────────────
+
+@bp.route("/model/numpy", methods=["POST"])
+def export_model_numpy():
+    """
+    Build and download a numpy-only surrogate model export bundle.
+
+    Only Linear and GPR models are supported (registry in numpy_bundle.py).
+    RF and other model types return 422 with a clear message.
+
+    Body (JSON):
+        classification (str): Classification label.
+        acknowledged   (bool): Must be True for ITAR/EAR classifications.
+
+    Returns:
+        200: ZIP file download containing surrogate.py (+ optional .npy arrays)
+             and README. No scikit-learn or joblib dependency at prediction time.
+        400: ITAR/EAR acknowledgment missing.
+        422: No trained model, or model/kernel not in numpy registry.
+    """
+    state = current_app.config["STATE"]
+    data  = request.get_json(silent=True) or {}
+
+    classification = data.get("classification", "Unclassified")
+    acknowledged   = bool(data.get("acknowledged", False))
+
+    if requires_confirmation(classification) and not acknowledged:
+        return jsonify({
+            "success":    False,
+            "error_code": "CONFIRMATION_REQUIRED",
+            "message":    (
+                f"Exporting a {classification}-marked model requires explicit "
+                "acknowledgment. Set acknowledged=true in the request body."
+            ),
+        }), 400
+
+    try:
+        zip_bytes, zip_name = build_numpy_export_bundle(state)
+    except ValueError as exc:
+        return jsonify({
+            "success":    False,
+            "error_code": "UNSUPPORTED_MODEL",
+            "message":    str(exc),
+        }), 422
+
+    entry = record_export(state, zip_name, classification, acknowledged)
+    set_file_hash(entry, zip_bytes)
+
+    model_type = (
+        state["surrogate_sessions"]["primary"]["models"]
+        .get("results", {}).get("model_type", "unknown")
+    )
+    append_audit_event(state, "model_numpy_exported", {
+        "filename":       zip_name,
+        "classification": classification,
+        "model_type":     model_type,
+    })
+
+    current_app.logger.info(f"NumPy bundle exported — {zip_name} [{classification}]")
 
     return send_file(
         io.BytesIO(zip_bytes),

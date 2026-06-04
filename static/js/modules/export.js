@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/export.js
-// Version: 1.1.0
+// Version: 1.2.0
 // Description: Step 16 — Export & Compliance panel. Generates HTML analysis
 //              reports with classification watermarks, downloads surrogate model
 //              bundles, and exports the audit log.
@@ -80,20 +80,32 @@ export async function initExport(containerEl) {
   // ── Action buttons ───────────────────────────────────────────────────────
   const btnRow = el("div", { cls: "export-btn-row" });
 
-  const genBtn   = el("button", { cls: "btn btn-primary",   id: "export-gen-btn",   text: "Generate Report" });
-  const modelBtn = el("button", { cls: "btn btn-secondary", id: "export-model-btn", text: "Download Model (.zip)" });
-  const auditBtn = el("button", { cls: "btn btn-secondary", text: "Download Audit Log" });
+  const NUMPY_SUPPORTED = ["linear", "gpr"];
+
+  const genBtn      = el("button", { cls: "btn btn-primary",   id: "export-gen-btn",       text: "Generate Report" });
+  const modelBtn    = el("button", { cls: "btn btn-secondary", id: "export-model-btn",      text: "Download Model (.zip)" });
+  const numpyBtn    = el("button", { cls: "btn btn-secondary", id: "export-numpy-btn",      text: "Export NumPy (.zip)" });
+  const auditBtn    = el("button", { cls: "btn btn-secondary", text: "Download Audit Log" });
 
   btnRow.appendChild(genBtn);
   btnRow.appendChild(modelBtn);
+  btnRow.appendChild(numpyBtn);
   btnRow.appendChild(auditBtn);
   containerEl.appendChild(btnRow);
 
-  // Check whether a trained model exists to enable/disable the model button
+  // Check whether a trained model exists to enable/disable the model buttons
   const modelResp = await get("/api/model/results");
   if (!modelResp.success) {
     modelBtn.disabled = true;
     modelBtn.title    = "Train a model in Step 9 — Model first.";
+    numpyBtn.disabled = true;
+    numpyBtn.title    = "Train a model in Step 9 — Model first.";
+  } else {
+    const modelType = modelResp.results?.model_type || "";
+    if (!NUMPY_SUPPORTED.includes(modelType)) {
+      numpyBtn.disabled = true;
+      numpyBtn.title    = `NumPy-only export is not available for ${modelType.toUpperCase() || "this model type"}. Supported: Linear, GPR. Use the standard export instead.`;
+    }
   }
 
   // ── Export history ───────────────────────────────────────────────────────
@@ -193,6 +205,51 @@ export async function initExport(containerEl) {
       modelBtn.disabled    = false;
       hideSpinner(modelBtn);
       modelBtn.textContent = "Download Model (.zip)";
+    }
+  });
+
+  numpyBtn.addEventListener("click", async () => {
+    const cls = clsSel.value;
+    const needsAck = cls === "ITAR" || cls === "EAR";
+    const ackChecked = document.getElementById("export-itar-ack")?.checked;
+
+    if (needsAck && !ackChecked) {
+      showError("You must confirm export compliance before downloading an export-controlled model.");
+      return;
+    }
+
+    numpyBtn.disabled    = true;
+    numpyBtn.textContent = "Preparing…";
+    showSpinner(numpyBtn);
+
+    try {
+      const resp = await fetch("/api/export/model/numpy", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ classification: cls, acknowledged: needsAck ? true : false }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        showError(err.message || `NumPy export failed (HTTP ${resp.status}).`);
+        return;
+      }
+
+      const blob     = await resp.blob();
+      const cd       = resp.headers.get("Content-Disposition") || "";
+      const match    = cd.match(/filename=(.+)/);
+      const filename = match ? match[1] : "surrogate_numpy.zip";
+
+      _downloadBlob(blob, filename);
+      showSuccess("NumPy bundle downloaded. Open surrogate.py to get started.");
+      _loadExportHistory(historyDiv);
+    } catch (err) {
+      showError("Network error downloading NumPy bundle. Check the console.");
+      console.error(err);
+    } finally {
+      numpyBtn.disabled    = false;
+      hideSpinner(numpyBtn);
+      numpyBtn.textContent = "Export NumPy (.zip)";
     }
   });
 
