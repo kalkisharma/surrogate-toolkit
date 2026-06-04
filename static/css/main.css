@@ -1655,6 +1655,7 @@ body,
 .row-inspector-z {
   color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .row-inspector-z--high {
