@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.72
+// Version: 3.5.73
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -657,6 +657,8 @@ async function _renderExploration(uploadResponse) {
     initNormalization(container, _currentNorm, _currentInputCols.length, (method) => {
       _currentNorm = method;
       stepCompleted["normalize"] = true;
+      panelDone["configure"] = false;
+      clearEl(_panelContent["configure"]);
       buildSidebar();
     });
   }
@@ -712,7 +714,9 @@ async function _renderExploration(uploadResponse) {
     clearEl(container);
     _subtitle(key);
     _renderTrainSummary(container);
-    initModelConfig(container, async () => {
+    const modelWrap = el("div");
+    container.appendChild(modelWrap);
+    initModelConfig(modelWrap, async () => {
       _hasUnsavedChanges = true;
       stepUnlocked["results"] = true;
       buildSidebar();

@@ -19,6 +19,14 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.73] — 2026-06-04
+
+### Fixed — Log₁₀ histogram width + Model summary stale norm method
+- `norm-log-grid` constrained to `max-width: 720px` so before/after histogram pairs don't stretch to full panel width
+- Normalization callback now resets `panelDone["configure"]` so the training summary card re-renders with the current method when the user navigates to Step 9 after re-applying normalization
+
+---
+
 ## [3.5.72] — 2026-06-04
 
 ### Added — Log₁₀ histogram previews in Normalize step

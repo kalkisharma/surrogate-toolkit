@@ -1684,6 +1684,7 @@ body,
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+  max-width: 720px;
 }
 .norm-log-side-label {
   font-size: var(--text-xs);
