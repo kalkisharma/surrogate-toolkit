@@ -19,6 +19,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.58] — 2026-06-04
+
+### Changed — Subset step full-width layout (v1.4.0)
+- **Layout**: replaced two-column grid with full-width stacked layout — Plot Settings → chart → filter grid
+- **Commit/Undo buttons**: now live in the title row (always visible at top of card, never below the fold)
+- **Status bar**: immediately below title row so feedback is always visible without scrolling
+- **Filter grid**: 3-column CSS grid replacing the old single-column filter list; responsive (2-col at ≤900px, 1-col at ≤600px)
+- **Input/Output grouping**: filters separated into "Inputs (N)" and "Outputs (N)" sections when columns are designated; falls back to "Variables" before designation
+- **CSS**: removed stale two-column grid rules (`.subset-main-grid`, `.subset-left-col`, `.subset-right-col`, `.subset-right-header`, `.subset-right-btngroup`, `.subset-filter-list`, `.subset-filter-row`, `.subset-action-row`); added `.subset-filter-grid`, `.subset-filter-card`, `.subset-filter-card--active`, `.subset-section-header`, `.subset-controls-row`, `.subset-title-left`, `.subset-title-right`
+
+---
+
 ## [3.5.57] — 2026-06-04
 
 ### Changed — Subset step layout redesign

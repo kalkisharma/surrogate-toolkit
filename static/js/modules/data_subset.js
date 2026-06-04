@@ -2,11 +2,10 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_subset.js
-// Version: 1.3.0
-// Description: Step 5 — Subset. Per-column range filters that permanently
-//              slice the clean DataFrame via POST /api/data/subset. Layout:
-//              filters on the left, sticky chart + commit button + settings on
-//              the right so the chart and commit action are always in view.
+// Version: 1.4.0
+// Description: Step 5 — Subset. Full-width layout: Plot Settings (collapsible)
+//              → full-width chart → 3-column filter grid grouped by Input/Output.
+//              Commit button lives in the title row (always visible).
 // =============================================================================
 
 import { renderDataScatter2D } from "../charts.js";
@@ -61,10 +60,11 @@ function _saveSettings(s) {
 export async function initSubset(containerEl) {
   clearEl(containerEl);
 
-  // ── Fetch current clean data ───────────────────────────────────────────────
-  const [summaryResp, rowsResp] = await Promise.all([
+  // ── Fetch data + column roles ──────────────────────────────────────────────
+  const [summaryResp, rowsResp, datasetsResp] = await Promise.all([
     get("/api/data/summary"),
     get("/api/data/rows"),
+    get("/api/data/datasets"),
   ]);
 
   if (!summaryResp.success || !rowsResp.success) {
@@ -76,6 +76,11 @@ export async function initSubset(containerEl) {
   const allCols   = summaryResp.columns || [];
   const rows      = rowsResp.rows       || [];
   const totalRows = summaryResp.n_rows;
+
+  // Column roles from designation step (may be empty if not yet designated)
+  const activeDs      = (datasetsResp.datasets || []).find(d => d.active) || {};
+  const inputCols     = activeDs.input_columns  || [];
+  const outputCols    = activeDs.output_columns || [];
 
   const numericCols = allCols.filter(col => {
     const s = stats[col];
@@ -99,25 +104,31 @@ export async function initSubset(containerEl) {
 
   // ── Card ───────────────────────────────────────────────────────────────────
   const card = el("div", { cls: "card" });
-
-  const titleRow   = el("div", { cls: "subset-title-row" });
-  const titleEl    = el("h3", { cls: "section-title", text: "Step 5 — Subset" });
-  const rowCountEl = el("span", { cls: "subset-row-count" });
-  rowCountEl.textContent = `${totalRows.toLocaleString()} rows`;
-  titleRow.appendChild(titleEl);
-  titleRow.appendChild(rowCountEl);
-  card.appendChild(titleRow);
-
-  const descEl = el("p", { cls: "section-desc" });
-  descEl.textContent =
-    "Set per-column value ranges to keep only the rows you want. "
-    + "All conditions apply simultaneously (AND logic). "
-    + "Click Commit to permanently apply the subset to the dataset.";
-  card.appendChild(descEl);
   containerEl.appendChild(card);
 
-  // ── Status bar (full-width, below grid) ───────────────────────────────────
+  // ── Title row: title + row count + commit/undo buttons ────────────────────
+  const commitBtn = el("button", { cls: "btn btn--primary btn--sm", type: "button", text: "Commit Subset" });
+  const undoBtn   = el("button", { cls: "btn btn--ghost   btn--sm", type: "button", text: "Undo" });
+  undoBtn.disabled = true;
+
+  const titleRow   = el("div", { cls: "subset-title-row" });
+  const titleLeft  = el("div", { cls: "subset-title-left" });
+  const titleEl    = el("h3", { cls: "section-title", text: "Step 5 — Subset" });
+  const rowCountEl = el("span", { cls: "subset-row-count", text: `${totalRows.toLocaleString()} rows` });
+  titleLeft.appendChild(titleEl);
+  titleLeft.appendChild(rowCountEl);
+
+  const titleRight = el("div", { cls: "subset-title-right" });
+  titleRight.appendChild(commitBtn);
+  titleRight.appendChild(undoBtn);
+
+  titleRow.appendChild(titleLeft);
+  titleRow.appendChild(titleRight);
+  card.appendChild(titleRow);
+
+  // ── Status bar — immediately below title row ───────────────────────────────
   const statusBar = el("div", { cls: "subset-status hidden" });
+  card.appendChild(statusBar);
 
   function _showStatus(type, msg) {
     statusBar.className = "subset-status";
@@ -130,83 +141,29 @@ export async function initSubset(containerEl) {
       statusBar.innerHTML = `<span class="subset-status-icon subset-status-icon--warn">⚠</span> ${msg}`;
       statusBar.classList.add("subset-status--warn");
     }
-    statusBar.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
-  // ── Two-column grid ────────────────────────────────────────────────────────
-  const hasChart = numericCols.length >= 2;
-  const mainGrid = el("div", { cls: hasChart ? "subset-main-grid" : "subset-main-grid subset-main-grid--single" });
-  card.appendChild(mainGrid);
-  card.appendChild(statusBar);
+  // ── Description ────────────────────────────────────────────────────────────
+  const descEl = el("p", { cls: "section-desc" });
+  descEl.textContent =
+    "Set per-column value ranges to keep only the rows you want. "
+    + "All conditions apply simultaneously (AND logic). "
+    + "Click Commit Subset to permanently apply the selection.";
+  card.appendChild(descEl);
 
-  // ── LEFT column: filters only ──────────────────────────────────────────────
-  const leftCol = el("div", { cls: "subset-left-col" });
-  mainGrid.appendChild(leftCol);
-
-  const filterSection = el("div", { cls: "subset-filter-section" });
-
-  const filterHeader = el("div", { cls: "subset-filter-header" });
-  const filterTitle  = el("span", { cls: "subset-filter-title", text: "Range Filters" });
+  // ── Preview count + controls row ───────────────────────────────────────────
   const previewCount = el("span", { cls: "subset-preview-count" });
   previewCount.textContent = `Would keep: ${totalRows.toLocaleString()} / ${totalRows.toLocaleString()} rows`;
   const resetAllBtn  = el("button", { cls: "btn btn--ghost btn--sm", type: "button", text: "Reset All" });
-  filterHeader.appendChild(filterTitle);
-  filterHeader.appendChild(previewCount);
-  filterHeader.appendChild(resetAllBtn);
-  filterSection.appendChild(filterHeader);
 
-  const filterList = el("div", { cls: "subset-filter-list" });
-  filterSection.appendChild(filterList);
-  leftCol.appendChild(filterSection);
-
-  // ── RIGHT column: commit header + axis selectors + chart + settings ────────
-  let chartEl      = null;
+  // ── Chart + settings (only when ≥2 numeric columns) ───────────────────────
+  let chartEl = null;
   let settingsPanel = null;
   let xCol = numericCols[0] || null;
   let yCol = numericCols[1] || numericCols[0] || null;
 
-  // Commit + Undo buttons — declared here so commit handler can reference them
-  const commitBtn = el("button", { cls: "btn btn--primary btn--sm", type: "button", text: "Commit Subset" });
-  const undoBtn   = el("button", { cls: "btn btn--ghost   btn--sm", type: "button", text: "Undo" });
-  undoBtn.disabled = true;
-
-  if (hasChart) {
-    const rightCol = el("div", { cls: "subset-right-col" });
-    mainGrid.appendChild(rightCol);
-
-    // Header row: label + row count chip + action buttons
-    const rightHeader = el("div", { cls: "subset-right-header" });
-    const rightLabel  = el("span", { cls: "subset-filter-title", text: "Live Preview" });
-    const btnGroup    = el("div",  { cls: "subset-right-btngroup" });
-    btnGroup.appendChild(commitBtn);
-    btnGroup.appendChild(undoBtn);
-    rightHeader.appendChild(rightLabel);
-    rightHeader.appendChild(btnGroup);
-    rightCol.appendChild(rightHeader);
-
-    // Axis selectors
-    const axesRow = el("div", { cls: "subset-axes-row" });
-    const xLabel  = el("label", { cls: "subset-axis-label", text: "X" });
-    const xSel    = el("select", { cls: "explore-select subset-axis-sel" });
-    const yLabel  = el("label", { cls: "subset-axis-label", text: "Y" });
-    const ySel    = el("select", { cls: "explore-select subset-axis-sel" });
-    for (const col of numericCols) {
-      xSel.appendChild(new Option(col, col));
-      ySel.appendChild(new Option(col, col));
-    }
-    if (numericCols[1]) ySel.value = numericCols[1];
-    axesRow.appendChild(xLabel); axesRow.appendChild(xSel);
-    axesRow.appendChild(yLabel); axesRow.appendChild(ySel);
-    rightCol.appendChild(axesRow);
-
-    // Chart
-    chartEl = el("div", { cls: "subset-chart" });
-    rightCol.appendChild(chartEl);
-
-    xSel.addEventListener("change", () => { xCol = xSel.value; _drawPreview(); });
-    ySel.addEventListener("change", () => { yCol = ySel.value; _drawPreview(); });
-
-    // Settings panel — chart-settings-panel format, below the chart
+  if (numericCols.length >= 2) {
+    // Settings panel — full width, collapsed by default
     const fontColorAuto   = s2d.fontColor        === null;
     const fontColorVal    = s2d.fontColor         || "#4b5478";
     const plotBgAuto      = s2d.plotBgColor       === null;
@@ -407,7 +364,31 @@ export async function initSubset(containerEl) {
 
       </div>
     `;
-    rightCol.appendChild(settingsPanel);
+    card.appendChild(settingsPanel);
+
+    // Axis + count row
+    const ctrlRow = el("div", { cls: "subset-controls-row" });
+    const xLabel  = el("label", { cls: "subset-axis-label", text: "X" });
+    const xSel    = el("select", { cls: "explore-select subset-axis-sel" });
+    const yLabel  = el("label", { cls: "subset-axis-label", text: "Y" });
+    const ySel    = el("select", { cls: "explore-select subset-axis-sel" });
+    for (const col of numericCols) {
+      xSel.appendChild(new Option(col, col));
+      ySel.appendChild(new Option(col, col));
+    }
+    if (numericCols[1]) ySel.value = numericCols[1];
+    ctrlRow.appendChild(xLabel); ctrlRow.appendChild(xSel);
+    ctrlRow.appendChild(yLabel); ctrlRow.appendChild(ySel);
+    ctrlRow.appendChild(previewCount);
+    ctrlRow.appendChild(resetAllBtn);
+    card.appendChild(ctrlRow);
+
+    // Chart
+    chartEl = el("div", { cls: "subset-chart" });
+    card.appendChild(chartEl);
+
+    xSel.addEventListener("change", () => { xCol = xSel.value; _drawPreview(); });
+    ySel.addEventListener("change", () => { yCol = ySel.value; _drawPreview(); });
 
     // ── Settings wiring ──────────────────────────────────────────────────────
     function _getEl(id) { return settingsPanel.querySelector(`#${id}`); }
@@ -517,29 +498,55 @@ export async function initSubset(containerEl) {
       const inputEl = _getEl(id);
       if (inputEl) inputEl.addEventListener("change", _applySettings);
     });
+
   } else {
-    // No chart — commit/undo below filter section (single-column layout)
-    const actionRow = el("div", { cls: "subset-action-row" });
-    actionRow.appendChild(commitBtn);
-    actionRow.appendChild(undoBtn);
-    leftCol.appendChild(actionRow);
+    // Fewer than 2 numeric columns — show preview count + reset without chart
+    const ctrlRow = el("div", { cls: "subset-controls-row" });
+    ctrlRow.appendChild(previewCount);
+    ctrlRow.appendChild(resetAllBtn);
+    card.appendChild(ctrlRow);
   }
 
-  // ── Build filter rows ──────────────────────────────────────────────────────
-  function _clamp(v, mn, mx) { return Math.min(Math.max(v, mn), mx); }
+  // ── Filter grid: Inputs section, then Outputs section ─────────────────────
+  // Determine which numeric cols fall into each group
+  const numericSet  = new Set(numericCols);
+  const inputFilters  = inputCols.filter(c => numericSet.has(c));
+  const outputFilters = outputCols.filter(c => numericSet.has(c));
+  const assignedSet   = new Set([...inputFilters, ...outputFilters]);
+  const otherFilters  = numericCols.filter(c => !assignedSet.has(c));
 
-  for (const col of numericCols) {
+  // If no designation exists yet, show everything as "Variables"
+  const useDesignation = inputFilters.length > 0 || outputFilters.length > 0;
+
+  function _buildFilterSection(sectionTitle, cols) {
+    if (cols.length === 0) return;
+
+    const section = el("div", { cls: "subset-filter-section" });
+    const header  = el("div", { cls: "subset-section-header" });
+    header.textContent = `${sectionTitle} (${cols.length})`;
+    section.appendChild(header);
+
+    const grid = el("div", { cls: "subset-filter-grid" });
+    section.appendChild(grid);
+    card.appendChild(section);
+
+    for (const col of cols) {
+      _buildFilterCard(col, grid);
+    }
+  }
+
+  function _buildFilterCard(col, container) {
     const lo   = colMins[col];
     const hi   = colMaxs[col];
     const step = colStep[col];
     const dec  = colDec[col];
     const uid  = col.replace(/[^a-z0-9]/gi, "_");
 
-    const rowEl  = el("div", { cls: "subset-filter-row" });
-    const hdrEl  = el("div", { cls: "subset-filter-row-header" });
-    const lblEl  = el("span", { cls: "subset-filter-row-label" });
+    const cardEl  = el("div", { cls: "subset-filter-card" });
+    const hdrEl   = el("div", { cls: "subset-filter-row-header" });
+    const lblEl   = el("span", { cls: "subset-filter-row-label" });
     lblEl.textContent = col; lblEl.title = col;
-    const rstBtn = el("button", { cls: "subset-filter-reset-btn", type: "button", text: "↺" });
+    const rstBtn  = el("button", { cls: "subset-filter-reset-btn", type: "button", text: "↺" });
     rstBtn.title = "Reset to full range";
     hdrEl.appendChild(lblEl);
     hdrEl.appendChild(rstBtn);
@@ -563,9 +570,9 @@ export async function initSubset(containerEl) {
       </div>
     `;
 
-    rowEl.appendChild(hdrEl);
-    rowEl.appendChild(ctrlsEl);
-    filterList.appendChild(rowEl);
+    cardEl.appendChild(hdrEl);
+    cardEl.appendChild(ctrlsEl);
+    container.appendChild(cardEl);
 
     const vLo = ctrlsEl.querySelector(`#sub-vlo-${uid}`);
     const vHi = ctrlsEl.querySelector(`#sub-vhi-${uid}`);
@@ -573,6 +580,8 @@ export async function initSubset(containerEl) {
     const sHi = ctrlsEl.querySelector(`#sub-shi-${uid}`);
     const nLo = ctrlsEl.querySelector(`#sub-nlo-${uid}`);
     const nHi = ctrlsEl.querySelector(`#sub-nhi-${uid}`);
+
+    function _clamp(v, mn, mx) { return Math.min(Math.max(v, mn), mx); }
 
     const _sync = (newLo, newHi) => {
       newLo = _clamp(newLo, colMins[col], colMaxs[col]);
@@ -584,7 +593,7 @@ export async function initSubset(containerEl) {
       nLo.value = newLo.toFixed(d); nHi.value = newHi.toFixed(d);
       vLo.textContent = newLo.toFixed(d); vHi.textContent = newHi.toFixed(d);
       const isActive = newLo > colMins[col] || newHi < colMaxs[col];
-      rowEl.classList.toggle("subset-filter-row--active", isActive);
+      cardEl.classList.toggle("subset-filter-card--active", isActive);
       _updatePreviewCount();
       _drawPreview();
     };
@@ -596,22 +605,31 @@ export async function initSubset(containerEl) {
     rstBtn.addEventListener("click", () => _sync(colMins[col], colMaxs[col]));
   }
 
+  if (useDesignation) {
+    _buildFilterSection("Inputs",  inputFilters);
+    _buildFilterSection("Outputs", outputFilters);
+    if (otherFilters.length > 0) _buildFilterSection("Unassigned", otherFilters);
+  } else {
+    _buildFilterSection("Variables", numericCols);
+  }
+
+  // Reset All button handler
   resetAllBtn.addEventListener("click", () => {
     for (const col of numericCols) {
       filterRanges[col] = [colMins[col], colMaxs[col]];
       const uid = col.replace(/[^a-z0-9]/gi, "_");
-      const row = filterList.querySelector(`#sub-slo-${uid}`)?.closest(".subset-filter-row");
-      const sLo = filterList.querySelector(`#sub-slo-${uid}`);
-      const sHi = filterList.querySelector(`#sub-shi-${uid}`);
-      const nLo = filterList.querySelector(`#sub-nlo-${uid}`);
-      const nHi = filterList.querySelector(`#sub-nhi-${uid}`);
-      const vLo = filterList.querySelector(`#sub-vlo-${uid}`);
-      const vHi = filterList.querySelector(`#sub-vhi-${uid}`);
-      const d   = colDec[col];
-      if (sLo) { sLo.value = colMins[col]; sHi.value = colMaxs[col]; }
-      if (nLo) { nLo.value = colMins[col].toFixed(d); nHi.value = colMaxs[col].toFixed(d); }
-      if (vLo) { vLo.textContent = colMins[col].toFixed(d); vHi.textContent = colMaxs[col].toFixed(d); }
-      if (row) row.classList.remove("subset-filter-row--active");
+      const cardEl2 = card.querySelector(`#sub-slo-${uid}`)?.closest(".subset-filter-card");
+      const sLo2 = card.querySelector(`#sub-slo-${uid}`);
+      const sHi2 = card.querySelector(`#sub-shi-${uid}`);
+      const nLo2 = card.querySelector(`#sub-nlo-${uid}`);
+      const nHi2 = card.querySelector(`#sub-nhi-${uid}`);
+      const vLo2 = card.querySelector(`#sub-vlo-${uid}`);
+      const vHi2 = card.querySelector(`#sub-vhi-${uid}`);
+      const d    = colDec[col];
+      if (sLo2) { sLo2.value = colMins[col]; sHi2.value = colMaxs[col]; }
+      if (nLo2) { nLo2.value = colMins[col].toFixed(d); nHi2.value = colMaxs[col].toFixed(d); }
+      if (vLo2) { vLo2.textContent = colMins[col].toFixed(d); vHi2.textContent = colMaxs[col].toFixed(d); }
+      if (cardEl2) cardEl2.classList.remove("subset-filter-card--active");
     }
     _updatePreviewCount();
     _drawPreview();
@@ -647,12 +665,7 @@ export async function initSubset(containerEl) {
 
   function _drawPreview() {
     if (!chartEl || !xCol || !yCol) return;
-    renderDataScatter2D(chartEl, rows, {
-      xCol,
-      yCol,
-      filterRanges: _activeFilters(),
-      ...s2d,
-    });
+    renderDataScatter2D(chartEl, rows, { xCol, yCol, filterRanges: _activeFilters(), ...s2d });
   }
 
   const _themeHandler = () => _drawPreview();
@@ -670,8 +683,7 @@ export async function initSubset(containerEl) {
 
     if (Object.keys(conditions).length === 0) {
       _showStatus("warn",
-        "No filters applied — all rows would be kept. "
-        + "Adjust at least one range before committing."
+        "No filters applied — adjust at least one range before committing."
       );
       return;
     }
@@ -679,19 +691,7 @@ export async function initSubset(containerEl) {
     commitBtn.disabled    = true;
     commitBtn.textContent = "Committing…";
     showSpinner("Applying subset…");
-
-    let resp;
-    try {
-      resp = await post("/api/data/subset", { conditions });
-    } catch (err) {
-      hideSpinner();
-      commitBtn.disabled    = false;
-      commitBtn.textContent = "Commit Subset";
-      _showStatus("error", "Network error — is the server running?");
-      showError("Network error — could not reach the server.");
-      return;
-    }
-
+    const resp = await post("/api/data/subset", { conditions });
     hideSpinner();
     commitBtn.disabled    = false;
     commitBtn.textContent = "Commit Subset";
@@ -707,10 +707,7 @@ export async function initSubset(containerEl) {
       + `${resp.rows_before.toLocaleString()} rows.`
     );
     if (resp.zero_variance_columns?.length) {
-      showWarning(
-        `Zero-variance columns after subset: ${resp.zero_variance_columns.join(", ")}. `
-        + "Consider removing them in Filter."
-      );
+      showWarning(`Zero-variance after subset: ${resp.zero_variance_columns.join(", ")}.`);
     }
 
     rowCountEl.textContent = `${resp.rows_after.toLocaleString()} rows (subset active)`;
@@ -718,7 +715,7 @@ export async function initSubset(containerEl) {
 
     _showStatus("ok",
       `Subset committed — ${resp.rows_removed.toLocaleString()} rows removed, `
-      + `${resp.rows_after.toLocaleString()} rows remain.`
+      + `${resp.rows_after.toLocaleString()} remain.`
       + (resp.zero_variance_columns?.length
         ? ` Zero-variance: ${resp.zero_variance_columns.join(", ")}`
         : "")
@@ -737,18 +734,7 @@ export async function initSubset(containerEl) {
     undoBtn.disabled    = true;
     undoBtn.textContent = "Undoing…";
     showSpinner("Undoing subset…");
-
-    let resp;
-    try {
-      resp = await post("/api/data/subset/undo", {});
-    } catch (err) {
-      hideSpinner();
-      undoBtn.disabled    = false;
-      undoBtn.textContent = "Undo";
-      showError("Network error — could not reach the server.");
-      return;
-    }
-
+    const resp = await post("/api/data/subset/undo", {});
     hideSpinner();
     undoBtn.textContent = "Undo";
 
