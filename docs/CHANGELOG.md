@@ -19,6 +19,13 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.67] — 2026-06-04
+
+### Fixed — IO scatter width overflow and grid columns
+- `.io-scatter-chart` now has `width: 100%; overflow: hidden` so Plotly SVG is clipped to the grid cell rather than expanding the container
+- Added `autosize: true` to `renderIOScatter` Plotly layout so the chart measures the constrained width on first render
+- `.io-scatter-grid` defaults to 2 columns (was 3); 1-column at ≤640px breakpoint kept
+
 ## [3.5.66] — 2026-06-04
 
 ### Fixed — IO scatter UX and layout in Step 6 — Assign

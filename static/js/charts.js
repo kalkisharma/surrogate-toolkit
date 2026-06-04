@@ -1680,6 +1680,7 @@ export function renderIOScatter(containerEl, xVals, yVals, xCol, yCol, opts = {}
       tickfont: { size: Math.max(fontSize - 1, 7), color: fontClr },
       gridcolor: gridClr, showgrid: true, zeroline: false,
     },
+    autosize: true,
     height,
     margin:        { t: Math.max(fontSize * 3, 26), b: 30, l: 40, r: 8 },
     plot_bgcolor:  plotBg,

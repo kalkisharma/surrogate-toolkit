@@ -1498,11 +1498,8 @@ body,
 
 .io-scatter-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-3);
-}
-@media (max-width: 1100px) {
-  .io-scatter-grid { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 640px) {
   .io-scatter-grid { grid-template-columns: 1fr; }
@@ -1513,7 +1510,9 @@ body,
 }
 
 .io-scatter-chart {
+  width: 100%;
   min-height: 160px;
+  overflow: hidden;
 }
 
 /* ── Column Distributions (Histograms) ──────────────────────────────────────── */
