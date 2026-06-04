@@ -1597,16 +1597,20 @@ body,
   font-size: var(--text-xs);
 }
 
+.row-inspector-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 .row-inspector-table th {
   padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-weight: var(--font-medium);
   text-align: left;
-  position: sticky;
-  top: 0;
-  background: var(--color-surface);
-  z-index: 1;
+  background-color: var(--color-surface);
+  will-change: transform;
 }
 
 .row-inspector-th-col { width: 42%; }
@@ -1623,7 +1627,7 @@ body,
 
 .row-inspector-row--outlier {
   background: rgba(220, 38, 38, 0.10);
-  border-left: 2px solid rgba(220, 38, 38, 0.5);
+  box-shadow: inset 3px 0 0 rgba(220, 38, 38, 0.55);
 }
 
 .row-inspector-col {
