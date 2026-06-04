@@ -549,9 +549,8 @@ async function _renderExploration(uploadResponse) {
     clearEl(container);
     _subtitle(key);
     await initSubset(container);
-    // Invalidate explore and clean on commit so they re-fetch fresh data
-    container.addEventListener("subset:committed", async (e) => {
-      // Refresh meta so downstream subtitles show the reduced row count
+
+    async function _refreshMeta() {
       const freshSummary = await get("/api/data/summary");
       if (freshSummary.success) {
         meta.n_rows = freshSummary.n_rows ?? meta.n_rows;
@@ -561,12 +560,36 @@ async function _renderExploration(uploadResponse) {
         }
         meta.null_counts = freshNulls;
       }
+      // Refresh subtitles for every panel that has already been initialized
+      for (const k of STEP_KEYS) {
+        if (panelDone[k]) _subtitle(k);
+      }
+      // Update header upload-success row count if present
+      const uploadMeta = document.querySelector(".upload-success__meta");
+      if (uploadMeta) {
+        uploadMeta.textContent = `${meta.n_rows.toLocaleString()} rows · ${meta.n_cols} columns`;
+      }
+    }
+
+    container.addEventListener("subset:committed", async () => {
+      await _refreshMeta();
       // Invalidate explore and clean so they re-fetch on next visit
       panelDone["explore"] = false;
       panelDone["clean"]   = false;
       clearEl(_panelContent["explore"]);
       clearEl(_panelContent["clean"]);
       stepCompleted["subset"] = true;
+      buildSidebar();
+    }, { once: false });
+
+    container.addEventListener("subset:undone", async () => {
+      await _refreshMeta();
+      // Invalidate explore and clean so they re-fetch fresh unsubsetted data
+      panelDone["explore"] = false;
+      panelDone["clean"]   = false;
+      clearEl(_panelContent["explore"]);
+      clearEl(_panelContent["clean"]);
+      stepCompleted["subset"] = false;
       buildSidebar();
     }, { once: false });
   }

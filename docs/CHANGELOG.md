@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.61] — 2026-06-04
+
+### Fixed — Subset commit/undo row count propagation
+- **Panel subtitles**: after commit or undo, re-render the `filename — N rows × M cols` subtitle for every already-initialized panel so Steps 5, 6, and any other visited step immediately show the correct row count
+- **Upload header**: update the `.upload-success__meta` span (top of page) with the new row count after commit/undo
+- **Undo**: added `subset:undone` listener in `_initSubsetPanel` (was missing entirely); undoing a subset now refreshes `meta.n_rows`, all panel subtitles, and marks `stepCompleted["subset"] = false` in the sidebar
+- **404 on `/api/model/results`**: clarified this is expected probe behavior on page load (checks for in-memory model); handled gracefully by `if (resultsCheck.success && ...)` check; cosmetic console noise only
+
+---
+
 ## [3.5.60] — 2026-06-04
 
 ### Fixed — Subset commit spinner crash
