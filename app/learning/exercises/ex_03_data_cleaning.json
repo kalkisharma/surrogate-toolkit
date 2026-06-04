@@ -26,8 +26,8 @@
     {
       "step_num": 2,
       "target_panel": "explore",
-      "instruction": "Open the scatter matrix. Look at the x2 distribution (x2 vs any other variable). You should see a few extreme data points far from the main cluster.",
-      "keywords": ["Skewness", "Log-Transform", "Outlier"],
+      "instruction": "Open the scatter matrix. Look at the x2 distribution (x2 vs any other variable). You should see a few extreme data points far from the main cluster. Click one of those outlier points — a row inspector card appears showing every column value for that row and its Z-score (how many standard deviations from the column mean). A |Z| > 3 cell is highlighted red. This confirms the point is a statistical outlier before you decide whether to remove it in the Clean step.",
+      "keywords": ["Skewness", "Log-Transform", "Outlier", "Row Inspector"],
       "quiz": {
         "question": "The x2 column has a long right tail (log-normal distribution). Why does skewness matter for surrogate modeling?",
         "options": [

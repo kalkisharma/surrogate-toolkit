@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.76] — 2026-06-04
+
+### Added — Learning guide: glossary entries, Exercise 3 row inspector, Exercise 12 PCE
+- Glossary: added "Row Inspector" (Data Preparation) and "Output Error Columns" (Data Preparation)
+- Exercise 3 Step 2: enhanced with row inspector instruction — click an outlier point to see its Z-scores before deciding to remove it in the Clean step
+- Exercise 12 (Expert): new PCE exercise on Ishigami 5D — trains PCE, reviews R², compares analytical Sobol indices (S₁, ST) from polynomial coefficients against known values; demonstrates dummy input detection without Monte Carlo
+- Exercise intro text updated to reference Exercise 12 and its prerequisite (Exercise 4)
+
+---
+
 ## [3.5.75] — 2026-06-04
 
 ### Added — Normalization topic in Learning Guide

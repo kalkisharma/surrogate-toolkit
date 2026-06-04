@@ -1,0 +1,117 @@
+{
+  "id": "ex_12_pce",
+  "title": "PCE — Fast Sensitivity from a Polynomial Surrogate",
+  "difficulty": "expert",
+  "estimated_minutes": 25,
+  "description": "Train a Polynomial Chaos Expansion (PCE) on the Ishigami function — the same dataset used in Exercise 4. PCE provides Sobol sensitivity indices directly from its polynomial coefficients, with no Monte Carlo sampling required. Compare the PCE indices against the analytical values and against the GPR + Sobol result from Exercise 4 to understand when PCE is the faster and more tractable choice.",
+  "tags": ["PCE", "sensitivity analysis", "model selection"],
+  "dataset": "ishigami_5d.csv",
+  "steps": [
+    {
+      "step_num": 1,
+      "target_panel": "preview",
+      "instruction": "The Ishigami 5D dataset has been loaded. There are 5 inputs (x1–x5) and one output (y). x4 and x5 are dummy inputs — they have no effect on y. One goal of this exercise is to confirm that the PCE picks this up automatically through its sensitivity indices.",
+      "keywords": ["Polynomial Chaos Expansion (PCE)", "Sobol Sensitivity Index"],
+      "quiz": {
+        "question": "PCE represents the output as a sum of orthogonal polynomials in the inputs. What does this structure give you for free?",
+        "options": [
+          "Faster training time than Random Forest",
+          "First-order Sobol sensitivity indices derived directly from the polynomial coefficients — no Monte Carlo sampling needed",
+          "Exact interpolation through every training point",
+          "Automatic input filtering"
+        ],
+        "correct_index": 1,
+        "explanation": "In PCE, the variance contribution of each input maps directly to its polynomial coefficient magnitudes. The first-order Sobol index S₁ for each input is computed analytically from the expansion — no additional Monte Carlo runs are needed. This is PCE's key advantage over GPR + Sobol, which requires thousands of surrogate evaluations to estimate the same quantities."
+      }
+    },
+    {
+      "step_num": 2,
+      "target_panel": "clean",
+      "instruction": "Open Step 4 — Clean. This dataset is synthetic and clean — no nulls, no outliers. Click through without making any changes.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 3,
+      "target_panel": "designate",
+      "instruction": "Open Step 6 — Assign. Designate x1, x2, x3, x4, x5 as Input columns and y as the Output column. Include x4 and x5 even though they are dummy inputs — one goal here is to see whether the sensitivity indices correctly identify them as unimportant.",
+      "keywords": ["Input Variable", "Output Variable"],
+      "quiz": null
+    },
+    {
+      "step_num": 4,
+      "target_panel": "normalize",
+      "instruction": "Open Step 7 — Normalize. Select Min-Max and click Apply. PCE builds orthogonal polynomials (Legendre basis) that assume inputs are uniformly distributed on [0, 1] after scaling. Min-Max normalization satisfies this assumption.",
+      "keywords": ["Normalization", "Min-Max Scaling"],
+      "quiz": {
+        "question": "Why is Min-Max (not Z-Score) the right normalization choice before training a PCE?",
+        "options": [
+          "Min-Max is always faster to compute",
+          "PCE uses Legendre polynomials which are orthogonal on [0, 1] — Min-Max maps inputs to that interval. Z-Score produces a different range and breaks the polynomial orthogonality assumption",
+          "Z-Score is not supported by this toolkit",
+          "They produce identical results for PCE"
+        ],
+        "correct_index": 1,
+        "explanation": "Polynomial chaos expansions use basis functions that are orthogonal with respect to a specific input distribution. For uniform inputs on [0, 1], the correct basis is Legendre polynomials. Min-Max maps each input to [0, 1], satisfying this assumption. Z-Score standardizes to mean 0 and std 1 — a different domain that breaks orthogonality and gives incorrect coefficient magnitudes."
+      }
+    },
+    {
+      "step_num": 5,
+      "target_panel": "screen",
+      "instruction": "Open Step 8 — Filter Inputs. For this exercise, keep all five inputs including the dummy variables x4 and x5. Skip this step and move on — the Sobol indices from PCE will identify the dummies without manual intervention.",
+      "keywords": [],
+      "quiz": null
+    },
+    {
+      "step_num": 6,
+      "target_panel": "configure",
+      "instruction": "Open Step 9 — Model. Select PCE as the model type. Leave all other settings at their defaults and click Train. PCE training on this dataset is near-instant because it solves a linear least-squares problem rather than the expensive kernel hyperparameter optimisation required by GPR.",
+      "keywords": ["Polynomial Chaos Expansion (PCE)", "Hyperparameter"],
+      "quiz": {
+        "question": "On a smooth, polynomial-like response such as the Ishigami function, which statement best compares PCE and GPR training cost?",
+        "options": [
+          "GPR is always faster because it uses matrix inversion",
+          "PCE solves a linear system (fast) while GPR optimises kernel hyperparameters via iterative L-BFGS-B (slow for large datasets or many restarts)",
+          "They have identical computational cost",
+          "PCE is slower because it evaluates more basis functions"
+        ],
+        "correct_index": 1,
+        "explanation": "PCE fitting is a linear regression problem — given the polynomial basis, the coefficients are found in a single least-squares solve. GPR must maximise a non-convex log-likelihood over kernel hyperparameters, typically requiring multiple optimiser restarts. For smooth responses, PCE is substantially faster and often equally accurate."
+      }
+    },
+    {
+      "step_num": 7,
+      "target_panel": "results",
+      "instruction": "Review the Results panel. The PCE should achieve R² ≥ 0.95 on this smooth dataset. Inspect the parity plot — points should cluster tightly along the diagonal. If R² is lower than expected, return to the Model step and increase the polynomial degree.",
+      "keywords": ["R² (Coefficient of Determination)", "Parity Plot"],
+      "quiz": {
+        "question": "PCE achieves R² = 0.97 on the Ishigami function but GPR achieves 0.99 on the same dataset (from Exercise 4). What does this mean?",
+        "options": [
+          "PCE is a worse model and should not be used",
+          "GPR fits the data more tightly, but PCE still provides accurate Sobol indices at a fraction of the cost — the slight accuracy trade-off is acceptable if sensitivity analysis is the primary goal",
+          "The PCE needs more training data",
+          "The GPR result is wrong"
+        ],
+        "correct_index": 1,
+        "explanation": "Accuracy and suitability are different things. PCE at 0.97 is accurate enough to trust its Sobol indices. Computing those same indices with GPR requires thousands of additional surrogate evaluations (Monte Carlo) — a significant added cost. If sensitivity is your main objective and the response is smooth, PCE's analytical indices are the faster and more reliable path."
+      }
+    },
+    {
+      "step_num": 8,
+      "target_panel": "interpret",
+      "instruction": "Open Step 13 — Interpret. View the Sobol sensitivity indices. Compare the results against the known analytical values for the Ishigami function: S₁(x1) ≈ 0.31, S₁(x2) ≈ 0.44, S₁(x3) ≈ 0.00, ST(x1) ≈ 0.56, ST(x2) ≈ 0.44, ST(x3) ≈ 0.24. x4 and x5 should have S₁ ≈ ST ≈ 0 — confirming PCE correctly identified the dummy inputs with no Monte Carlo sampling.",
+      "keywords": ["Sobol Sensitivity Index", "S₁ (First-Order Sobol Index)", "ST (Total-Order Sobol Index)", "Polynomial Chaos Expansion (PCE)"],
+      "quiz": {
+        "question": "The PCE gives S₁(x3) ≈ 0 but ST(x3) > 0. What does this tell you about x3?",
+        "options": [
+          "x3 is a dummy input and can be removed",
+          "x3 has no independent main effect on y but does influence y through an interaction with x1 — removing x3 would lose that interaction",
+          "The PCE has underfit and the result is unreliable",
+          "S₁ and ST should always be equal for any input"
+        ],
+        "correct_index": 1,
+        "explanation": "In the Ishigami function, x3 appears only in the term 0.1·x3⁴·sin(x1) — it has no direct effect when x1 is held fixed, but amplifies the influence of x1. This gives S₁(x3) ≈ 0 (no main effect) but ST(x3) > 0 (positive total-order index due to the interaction). Removing x3 would destroy this interaction term. This is the same lesson as Exercise 4 — now confirmed directly from polynomial coefficients."
+      }
+    }
+  ]
+}

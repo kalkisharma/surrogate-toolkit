@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/learning_guide.js
-// Version: 3.5.75
+// Version: 3.5.76
 // Description: Learning Guide modal — six tabs: Glossary, Model Guide,
 //              Topics, Exercises, Symbols, Equations. Opens via the "Guide"
 //              header button. Exercises tab auto-injects datasets and shows
@@ -314,7 +314,7 @@ async function _renderExercises(container) {
   }
 
   const intro = el("p", { cls: "lg-section-intro",
-    text: "Guided exercises auto-load a synthetic dataset and walk you through the full workflow step by step. Quiz questions are advisory — you can always continue regardless of your answer. Suggested order: Exercises 1–3 cover the full workflow (upload → train → predict) and should be completed first. Exercises 4–7 cover advanced analysis (sensitivity, active learning, PCA filtering, multi-fidelity). Exercises 8–11 focus on model tuning (model selection, alpha regularization, optimization, noise weighting). Exercise 6 requires reading the 'Input Filtering' topic first. Exercise 7 requires switching between two auto-loaded datasets." });
+    text: "Guided exercises auto-load a synthetic dataset and walk you through the full workflow step by step. Quiz questions are advisory — you can always continue regardless of your answer. Suggested order: Exercises 1–3 cover the full workflow (upload → train → predict) and should be completed first. Exercises 4–7 cover advanced analysis (sensitivity, active learning, PCA filtering, multi-fidelity). Exercises 8–11 focus on model tuning (model selection, alpha regularization, optimization, noise weighting). Exercise 12 is an expert-level exercise on PCE — complete Exercise 4 first. Exercise 6 requires reading the 'Input Filtering' topic first. Exercise 7 requires switching between two auto-loaded datasets." });
   container.appendChild(intro);
 
   // Build cards (numbered 1-based)
