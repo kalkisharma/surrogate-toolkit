@@ -19,6 +19,13 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.71] — 2026-06-04
+
+### Fixed — Row inspector CSS variable names + table layout
+- Replaced all undefined CSS variables throughout inspector styles: `--color-surface` → `--color-bg-surface`, `--color-danger` → `--color-error`, `--color-text` → `--color-text-primary`, `--color-surface-hover` → `--color-bg-hover`, `--font-semibold` → `--font-semi`
+- Sticky header replaced with `tbody { display: block; overflow-y: auto }` approach — `thead` is now genuinely outside the scroll area so it never moves; background always visible
+- Column widths shared between `th` and `td` via combined selectors (`.row-inspector-th-col, .row-inspector-col { width: 42% }` etc.) so header and body columns are always in sync under `table-layout: fixed`
+
 ## [3.5.70] — 2026-06-04
 
 ### Improved — Row inspector table alignment + SPLOM point highlighting
