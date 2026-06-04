@@ -1622,7 +1622,8 @@ body,
 /* Column widths set on both th and td via shared classes */
 .row-inspector-th-col, .row-inspector-col { width: 42%; }
 .row-inspector-th-val, .row-inspector-val { width: 33%; }
-.row-inspector-th-z,   .row-inspector-z   { width: 25%; text-align: right; }
+.row-inspector-th-z,   .row-inspector-z   { width: 25%; }
+.row-inspector-table th.row-inspector-th-z { text-align: right; }
 
 .row-inspector-table td {
   padding: var(--space-1) var(--space-2);
