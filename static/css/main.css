@@ -1686,6 +1686,10 @@ body,
   gap: var(--space-4);
   max-width: 720px;
 }
+.norm-log-grid > * {
+  min-width: 0;
+  overflow: hidden;
+}
 .norm-log-side-label {
   font-size: var(--text-xs);
   color: var(--color-text-secondary);
@@ -1695,6 +1699,7 @@ body,
 .norm-log-chart {
   width: 100%;
   min-height: 180px;
+  overflow: hidden;
 }
 
 /* ── Training data summary card (Step 9) ─────────────────────────────────────── */

@@ -19,6 +19,13 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.74] — 2026-06-04
+
+### Fixed — Log₁₀ histogram overflow
+- Added `min-width: 0; overflow: hidden` to `.norm-log-grid > *` and `overflow: hidden` to `.norm-log-chart` so Plotly charts respect grid column boundaries and don't overflow to the right
+
+---
+
 ## [3.5.73] — 2026-06-04
 
 ### Fixed — Log₁₀ histogram width + Model summary stale norm method
