@@ -29,7 +29,7 @@ def normalize_dataframe(
     Args:
         df:      Source DataFrame (primary["clean"]). Not mutated.
         columns: Column names to normalize (input columns only).
-        method:  "minmax" | "zscore" | "none"
+        method:  "minmax" | "zscore" | "log" | "none"
 
     Returns:
         (normalized_df, params) where:
@@ -40,7 +40,7 @@ def normalize_dataframe(
     Raises:
         ValueError: if method is not recognised.
     """
-    if method not in ("minmax", "zscore", "none"):
+    if method not in ("minmax", "zscore", "log", "none"):
         raise ValueError(f"Unknown normalization method: {method!r}")
 
     result = df.copy()
@@ -73,6 +73,14 @@ def normalize_dataframe(
             else:
                 result[col] = (df[col] - col_mean) / col_std
             params[col] = {"method": "zscore", "mean": col_mean, "std": col_std}
+
+        elif method == "log":
+            col_min = float(series.min())
+            # Shift so the minimum maps to 1 before taking log10
+            shift = max(0.0, -col_min + 1.0) if col_min <= 0 else 0.0
+            shifted = df[col] + shift
+            result[col] = np.log10(shifted.clip(lower=1e-12))
+            params[col] = {"method": "log", "shift": shift}
 
     return result, params
 

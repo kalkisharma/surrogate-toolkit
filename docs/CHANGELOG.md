@@ -19,6 +19,19 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.72] — 2026-06-04
+
+### Added — Log₁₀ histogram previews in Normalize step
+- New `_renderLogHistograms` function in `normalization.js` renders a before/after column histogram for every input column when Log₁₀ transform is applied
+- Backend `normalization.py` shifts non-positive values automatically so log₁₀ is always valid; shift stored in params for audit
+- CSS classes `.norm-log-col-section`, `.norm-log-grid`, `.norm-log-side-label`, `.norm-log-chart` added to `main.css`
+
+### Added — Training data summary card in Configure step
+- `_renderTrainSummary()` in `main.js` renders a compact card at the top of Step 9 — Configure showing row count, number of inputs/outputs (with column name lists), and active normalization method
+- CSS classes `.train-summary-card`, `.train-summary-item`, `.train-summary-label`, `.train-summary-value`, `.train-summary-value--list` added to `main.css`
+
+---
+
 ## [3.5.71] — 2026-06-04
 
 ### Fixed — Row inspector CSS variable names + table layout

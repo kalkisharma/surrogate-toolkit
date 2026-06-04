@@ -910,11 +910,11 @@ def normalize():
     data   = request.get_json(silent=True) or {}
     method = data.get("method", "none")
 
-    if method not in ("minmax", "zscore", "none"):
+    if method not in ("minmax", "zscore", "log", "none"):
         return (
             jsonify({
                 "success": False, "error_code": "UNKNOWN_METHOD",
-                "message": f"Unknown normalization method '{method}'. Use minmax, zscore, or none.",
+                "message": f"Unknown normalization method '{method}'. Use minmax, zscore, log, or none.",
                 "detail": "", "recoverable": True, "allowed_actions": ["retry"],
             }),
             422,

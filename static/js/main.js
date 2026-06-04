@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.68
+// Version: 3.5.72
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -683,9 +683,35 @@ async function _renderExploration(uploadResponse) {
   }
 
   // ── Step 9 — Configure + Train ────────────────────────────────────────────
+  function _renderTrainSummary(container) {
+    const card = el("div", { cls: "train-summary-card" });
+    const normLabel = _currentNorm
+      ? { minmax: "Min-Max", zscore: "Z-Score", log: "Log₁₀", none: "None" }[_currentNorm] ?? _currentNorm
+      : "Not set";
+
+    const items = [
+      { label: "Rows",        value: (meta.n_rows ?? "—").toLocaleString() },
+      { label: "Inputs",      value: _currentInputCols.length, list: _currentInputCols },
+      { label: "Outputs",     value: _currentOutputCols.length, list: _currentOutputCols },
+      { label: "Norm method", value: normLabel },
+    ];
+
+    for (const { label, value, list } of items) {
+      const item = el("div", { cls: "train-summary-item" });
+      item.appendChild(el("span", { cls: "train-summary-label", text: label }));
+      item.appendChild(el("span", { cls: "train-summary-value", text: String(value) }));
+      if (list && list.length) {
+        item.appendChild(el("span", { cls: "train-summary-value--list", text: list.join(", ") }));
+      }
+      card.appendChild(item);
+    }
+    container.appendChild(card);
+  }
+
   function _initConfigurePanel(container, key) {
     clearEl(container);
     _subtitle(key);
+    _renderTrainSummary(container);
     initModelConfig(container, async () => {
       _hasUnsavedChanges = true;
       stepUnlocked["results"] = true;

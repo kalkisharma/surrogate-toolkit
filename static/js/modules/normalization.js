@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/normalization.js
-// Version: 0.9.11
+// Version: 0.9.12
 // Description: Normalization step — lets users pick a scaling method for input
 //              columns and applies it via POST /api/data/normalize.
 //              Gated: rendered only after column designation is confirmed.
@@ -15,12 +15,13 @@ import { showError, showSuccess } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
-import { renderNormBoxPlots } from "../charts.js";
+import { renderNormBoxPlots, renderColumnHistogram } from "../charts.js";
 
 const METHODS = [
   { value: "none",   label: "None (passthrough)",        desc: "No scaling — use raw values." },
   { value: "minmax", label: "Min-Max  [0, 1]",           desc: "Scales each input column to [0, 1]. Preserves shape; sensitive to outliers." },
   { value: "zscore", label: "Z-Score  (μ=0, σ=1)",       desc: "Standardizes to zero mean and unit variance. Suitable for GPR." },
+  { value: "log",    label: "Log₁₀ Transform",           desc: "Applies log₁₀ to each input. Best for right-skewed data spanning several orders of magnitude. Non-positive values are shifted automatically." },
 ];
 
 // ── Box plot settings (persisted to localStorage) ─────────────────────────────
@@ -189,6 +190,36 @@ function _renderBoxSettingsPanel(parentEl) {
     debouncedRerender();
   });
   paperBgIn.addEventListener("input", () => { _boxSettings.paperBgColor = paperBgIn.value; debouncedRerender(); });
+}
+
+// ── Log-transform before/after histograms ────────────────────────────────────
+
+function _renderLogHistograms(parentEl, histData) {
+  const cols = Object.keys(histData.before || {});
+  for (const col of cols) {
+    const colSec = el("div", { cls: "norm-log-col-section" });
+    colSec.appendChild(el("div", { cls: "norm-log-col-label", text: col }));
+
+    const grid = el("div", { cls: "norm-log-grid" });
+
+    const beforeWrap = el("div");
+    beforeWrap.appendChild(el("div", { cls: "norm-log-side-label", text: "Before (raw)" }));
+    const beforeChart = el("div", { cls: "norm-log-chart" });
+    beforeWrap.appendChild(beforeChart);
+    grid.appendChild(beforeWrap);
+
+    const afterWrap = el("div");
+    afterWrap.appendChild(el("div", { cls: "norm-log-side-label", text: "After (log₁₀)" }));
+    const afterChart = el("div", { cls: "norm-log-chart" });
+    afterWrap.appendChild(afterChart);
+    grid.appendChild(afterWrap);
+
+    colSec.appendChild(grid);
+    parentEl.appendChild(colSec);
+
+    renderColumnHistogram(beforeChart, histData.before[col] || [], col,       { height: 200, showMeanLine: true, logTransform: false });
+    renderColumnHistogram(afterChart,  histData.after[col]  || [], `log₁₀(${col})`, { height: 200, showMeanLine: true, logTransform: false });
+  }
 }
 
 // ── Sample table ──────────────────────────────────────────────────────────────
@@ -368,40 +399,42 @@ export function initNormalization(containerEl, currentMethod, nInputs, onApplied
 
     if (resp.hist_data && resp.input_columns?.length) {
       const histSection = el("div", { cls: "norm-hist-section" });
-      const histTitle   = el("div", {
-        cls:  "norm-hist-section-title",
-        text: "Before (blue) vs. after (green) scaling — input columns only",
-      });
-      histSection.appendChild(histTitle);
 
-      // Settings panel
-      _renderBoxSettingsPanel(histSection);
+      if (selectedMethod === "log") {
+        // Log transform: show before/after histograms per column
+        histSection.appendChild(el("div", {
+          cls:  "norm-hist-section-title",
+          text: "Distribution before and after log₁₀ transform — input columns only",
+        }));
+        _renderLogHistograms(histSection, resp.hist_data);
+      } else {
+        // minmax / zscore: show box plots
+        histSection.appendChild(el("div", {
+          cls:  "norm-hist-section-title",
+          text: "Before (blue) vs. after (green) scaling — input columns only",
+        }));
+        _renderBoxSettingsPanel(histSection);
 
-      // Box plot grid
-      const histGrid = el("div", { cls: "norm-hist-grid" });
-      histSection.appendChild(histGrid);
+        const histGrid = el("div", { cls: "norm-hist-grid" });
+        histSection.appendChild(histGrid);
 
-      // Store for settings-triggered re-render
-      _lastHistGrid  = histGrid;
-      _lastHistData  = resp.hist_data;
-      _lastInputCols = resp.input_columns;
-      _lastMethod    = selectedMethod;
+        _lastHistGrid  = histGrid;
+        _lastHistData  = resp.hist_data;
+        _lastInputCols = resp.input_columns;
+        _lastMethod    = selectedMethod;
 
-      renderNormBoxPlots(histGrid, resp.hist_data, resp.input_columns, selectedMethod, _boxSettings);
-      requestAnimationFrame(() => {
-        histGrid.querySelectorAll(".js-plotly-plot").forEach(p => Plotly.Plots.resize(p));
-      });
+        renderNormBoxPlots(histGrid, resp.hist_data, resp.input_columns, selectedMethod, _boxSettings);
+        requestAnimationFrame(() => {
+          histGrid.querySelectorAll(".js-plotly-plot").forEach(p => Plotly.Plots.resize(p));
+        });
+      }
 
-      // Sample value table
+      // Sample value table (all methods)
       if (resp.sample_rows && resp.input_columns?.length) {
         _renderSampleTable(histSection, resp.sample_rows, resp.input_columns, selectedMethod);
       }
 
-      // Download button
-      const dlBtn = el("button", {
-        cls:  "btn btn-secondary btn-sm",
-        text: "⬇ Download normalized CSV",
-      });
+      const dlBtn = el("button", { cls: "btn btn-secondary btn-sm", text: "⬇ Download normalized CSV" });
       dlBtn.style.marginTop = "var(--space-4)";
       dlBtn.addEventListener("click", () => { window.location.href = "/api/export/normalized"; });
       histSection.appendChild(dlBtn);
