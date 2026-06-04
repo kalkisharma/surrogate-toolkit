@@ -1693,7 +1693,10 @@ export function renderColumnHistogram(containerEl, vals, col, opts = {}) {
     showlegend:    false,
     shapes,
   }, {
-    responsive:     true,
-    displayModeBar: false,
+    responsive:      true,
+    displayModeBar:  "hover",
+    displaylogo:     false,
+    modeBarButtons:  [["toImage", "zoom2d", "pan2d", "resetScale2d"]],
+    toImageButtonOptions: { filename: `histogram_${col}`, scale: 2 },
   });
 }
