@@ -40,6 +40,14 @@ let _corrHeatHeight     = 500;
  * @param {string[]}    inputCols   — currently designated input columns
  */
 export async function initScreening(containerEl, inputCols = []) {
+  // Reset module-level analysis cache on every panel init. initScreening is only
+  // called when panelDone["screen"] is false (new dataset, dataset switch, or
+  // explicit panel invalidation), so clearing here prevents a stale previous
+  // dataset's results from being shown via the _lastResp cache.
+  _lastResp = null;
+  _pcaResp  = null;
+  _selected = null;
+
   clearEl(containerEl);
 
   if (inputCols.length === 0) {

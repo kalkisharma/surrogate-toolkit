@@ -1028,6 +1028,7 @@ def _apply_clean(state, active_key, ds, result_df, save_prev=True):
     state["datasets"]["primary"]["metadata"]["n_rows_clean"] = len(result_df)
     ds["metadata"]["summary_stats"] = None   # invalidate stats cache
     ds["metadata"]["dcor_matrix"]   = None   # invalidate dCor cache
+    ds["metadata"]["pca_result"]    = None   # invalidate PCA cache
 
 
 @bp.route("/clean/nulls", methods=["POST"])
