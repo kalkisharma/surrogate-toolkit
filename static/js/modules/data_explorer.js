@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.4.0
+// Version: 1.5.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, expandable plot settings,
 //              column distribution histograms, dCor heatmap, and 2D scatter.
@@ -246,14 +246,6 @@ export async function initExploration(containerEl, uploadResponse) {
 
   // ── Column Distributions (histograms) ────────────────────────────────────
   _buildHistogramSection(containerEl, plotRows, _allColumns);
-
-  // ── Input × Output scatter grid ───────────────────────────────────────────
-  {
-    const meta2     = uploadResponse.metadata || {};
-    const inCols2   = (meta2.input_columns  || []).filter(c => columns.includes(c));
-    const outCols2  = (meta2.output_columns || []).filter(c => columns.includes(c));
-    _buildIOSection(containerEl, plotRows, inCols2, outCols2, columns);
-  }
 
   // ── Distance Correlation heatmap (lazy — fetched on first expand) ─────────
   containerEl.appendChild(_buildDCorSection());
@@ -782,7 +774,7 @@ function _saveIOSettings(s) {
  * @param {string[]}    outputCols - Designated output columns.
  * @param {string[]}    allColumns - All dataset columns (for fallback display).
  */
-function _buildIOSection(containerEl, rows, inputCols, outputCols, allColumns) {
+export function buildIOSection(containerEl, rows, inputCols, outputCols, allColumns) {
   const card = el("div", { cls: "card io-scatter-card" });
   card.appendChild(el("h3", { cls: "section-title", text: "Input × Output Relationships" }));
   containerEl.appendChild(card);

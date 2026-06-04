@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.54
+// Version: 3.5.65
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -13,7 +13,7 @@ import { get, post, put } from "./api.js";
 import { refreshState, getPath, getAvailableCores } from "./state.js";
 import { showSuccess, showError, showWarning } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
-import { initExploration, updateColumnSelectorRoles, notifyExploreVisible } from "./modules/data_explorer.js";
+import { initExploration, updateColumnSelectorRoles, notifyExploreVisible, buildIOSection } from "./modules/data_explorer.js";
 import { initCleaning } from "./modules/data_cleaning.js";
 import { initDesignation } from "./modules/column_designation.js";
 import { initNormalization } from "./modules/normalization.js";
@@ -597,9 +597,22 @@ async function _renderExploration(uploadResponse) {
   // ── Step 6 — Designate ────────────────────────────────────────────────────
   function _initDesignatePanel(container, key) {
     _subtitle(key);
+    const allCols   = meta.columns || uploadResponse.preview.columns || [];
+    const ioWrap    = el("div");
+    let _cachedRows = null;
+
+    async function _renderIO(inputCols, outputCols) {
+      if (!_cachedRows) {
+        const resp  = await get("/api/data/rows");
+        _cachedRows = resp.success ? (resp.rows || []) : [];
+      }
+      clearEl(ioWrap);
+      buildIOSection(ioWrap, _cachedRows, inputCols, outputCols, allCols);
+    }
+
     initDesignation(
       container,
-      meta.columns || uploadResponse.preview.columns,
+      allCols,
       meta.dtypes      || {},
       meta.null_counts  || {},
       meta.n_rows,
@@ -619,17 +632,21 @@ async function _renderExploration(uploadResponse) {
         stepCompleted["designate"] = true;
         buildSidebar();
 
-        // Update SPLOM selector ordering if explore has been rendered
         updateColumnSelectorRoles(input_columns, output_columns);
 
-        // Invalidate normalize and configure so they re-init with the new roles
         if (panelDone["normalize"]) { panelDone["normalize"] = false; clearEl(_panelContent["normalize"]); }
         if (panelDone["configure"]) { panelDone["configure"] = false; clearEl(_panelContent["configure"]); }
 
+        _renderIO(input_columns, output_columns);
         activatePanel("normalize");
       },
       _currentErrorCols,
     );
+
+    container.appendChild(ioWrap);
+    if (_currentInputCols.length && _currentOutputCols.length) {
+      _renderIO(_currentInputCols, _currentOutputCols);
+    }
   }
 
   // ── Step 7 — Normalize ────────────────────────────────────────────────────

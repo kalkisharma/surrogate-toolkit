@@ -19,6 +19,13 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.65] — 2026-06-04
+
+### Changed — Move Input × Output scatter grid from Step 3 — Explore to Step 6 — Assign
+- `buildIOSection()` (renamed from `_buildIOSection`, now exported) renders below the designation UI in Step 6
+- `main.js` `_initDesignatePanel` fetches rows lazily, renders the scatter immediately if columns are already designated, and re-renders after each `onConfirm`
+- Removed IO scatter call from `initExploration()` in `data_explorer.js` — Step 3 no longer shows the grid
+
 ## [3.5.64] — 2026-06-04
 
 ### Added — Input × Output scatter grid in Step 3 — Explore
