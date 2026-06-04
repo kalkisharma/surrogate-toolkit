@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.5.0
+// Version: 1.5.1
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, expandable plot settings,
 //              column distribution histograms, dCor heatmap, and 2D scatter.
@@ -927,6 +927,14 @@ export function buildIOSection(containerEl, rows, inputCols, outputCols, allColu
   const groupsEl = el("div", { cls: "io-groups" });
   card.appendChild(groupsEl);
 
+  const IO_INPUT_LIMIT = 6;
+
+  // Per-output selected input set — default to first IO_INPUT_LIMIT inputs
+  const selectedInputs = {};
+  for (const out of outputCols) {
+    selectedInputs[out] = new Set(inputCols.slice(0, IO_INPUT_LIMIT));
+  }
+
   // One persistent chart div per (input, output) pair
   const chartEls = {};
   for (const out of outputCols) {
@@ -960,11 +968,51 @@ export function buildIOSection(containerEl, rows, inputCols, outputCols, allColu
     for (const out of outputCols) {
       if (!visibleOutputs.has(out)) continue;
       const group = el("div", { cls: "io-output-group" });
+
       const groupHdr = el("div", { cls: "io-output-label" });
       groupHdr.textContent = `→ ${out}`;
       group.appendChild(groupHdr);
+
+      // Input chip row — only shown when there are multiple inputs
+      if (inputCols.length > 1) {
+        const inpRow = el("div", { cls: "io-input-chip-row" });
+        inpRow.appendChild(el("span", { cls: "io-tab-label", text: "Inputs:" }));
+
+        for (const inp of inputCols) {
+          const chip = el("button", {
+            cls: `col-chip${selectedInputs[out].has(inp) ? " col-chip--selected" : ""}`,
+            type: "button",
+          });
+          chip.textContent = inp; chip.title = inp;
+          chip.addEventListener("click", () => {
+            if (selectedInputs[out].has(inp)) {
+              if (selectedInputs[out].size <= 1) return;
+              selectedInputs[out].delete(inp);
+            } else {
+              selectedInputs[out].add(inp);
+            }
+            _rebuildGroups();
+          });
+          inpRow.appendChild(chip);
+        }
+
+        // "Show all" button when the limit hides some inputs
+        if (inputCols.length > IO_INPUT_LIMIT && selectedInputs[out].size < inputCols.length) {
+          const showAllBtn = el("button", { cls: "io-show-all-btn", type: "button" });
+          showAllBtn.textContent = `Show all (${inputCols.length})`;
+          showAllBtn.addEventListener("click", () => {
+            inputCols.forEach(c => selectedInputs[out].add(c));
+            _rebuildGroups();
+          });
+          inpRow.appendChild(showAllBtn);
+        }
+
+        group.appendChild(inpRow);
+      }
+
       const grid = el("div", { cls: "io-scatter-grid" });
       for (const inp of inputCols) {
+        if (!selectedInputs[out].has(inp)) continue;
         grid.appendChild(chartEls[out][inp]);
         _renderPair(inp, out);
       }
@@ -975,7 +1023,10 @@ export function buildIOSection(containerEl, rows, inputCols, outputCols, allColu
 
   function _rerenderAll() {
     for (const out of outputCols) {
-      for (const inp of inputCols) _renderPair(inp, out);
+      if (!visibleOutputs.has(out)) continue;
+      for (const inp of inputCols) {
+        if (selectedInputs[out].has(inp)) _renderPair(inp, out);
+      }
     }
   }
 

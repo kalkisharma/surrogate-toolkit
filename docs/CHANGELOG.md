@@ -19,6 +19,13 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.66] — 2026-06-04
+
+### Fixed — IO scatter UX and layout in Step 6 — Assign
+- Removed auto-advance to Step 7 after designation; panel now stays in Step 6 and scrolls `ioWrap` into view so user sees plots populate
+- Added `overflow: hidden` to `.io-scatter-card` and `min-width: 0` to `.io-scatter-grid > *` to prevent plots overflowing their grid cells
+- Input chip row added per output group: defaults to first 6 inputs selected; "Show all (N)" button appears when total inputs exceed 6; at least 1 input always stays selected; `_rerenderAll` only re-renders currently visible pairs
+
 ## [3.5.65] — 2026-06-04
 
 ### Changed — Move Input × Output scatter grid from Step 3 — Explore to Step 6 — Assign
