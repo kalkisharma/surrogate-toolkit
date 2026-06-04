@@ -1607,3 +1607,93 @@ export function renderDataScatter2D(containerEl, rows, opts = {}) {
     },
   });
 }
+
+/**
+ * Render a single-column histogram into containerEl using Plotly.react.
+ * Designed to be called for each column in a responsive grid.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {number[]}    vals        - Pre-filtered numeric values for the column.
+ * @param {string}      col         - Column name (used as title).
+ * @param {object}      [opts]
+ */
+export function renderColumnHistogram(containerEl, vals, col, opts = {}) {
+  const {
+    logTransform  = false,
+    nbins         = 30,
+    barColor      = "#3b5dd9",
+    barOpacity    = 0.75,
+    edgeColor     = "#888888",
+    edgeWidth     = 0.5,
+    fontSize      = 10,
+    fontColor     = null,
+    height        = 200,
+    plotBgColor   = null,
+    paperBgColor  = null,
+    showMeanLine  = false,
+  } = opts;
+
+  const isDark  = document.documentElement.getAttribute("data-theme") === "dark";
+  const fontClr = fontColor ?? (isDark ? "#8b94b3" : "#4b5478");
+  const gridClr = isDark ? "#2a2d4a" : "#e5e7eb";
+  const plotBg  = plotBgColor  ?? (isDark ? "#1e2035" : "#ffffff");
+  const paperBg = paperBgColor ?? "rgba(0,0,0,0)";
+
+  const displayVals = logTransform
+    ? vals.filter(v => v != null && isFinite(v) && v > 0).map(v => Math.log10(v))
+    : vals.filter(v => v != null && isFinite(v));
+
+  const traces = [{
+    type:    "histogram",
+    x:       displayVals,
+    nbinsx:  nbins,
+    name:    col,
+    marker: {
+      color:   barColor,
+      opacity: barOpacity,
+      line:    { color: edgeColor, width: edgeWidth },
+    },
+    hovertemplate: logTransform
+      ? "log₁₀: %{x:.3g}<br>Count: %{y}<extra></extra>"
+      : "Value: %{x:.3g}<br>Count: %{y}<extra></extra>",
+  }];
+
+  const shapes = [];
+  if (showMeanLine && displayVals.length > 0) {
+    const mean = displayVals.reduce((a, b) => a + b, 0) / displayVals.length;
+    shapes.push({
+      type: "line", x0: mean, x1: mean, y0: 0, y1: 1, yref: "paper",
+      line: { color: "rgba(239,68,68,0.75)", width: 1.5, dash: "dash" },
+    });
+  }
+
+  const titleText = logTransform ? `${col} (log₁₀)` : col;
+
+  Plotly.react(containerEl, traces, {
+    title: {
+      text:  titleText,
+      font:  { size: fontSize + 1, color: fontClr },
+      x: 0.5, xanchor: "center",
+    },
+    xaxis: {
+      tickfont:  { size: Math.max(fontSize - 1, 7), color: fontClr },
+      gridcolor: gridClr, gridwidth: 1, showgrid: true,
+      zeroline:  false,
+    },
+    yaxis: {
+      title:    { text: "Count", font: { size: Math.max(fontSize - 1, 7), color: fontClr }, standoff: 4 },
+      tickfont: { size: Math.max(fontSize - 1, 7), color: fontClr },
+      gridcolor: gridClr, gridwidth: 1, showgrid: true,
+    },
+    height,
+    margin:        { t: Math.max(fontSize * 3, 28), b: 32, l: 46, r: 8 },
+    plot_bgcolor:  plotBg,
+    paper_bgcolor: paperBg,
+    font:          { size: fontSize, color: fontClr },
+    showlegend:    false,
+    shapes,
+  }, {
+    responsive:     true,
+    displayModeBar: false,
+  });
+}

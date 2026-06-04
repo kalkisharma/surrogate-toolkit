@@ -19,6 +19,19 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.62] — 2026-06-04
+
+### Added — Column Distributions (Histograms) in Step 3 — Explore
+- New **Column Distributions** card appears between Summary Statistics and the Distance Correlation heatmap
+- `renderColumnHistogram(containerEl, vals, col, opts)` added to `charts.js` — single-column Plotly histogram with log₁₀ transform, mean-line overlay, and full theme awareness
+- `_buildHistogramSection(containerEl, rows, columns)` in `data_explorer.js` — responsive 3-column grid (2-col at ≤1100px, 1-col at ≤640px) with:
+  - Column chip selector (All / None + per-chip toggle)
+  - Collapsible Plot Settings panel: Typography, Bars (color, opacity, edge, bins), Figure (height, plot/paper bg), Options (log transform, mean line)
+  - Settings persisted in localStorage key `surrogate_data_histogram_settings`
+  - Re-renders on theme toggle
+
+---
+
 ## [3.5.61] — 2026-06-04
 
 ### Fixed — Subset commit/undo row count propagation

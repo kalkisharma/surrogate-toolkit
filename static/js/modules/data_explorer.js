@@ -2,12 +2,13 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.2.4
+// Version: 1.3.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
-//              stats below chart, outlier overlay, and expandable plot settings.
+//              stats below chart, outlier overlay, expandable plot settings,
+//              column distribution histograms, dCor heatmap, and 2D scatter.
 // =============================================================================
 
-import { renderScatterMatrix, renderDCorHeatmap, renderDataScatter2D } from "../charts.js";
+import { renderScatterMatrix, renderDCorHeatmap, renderDataScatter2D, renderColumnHistogram } from "../charts.js";
 import { registerPrimer, registerTooltip } from "../learning_mode.js";
 import { mean, stdDev, median, skewness, detectOutliers, el, formatNum, clearEl } from "../utils.js";
 import { get } from "../api.js";
@@ -242,6 +243,9 @@ export async function initExploration(containerEl, uploadResponse) {
   // ── Stats section (below chart) ───────────────────────────────────────────
   const statsEl = _buildStatsSection(_allColumns, plotRows, usingFullStats ? _fullStats : null, totalRows);
   containerEl.appendChild(statsEl);
+
+  // ── Column Distributions (histograms) ────────────────────────────────────
+  _buildHistogramSection(containerEl, plotRows, _allColumns);
 
   // ── Distance Correlation heatmap (lazy — fetched on first expand) ─────────
   containerEl.appendChild(_buildDCorSection());
@@ -730,6 +734,285 @@ function _buildStatsSection(columns, rows, fullStats, totalRows) {
 
   section.appendChild(grid);
   return section;
+}
+
+// ── Column Distributions (Histograms) ────────────────────────────────────────
+
+const _HIST_KEY = "surrogate_data_histogram_settings";
+const _HIST_DEFAULTS = {
+  fontSize:     10,
+  fontColor:    null,
+  barColor:     "#3b5dd9",
+  barOpacity:   0.75,
+  edgeColor:    "#888888",
+  edgeWidth:    0.5,
+  nbins:        30,
+  chartHeight:  200,
+  logTransform: false,
+  showMeanLine: false,
+  plotBgColor:  null,
+  paperBgColor: null,
+};
+
+function _loadHistSettings() {
+  try {
+    const raw = localStorage.getItem(_HIST_KEY);
+    if (raw) return { ..._HIST_DEFAULTS, ...JSON.parse(raw) };
+  } catch (_) {}
+  return { ..._HIST_DEFAULTS };
+}
+function _saveHistSettings(s) {
+  try { localStorage.setItem(_HIST_KEY, JSON.stringify(s)); } catch (_) {}
+}
+
+function _buildHistogramSection(containerEl, rows, columns) {
+  if (!columns || columns.length < 1 || !rows || !rows.length) return;
+
+  let hs = _loadHistSettings();
+
+  // Pre-extract numeric values per column
+  const colVals = {};
+  for (const col of columns) {
+    colVals[col] = rows.map(r => r[col]).filter(v => v != null && isFinite(+v)).map(Number);
+  }
+  const numericCols = columns.filter(c => colVals[c].length > 0);
+  if (numericCols.length === 0) return;
+
+  let selectedCols = [...numericCols];
+
+  // ── Card ──────────────────────────────────────────────────────────────────
+  const card = el("div", { cls: "card histogram-card" });
+  card.appendChild(el("h3", { cls: "section-title", text: "Column Distributions" }));
+  containerEl.appendChild(card);
+
+  // ── Settings panel ─────────────────────────────────────────────────────────
+  const fontColorAuto  = hs.fontColor    === null;
+  const fontColorVal   = hs.fontColor    || "#4b5478";
+  const plotBgAuto     = hs.plotBgColor  === null;
+  const plotBgVal      = hs.plotBgColor  || "#ffffff";
+  const paperBgAuto    = hs.paperBgColor === null;
+  const paperBgVal     = hs.paperBgColor || "#f5f6fa";
+
+  const settingsPanel = document.createElement("details");
+  settingsPanel.className = "chart-settings-panel";
+  settingsPanel.innerHTML = `
+    <summary class="chart-settings-panel__summary">Plot Settings</summary>
+    <div class="chart-settings-controls">
+
+      <div class="settings-divider">Typography</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-font-size">Font size (px)</label>
+        <input id="hist-font-size" type="number" class="chart-settings-input" min="7" max="20" step="1" value="${hs.fontSize}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Font color</span>
+        <div class="color-with-auto">
+          <input id="hist-font-color" type="color" class="chart-settings-color"
+                 value="${fontColorVal}" ${fontColorAuto ? "disabled" : ""} style="opacity:${fontColorAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="hist-font-color-auto" ${fontColorAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-divider">Bars</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-bar-color">Bar color</label>
+        <input id="hist-bar-color" type="color" class="chart-settings-color" value="${hs.barColor}">
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Bar opacity</span>
+        <div class="range-with-value">
+          <input id="hist-bar-opacity" type="range" class="chart-settings-range" min="0.1" max="1.0" step="0.05" value="${hs.barOpacity}">
+          <span id="hist-bar-opacity-val" class="chart-settings-range-val">${hs.barOpacity.toFixed(2)}</span>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-edge-width">Edge width</label>
+        <input id="hist-edge-width" type="number" class="chart-settings-input" min="0" max="3" step="0.5" value="${hs.edgeWidth}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-edge-color">Edge color</label>
+        <input id="hist-edge-color" type="color" class="chart-settings-color" value="${hs.edgeColor}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-nbins">Bin count</label>
+        <input id="hist-nbins" type="number" class="chart-settings-input" min="5" max="200" step="5" value="${hs.nbins}">
+      </div>
+
+      <div class="settings-divider">Figure</div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-height">Chart height (px)</label>
+        <input id="hist-height" type="number" class="chart-settings-input" min="100" max="600" step="20" value="${hs.chartHeight}">
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-plot-bg">Plot bg</label>
+        <div class="color-with-auto">
+          <input id="hist-plot-bg" type="color" class="chart-settings-color"
+                 value="${plotBgVal}" ${plotBgAuto ? "disabled" : ""} style="opacity:${plotBgAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="hist-plot-bg-auto" ${plotBgAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+      <div class="chart-settings-group">
+        <label class="chart-settings-group__label" for="hist-paper-bg">Paper bg</label>
+        <div class="color-with-auto">
+          <input id="hist-paper-bg" type="color" class="chart-settings-color"
+                 value="${paperBgVal}" ${paperBgAuto ? "disabled" : ""} style="opacity:${paperBgAuto ? "0.4" : "1"}">
+          <label class="chart-settings-check">
+            <input type="checkbox" id="hist-paper-bg-auto" ${paperBgAuto ? "checked" : ""}> Auto
+          </label>
+        </div>
+      </div>
+
+      <div class="settings-divider">Options</div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Log₁₀ transform</span>
+        <label class="chart-settings-check">
+          <input type="checkbox" id="hist-log-transform" ${hs.logTransform ? "checked" : ""}> On
+        </label>
+      </div>
+      <div class="chart-settings-group">
+        <span class="chart-settings-group__label">Mean line</span>
+        <label class="chart-settings-check">
+          <input type="checkbox" id="hist-mean-line" ${hs.showMeanLine ? "checked" : ""}> Show
+        </label>
+      </div>
+    </div>
+  `;
+  card.appendChild(settingsPanel);
+
+  // ── Column chip selector ──────────────────────────────────────────────────
+  const chipWrap = el("div", { cls: "col-selector-wrap" });
+  const chipHdr  = el("div", { cls: "col-selector-header" });
+  const countEl  = el("span", { cls: "col-selector-count" });
+  const allBtn   = el("button", { cls: "col-selector-btn", type: "button", text: "All" });
+  const noneBtn  = el("button", { cls: "col-selector-btn", type: "button", text: "None" });
+  chipHdr.appendChild(countEl);
+  chipHdr.appendChild(allBtn);
+  chipHdr.appendChild(noneBtn);
+  const chipRow = el("div", { cls: "col-selector-row" });
+
+  function _refreshChips() {
+    countEl.textContent = `Showing: ${selectedCols.length} / ${numericCols.length}`;
+    chipRow.querySelectorAll(".col-chip").forEach(chip => {
+      chip.classList.toggle("col-chip--selected", selectedCols.includes(chip.dataset.col));
+    });
+  }
+
+  for (const col of numericCols) {
+    const chip = el("button", { cls: "col-chip col-chip--selected", type: "button" });
+    chip.textContent = col; chip.title = col; chip.dataset.col = col;
+    chip.addEventListener("click", () => {
+      const isSel = selectedCols.includes(col);
+      if (isSel) {
+        if (selectedCols.length <= 1) return;
+        selectedCols = selectedCols.filter(c => c !== col);
+      } else {
+        selectedCols = [...selectedCols, col];
+      }
+      _refreshChips();
+      _rebuildGrid();
+    });
+    chipRow.appendChild(chip);
+  }
+  allBtn.addEventListener("click",  () => { selectedCols = [...numericCols]; _refreshChips(); _rebuildGrid(); });
+  noneBtn.addEventListener("click", () => { selectedCols = [numericCols[0]]; _refreshChips(); _rebuildGrid(); });
+
+  chipWrap.appendChild(chipHdr);
+  chipWrap.appendChild(chipRow);
+  card.appendChild(chipWrap);
+  _refreshChips();
+
+  // ── Histogram grid ─────────────────────────────────────────────────────────
+  const gridEl = el("div", { cls: "histogram-grid" });
+  card.appendChild(gridEl);
+
+  // One persistent div per column — moved into/out of gridEl on chip toggle
+  const chartEls = {};
+  for (const col of numericCols) {
+    const wrap = el("div", { cls: "histogram-chart" });
+    wrap.dataset.col = col;
+    chartEls[col] = wrap;
+  }
+
+  function _renderCol(col) {
+    renderColumnHistogram(chartEls[col], colVals[col], col, {
+      logTransform: hs.logTransform, nbins: hs.nbins,
+      barColor:     hs.barColor,     barOpacity:  hs.barOpacity,
+      edgeColor:    hs.edgeColor,    edgeWidth:   hs.edgeWidth,
+      fontSize:     hs.fontSize,     fontColor:   hs.fontColor,
+      height:       hs.chartHeight,
+      plotBgColor:  hs.plotBgColor,  paperBgColor: hs.paperBgColor,
+      showMeanLine: hs.showMeanLine,
+    });
+  }
+
+  function _rebuildGrid() {
+    clearEl(gridEl);
+    for (const col of selectedCols) {
+      gridEl.appendChild(chartEls[col]);
+      _renderCol(col);
+    }
+  }
+
+  function _rerenderAll() {
+    for (const col of selectedCols) _renderCol(col);
+  }
+
+  // ── Settings wiring ────────────────────────────────────────────────────────
+  const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+  const _g = id => settingsPanel.querySelector(`#${id}`);
+
+  function _applyHistSettings() {
+    hs = {
+      fontSize:     parseInt(_g("hist-font-size").value)   || 10,
+      fontColor:    _g("hist-font-color-auto").checked ? null : _g("hist-font-color").value,
+      barColor:     _g("hist-bar-color").value,
+      barOpacity:   parseFloat(_g("hist-bar-opacity").value),
+      edgeWidth:    parseFloat(_g("hist-edge-width").value),
+      edgeColor:    _g("hist-edge-color").value,
+      nbins:        parseInt(_g("hist-nbins").value)        || 30,
+      chartHeight:  parseInt(_g("hist-height").value)       || 200,
+      logTransform: _g("hist-log-transform").checked,
+      showMeanLine: _g("hist-mean-line").checked,
+      plotBgColor:  _g("hist-plot-bg-auto").checked  ? null : _g("hist-plot-bg").value,
+      paperBgColor: _g("hist-paper-bg-auto").checked ? null : _g("hist-paper-bg").value,
+    };
+    _saveHistSettings(hs);
+    _rerenderAll();
+  }
+
+  // Opacity range — live
+  _g("hist-bar-opacity").addEventListener("input", () => {
+    _g("hist-bar-opacity-val").textContent = parseFloat(_g("hist-bar-opacity").value).toFixed(2);
+    _applyHistSettings();
+  });
+
+  // Auto-color toggles
+  const _wireAuto = (chkId, colorId) => {
+    _g(chkId).addEventListener("change", () => {
+      const on = _g(chkId).checked;
+      _g(colorId).disabled = on; _g(colorId).style.opacity = on ? "0.4" : "1";
+      _applyHistSettings();
+    });
+  };
+  _wireAuto("hist-font-color-auto", "hist-font-color");
+  _wireAuto("hist-plot-bg-auto",    "hist-plot-bg");
+  _wireAuto("hist-paper-bg-auto",   "hist-paper-bg");
+
+  // All remaining inputs fire _applyHistSettings on change
+  ["hist-font-size","hist-font-color","hist-bar-color","hist-edge-width","hist-edge-color",
+   "hist-nbins","hist-height","hist-plot-bg","hist-paper-bg",
+   "hist-log-transform","hist-mean-line"
+  ].forEach(id => _g(id).addEventListener("change", debounce(_applyHistSettings, 150)));
+
+  // Re-render on theme change
+  document.addEventListener("theme:changed", _rerenderAll);
+
+  // Initial render
+  _rebuildGrid();
 }
 
 // ── Distance Correlation section ──────────────────────────────────────────────
