@@ -21,16 +21,32 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.79] — 2026-06-04
+
+### Changed — Full file header audit across Python and JS files
+- **Python — missing `LAST MODIFIED` field added:** `app/api/optimization_api.py`, `app/ml/optimization/__init__.py`, `app/ml/export/numpy_bundle.py`, `app/report/__init__.py`, `app/report/generator.py`
+- **Python scripts — standard header block added:** `scripts/setup_env.py`, `scripts/install.py`, `scripts/deploy.py` (stub placeholders); `scripts/gen_stubs.py` and `scripts/bump_version.py` (functional scripts; existing docstring content preserved in PURPOSE field)
+- **JS — missing `Version` field added:** `static/js/api.js`, `state.js`, `utils.js`, `animations.js`, `notifications.js`, `loading.js`, `learning_mode.js` (all set to `1.0.0`)
+- **JS — version format normalized:** `modules/input_screening.js` — removed `(app v3.5.52)` annotation from Version field; `modules/results.js` — changed app-version string `3.5.51` to module version `1.0.0`
+
+---
+
 ## [3.5.78] — 2026-06-04
 
-### Changed — Full documentation audit and update
+### Changed — Full documentation audit and learning tab content fixes
+
+**MD file audit (team review):**
 - Added "Last updated" field to all .md files that were missing it (README.md, DEVELOPER.md, CHANGELOG.md, CODEBASE_TOUR.md, ui_designer_handoff.md, placeholder.md)
 - **USERGUIDE.md** — rewritten for 16-step workflow: added Step 5 (Subset) and Step 8 (Filter) which were missing entirely; corrected all step numbers from Step 6 onward; added 2D Scatter section to Step 3; added Log₁₀ to Step 7; added Design Space Explorer tab to Step 10; added residual mode to Step 14; added both model download buttons to Step 16; updated Global Header controls table
-- **TEACHING_GUIDE.md** — rewritten from planning/future-tense to accurate description of the live system: all six Guide modal tabs (Glossary, Model Guide, Topics, Exercises, Symbols, Equations) documented; full exercise list (ex_01–ex_07, ex_12) with JSON schema, backend endpoints, and how to add exercises; primer table updated to all 16 steps; experience level table reflects live behavior
+- **TEACHING_GUIDE.md** — rewritten from planning/future-tense to accurate description of the live system: all six Guide modal tabs (Glossary, Model Guide, Topics, Exercises, Symbols, Equations) documented; full exercise list with JSON schema, backend endpoints, and how to add exercises; primer table updated to all 16 steps; experience level table reflects live behavior
 - **DEVELOPER.md** — hardcoded test count replaced with `pytest --co -q`; panel router updated to 16 steps; residual mode added to Active Learning API table; both model export endpoints added to Export API table; phase table corrected to 25 phases with Phase 21 marked complete; version bump checklist corrected (6 index.html locations + README.md)
 - **SCHEMA.md** — surrogate session `pca` dict documented with all fields and prediction pipeline note; `normalization_warning` added to results dict shape; `model_type` values updated to match `SUPPORTED_MODEL_TYPES`
 - **COMPLIANCE.md** — step number corrected (14 → 16); ITAR/EAR gate clarified to apply to all three export actions; new "Model export" section documents standard and numpy-only bundles, audit events, and a compliance behavior table
 - **CODEBASE_TOUR.md** — line numbers removed from "five files" table; PCA transform step added to data flow diagram with prediction pipeline note; "14-step" references updated to "16-step"; new sidebar step recipe gains step 7 (document STATE additions in SCHEMA.md)
+
+**Learning tab content audit (team review):**
+- **TEACHING_GUIDE.md** — exercise table corrected: ex_08 (Model Selection Comparison), ex_09 (Alpha Regularization), ex_10 (Optimization & Pareto Front), and ex_11 (Noise Weighting) were incorrectly listed as "reserved for future content" — all four are fully implemented; topics table updated to include all 11 registered topics and all 3 decision trees (input_filtering, multifidelity, model_troubleshooting, optimization, and kernel_selection were all missing)
+- **`app/learning/` JSON files** — added `"last_updated": "2026-06-04"` as a top-level field to all 30 content files: 11 topic files, 3 decision trees, 12 exercises, glossary, models, symbols, equations
 
 ---
 
