@@ -124,6 +124,7 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
     edgeWidth        = 0,
     majorGridColor   = "#cccccc",
     majorGridOpacity = 1.0,
+    onPointClick     = null,
     minorGridColor   = "#e0e0e0",
     minorGridOpacity = 0.6,
     cellShading      = false,
@@ -228,6 +229,12 @@ export function renderScatterMatrix(containerEl, columns, rows, options = {}) {
 
   // eslint-disable-next-line no-undef
   Plotly.newPlot(containerEl, [trace], layout, config);
+
+  if (typeof onPointClick === "function") {
+    containerEl.on("plotly_click", ({ points }) => {
+      if (points?.length) onPointClick(points[0].pointIndex);
+    });
+  }
 
   return { capped, displayedColumns, computedMarkerSize, computedHeight };
 }

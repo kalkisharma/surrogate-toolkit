@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.5.1
+// Version: 1.6.0
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, expandable plot settings,
 //              column distribution histograms, dCor heatmap, and 2D scatter.
@@ -25,6 +25,7 @@ let _chartEl          = null;
 let _fullStats        = null;
 let _selectorRefreshFn  = null;   // set by _buildColumnSelector; used by updateColumnSelectorRoles
 let _rerenderPending    = false;  // set when updateColumnSelectorRoles fires while panel is hidden
+let _onPointClickCb     = null;   // set by initExploration; re-attached in _rerender via renderScatterMatrix
 
 // Re-render on theme toggle so palette and font colors update immediately.
 document.addEventListener("theme:changed", () => { if (_chartEl) _rerender(); });
@@ -94,9 +95,97 @@ function _rerender() {
   renderScatterMatrix(_chartEl, _currentColumns, _currentRows, {
     outlierIndices: _showOutliers ? _outlierIndices : new Set(),
     ..._chartSettings,
-    markerSize: _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
-    height:     _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
+    markerSize:   _chartSettings.markerSize !== null ? _chartSettings.markerSize : autoMarkerSize,
+    height:       _chartSettings.height     !== null ? _chartSettings.height     : autoHeight,
+    onPointClick: _onPointClickCb,
   });
+}
+
+/**
+ * Show a compact row-inspection card for the clicked SPLOM point.
+ * Computes per-column IQR bounds to identify which columns pushed the row to outlier status.
+ */
+function _showRowInspector(rowIdx, rows, columns, inspectorEl) {
+  clearEl(inspectorEl);
+  const row = rows[rowIdx];
+  if (!row) return;
+
+  const isOutlier = _outlierIndices.has(rowIdx);
+
+  // Which columns individually violate IQR for this row
+  const outlierCols = new Set();
+  for (const col of columns) {
+    const vals = rows.map(r => r[col]).filter(v => v != null && isFinite(+v)).map(Number);
+    if (vals.length < 4) continue;
+    vals.sort((a, b) => a - b);
+    const q1  = vals[Math.floor(vals.length * 0.25)];
+    const q3  = vals[Math.floor(vals.length * 0.75)];
+    const iqr = q3 - q1;
+    if (iqr === 0) continue;
+    const v = row[col];
+    if (v != null && isFinite(+v) && (+v < q1 - 1.5 * iqr || +v > q3 + 1.5 * iqr)) {
+      outlierCols.add(col);
+    }
+  }
+
+  const card = el("div", { cls: "row-inspector-card" });
+
+  // Header
+  const hdr = el("div", { cls: "row-inspector-header" });
+  const titleGroup = el("div", { cls: "row-inspector-title-group" });
+  titleGroup.appendChild(el("span", { cls: "row-inspector-title", text: `Row ${rowIdx + 1} of ${rows.length}` }));
+  if (isOutlier) titleGroup.appendChild(el("span", { cls: "row-inspector-badge", text: "Outlier" }));
+  hdr.appendChild(titleGroup);
+  const closeBtn = el("button", { cls: "row-inspector-close", type: "button" });
+  closeBtn.textContent = "×";
+  closeBtn.addEventListener("click", () => clearEl(inspectorEl));
+  hdr.appendChild(closeBtn);
+  card.appendChild(hdr);
+
+  if (outlierCols.size > 0) {
+    const note = el("p", { cls: "row-inspector-note" });
+    note.textContent = `IQR violation in: ${[...outlierCols].join(", ")}`;
+    card.appendChild(note);
+  }
+
+  const tableWrap = el("div", { cls: "row-inspector-table-wrap" });
+  const table = el("table", { cls: "row-inspector-table" });
+  const thead = el("thead");
+  thead.innerHTML = "<tr><th>Column</th><th>Value</th></tr>";
+  table.appendChild(thead);
+  const tbody = el("tbody");
+
+  for (const col of columns) {
+    const val = row[col];
+    const isOutCol = outlierCols.has(col);
+    const tr = document.createElement("tr");
+    if (isOutCol) tr.className = "row-inspector-row--outlier";
+
+    const tdCol = document.createElement("td");
+    tdCol.className = "row-inspector-col";
+    tdCol.textContent = col;
+
+    const tdVal = document.createElement("td");
+    tdVal.className = "row-inspector-val";
+    if (val == null) {
+      tdVal.textContent = "—";
+      tdVal.style.color = "var(--color-text-muted)";
+    } else if (isFinite(+val)) {
+      tdVal.textContent = formatNum(+val);
+    } else {
+      tdVal.textContent = String(val);
+    }
+
+    tr.appendChild(tdCol);
+    tr.appendChild(tdVal);
+    tbody.appendChild(tr);
+  }
+
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  card.appendChild(tableWrap);
+  inspectorEl.appendChild(card);
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 /**
@@ -239,6 +328,11 @@ export async function initExploration(containerEl, uploadResponse) {
   _chartEl = chartInner;
   chartWrap.appendChild(chartInner);
   containerEl.appendChild(chartWrap);
+
+  // ── Row inspector (populated on SPLOM point click) ────────────────────────
+  const rowInspectorEl = el("div", { cls: "row-inspector-wrap" });
+  containerEl.appendChild(rowInspectorEl);
+  _onPointClickCb = (rowIdx) => _showRowInspector(rowIdx, plotRows, _allColumns, rowInspectorEl);
 
   // ── Stats section (below chart) ───────────────────────────────────────────
   const statsEl = _buildStatsSection(_allColumns, plotRows, usingFullStats ? _fullStats : null, totalRows);

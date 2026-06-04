@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.68] — 2026-06-04
+
+### Added — Outlier row inspector in Step 3 — Explore
+- Click any point in the SPLOM to open a compact inspector card between the chart and the stats section
+- Card shows every column with its value in a scrollable table (max 280px); IQR-violating columns are highlighted with a red-tinted row
+- "Outlier" badge on the header when the row is flagged; italic note listing which columns violated IQR
+- Close button dismisses the card; clicking a different point replaces it
+- `onPointClick` callback added to `renderScatterMatrix` in `charts.js` — re-attached after every rerender so it survives theme switches and column selector changes
+- `_showRowInspector()` private function in `data_explorer.js`; `_onPointClickCb` module-level variable wired in `initExploration`
+
 ## [3.5.67] — 2026-06-04
 
 ### Fixed — IO scatter width overflow and grid columns
