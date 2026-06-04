@@ -21,6 +21,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.80] — 2026-06-04
+
+### Changed — `data_api.py` internal refactor (no API surface changes)
+- **Error codes corrected:** `normalize()` exception now returns `NORMALIZATION_ERROR` (was `FILE_READ_ERROR`); `clean_transform()` missing-columns guard now returns `NO_COLUMNS` (was `UNKNOWN_STRATEGY`)
+- **Helpers extracted:** `_compute_column_stats(df)` replaces two identical 11-line stats blocks in `upload()` and `summary()`; `_restore_prev_clean(state, active_key, ds, event_name)` replaces the shared 10-line restore pattern in `undo_clean()` and `undo_subset()`; module-level `_clear_surrogate(state)` replaces the inner closure in `screen_apply()`
+- **`_to_python` serialisation fix:** `np.floating` and native `float` values of `inf`/`-inf` now serialize to `null` instead of passing through unchanged; this eliminates the need for the former `_sanitize_records()` inner function in `normalize()`
+- **`correlate()` and `dcor()`:** replaced duplicate inline `NO_DATA` error envelopes with `return _no_data_error()`
+- **Screen routes hardened:** `screen_inputs()`, `screen_pca()`, `screen_apply()` now use `_get_active_ds()` guard; inline `from sklearn.decomposition import PCA as _PCA` and `import pandas as pd` removed from function bodies; `PCA` used directly from module-level import
+- **`docs/SCHEMA.md` corrected:** PCA field names updated — `pca_object` → `model`, `component_names` → `pc_names`; added note distinguishing runtime-consumed fields (`model`, `original_inputs`) from traceability-only fields (`pc_names`, `n_components`, `explained_variance_ratio`)
+
+---
+
 ## [3.5.79] — 2026-06-04
 
 ### Changed — Full file header audit across Python and JS files

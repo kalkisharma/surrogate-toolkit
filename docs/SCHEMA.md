@@ -64,11 +64,11 @@ session['models']   # see Models dict structure below
 session['config']   # model_type, test_split, cv_folds, hyperparams, auto_tune_result
 session['pca']      # None if PCA was not applied; otherwise:
                     # {
-                    #   'original_inputs': list[str],   # physical column names before PCA
-                    #   'component_names': list[str],   # ['PC1', 'PC2', ...]
-                    #   'pca_object':      PCA,          # fitted sklearn PCA (not JSON-safe)
-                    #   'n_components':    int,
-                    #   'explained_variance_ratio': list[float],
+                    #   'model':           PCA,          # fitted sklearn PCA — consumed at runtime (not JSON-safe)
+                    #   'original_inputs': list[str],   # physical column names before PCA — consumed at runtime
+                    #   'pc_names':        list[str],   # ['PC1', 'PC2', ...] — stored for traceability
+                    #   'n_components':    int,          # stored for traceability
+                    #   'explained_variance_ratio': list[float],  # stored for traceability
                     # }
 ```
 

@@ -7,8 +7,8 @@ PURPOSE: Blueprint and route handlers for /api/data/*. Wires the ingestion
          JSON responses.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-03
-VERSION: 1.2.0
+LAST MODIFIED: 2026-06-04
+VERSION: 1.3.0
 ================================================================================
 """
 
@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 
 import numpy as np
 from flask import Blueprint, current_app, jsonify, request
+from sklearn.decomposition import PCA
 from werkzeug.utils import secure_filename
 
 from app.data.cleaning import (
@@ -75,6 +76,9 @@ _ERROR_HTTP_STATUS = {
     "UNKNOWN_METHOD": 422,
     "UNKNOWN_STRATEGY": 422,
     "CLEAN_ERROR": 400,
+    "NORMALIZATION_ERROR": 400,
+    "NO_COLUMNS": 422,
+    "TRANSFORM_ERROR": 422,
 }
 
 
@@ -203,19 +207,7 @@ def upload():
     preview_rows = _numpy_to_python(preview_df.to_dict(orient="records"))
     ds_meta["preview_rows"] = preview_rows
 
-    summary_stats = {}
-    for col in df.columns:
-        series = df[col].dropna()
-        summary_stats[col] = {
-            "min":        _to_python(series.min())    if len(series) else None,
-            "max":        _to_python(series.max())    if len(series) else None,
-            "mean":       _to_python(series.mean())   if len(series) else None,
-            "std":        _to_python(series.std())    if len(series) else None,
-            "median":     _to_python(series.median()) if len(series) else None,
-            "null_count": int(df[col].isnull().sum()),
-            "skew":       _to_python(series.skew())   if len(series) >= 3 else None,
-        }
-    ds_meta["summary_stats"] = summary_stats
+    ds_meta["summary_stats"] = _compute_column_stats(df)
 
     # Build dataset entry and store in _datasets accumulator
     ds_entry = {
@@ -452,18 +444,7 @@ def summary():
             }
         ), 200
 
-    stats = {}
-    for col in df.columns:
-        series = df[col].dropna()
-        stats[col] = {
-            "min":        _to_python(series.min())    if len(series) else None,
-            "max":        _to_python(series.max())    if len(series) else None,
-            "mean":       _to_python(series.mean())   if len(series) else None,
-            "std":        _to_python(series.std())    if len(series) else None,
-            "median":     _to_python(series.median()) if len(series) else None,
-            "null_count": int(df[col].isnull().sum()),
-            "skew":       _to_python(series.skew())   if len(series) >= 3 else None,
-        }
+    stats = _compute_column_stats(df)
 
     return jsonify(
         {
@@ -501,8 +482,7 @@ def rows():
 
     # ?source=working returns normalized/PCA df — used by active learning scatter
     # so training points are in the same coordinate space as recommendations.
-    from flask import request as _req
-    use_working = _req.args.get("source") == "working"
+    use_working = request.args.get("source") == "working"
     if use_working:
         _norm = primary.get("normalized")
         df = _norm if _norm is not None else primary.get("clean")
@@ -732,14 +712,7 @@ def correlate():
     df         = state["datasets"]["primary"]["clean"]
 
     if df is None:
-        return (
-            jsonify({
-                "success": False, "error_code": "NO_DATA",
-                "message": "No dataset is loaded. Upload a CSV file first.",
-                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
-            }),
-            400,
-        )
+        return _no_data_error()
 
     # Serve from cache if already computed
     cached = _datasets.get(active_key, {}).get("metadata", {}).get("correlation_matrix")
@@ -820,14 +793,7 @@ def dcor():
     df         = state["datasets"]["primary"]["clean"]
 
     if df is None:
-        return (
-            jsonify({
-                "success": False, "error_code": "NO_DATA",
-                "message": "No dataset is loaded. Upload a CSV file first.",
-                "detail": "", "recoverable": True, "allowed_actions": ["upload"],
-            }),
-            400,
-        )
+        return _no_data_error()
 
     # Serve from cache if available and valid
     cached = _datasets.get(active_key, {}).get("metadata", {}).get("dcor_matrix")
@@ -928,7 +894,7 @@ def normalize():
         current_app.logger.error(f"Normalization error: {exc}")
         return (
             jsonify({
-                "success": False, "error_code": "FILE_READ_ERROR",
+                "success": False, "error_code": "NORMALIZATION_ERROR",
                 "message": "Normalization failed. See server log for details.",
                 "detail": str(exc), "recoverable": True, "allowed_actions": ["retry"],
             }),
@@ -963,20 +929,9 @@ def normalize():
         "before": {col: sample_clean[col].dropna().tolist() for col in input_columns},
         "after":  {col: sample_norm[col].dropna().tolist()  for col in input_columns},
     }
-    def _sanitize_records(records):
-        """Replace float NaN/Inf with None so jsonify produces valid JSON."""
-        import math
-        sanitized = []
-        for row in records:
-            sanitized.append({
-                k: (None if isinstance(v, float) and (math.isnan(v) or math.isinf(v)) else v)
-                for k, v in row.items()
-            })
-        return sanitized
-
     sample_rows = {
-        "before": _sanitize_records(sample_clean[input_columns].head(5).to_dict(orient="records")),
-        "after":  _sanitize_records(sample_norm[input_columns].head(5).to_dict(orient="records")),
+        "before": _numpy_to_python(sample_clean[input_columns].head(5).to_dict(orient="records")),
+        "after":  _numpy_to_python(sample_norm[input_columns].head(5).to_dict(orient="records")),
     }
 
     return jsonify({
@@ -1029,6 +984,22 @@ def _apply_clean(state, active_key, ds, result_df, save_prev=True):
     ds["metadata"]["summary_stats"] = None   # invalidate stats cache
     ds["metadata"]["dcor_matrix"]   = None   # invalidate dCor cache
     ds["metadata"]["pca_result"]    = None   # invalidate PCA cache
+
+
+def _restore_prev_clean(state, active_key, ds, event_name):
+    """Pop clean_prev, write it back as clean, update row counts, invalidate stats cache.
+    Returns the row count of the restored DataFrame."""
+    prev_df = ds.pop("clean_prev")
+    ds["clean"] = prev_df
+    state["datasets"]["primary"]["clean"] = prev_df
+    ds["metadata"]["n_rows_clean"]  = len(prev_df)
+    state["datasets"]["primary"]["metadata"]["n_rows_clean"] = len(prev_df)
+    ds["metadata"]["summary_stats"] = None
+    append_audit_event(state, event_name, {
+        "dataset":       active_key,
+        "rows_restored": len(prev_df),
+    })
+    return len(prev_df)
 
 
 @bp.route("/clean/nulls", methods=["POST"])
@@ -1250,21 +1221,11 @@ def undo_clean():
     if "clean_prev" not in ds:
         return jsonify({"success": False, "message": "Nothing to undo."}), 400
 
-    prev_df = ds.pop("clean_prev")
-    ds["clean"] = prev_df
-    state["datasets"]["primary"]["clean"] = prev_df
-    ds["metadata"]["n_rows_clean"]  = len(prev_df)
-    state["datasets"]["primary"]["metadata"]["n_rows_clean"] = len(prev_df)
-    ds["metadata"]["summary_stats"] = None
-
-    append_audit_event(state, "cleaning_undo", {
-        "dataset":       active_key,
-        "rows_restored": len(prev_df),
-    })
+    rows_restored = _restore_prev_clean(state, active_key, ds, "cleaning_undo")
     current_app.logger.info(
-        f"Undo last clean: '{active_key}' — restored {len(prev_df)} rows"
+        f"Undo last clean: '{active_key}' — restored {rows_restored} rows"
     )
-    return jsonify({"success": True, "rows_restored": len(prev_df)}), 200
+    return jsonify({"success": True, "rows_restored": rows_restored}), 200
 
 
 @bp.route("/clean/duplicates", methods=["POST"])
@@ -1409,7 +1370,7 @@ def clean_transform():
     if not columns:
         return (
             jsonify({
-                "success": False, "error_code": "UNKNOWN_STRATEGY",
+                "success": False, "error_code": "NO_COLUMNS",
                 "message": "No columns specified. Provide at least one column name.",
                 "detail": "", "recoverable": True, "allowed_actions": ["retry"],
             }),
@@ -1433,7 +1394,7 @@ def clean_transform():
     except ValueError as exc:
         return (
             jsonify({
-                "success": False, "error_code": "UNKNOWN_STRATEGY",
+                "success": False, "error_code": "TRANSFORM_ERROR",
                 "message": str(exc),
                 "detail": "", "recoverable": True, "allowed_actions": ["retry"],
             }),
@@ -1597,25 +1558,41 @@ def undo_subset():
     if "clean_prev" not in ds:
         return jsonify({"success": False, "message": "Nothing to undo."}), 400
 
-    prev_df = ds.pop("clean_prev")
-    ds["clean"] = prev_df
-    state["datasets"]["primary"]["clean"] = prev_df
-    ds["metadata"]["n_rows_clean"]  = len(prev_df)
-    state["datasets"]["primary"]["metadata"]["n_rows_clean"] = len(prev_df)
-    ds["metadata"]["summary_stats"] = None
+    rows_restored = _restore_prev_clean(state, active_key, ds, "subset_undo")
     ds["metadata"]["dcor_matrix"]   = None
     ds["metadata"]["pca_result"]    = None
     ds["metadata"]["subset_conditions"] = None
     state["datasets"]["primary"]["metadata"]["subset_conditions"] = None
-
-    append_audit_event(state, "subset_undo", {
-        "dataset":       active_key,
-        "rows_restored": len(prev_df),
-    })
     current_app.logger.info(
-        f"Undo subset: '{active_key}' — restored {len(prev_df)} rows"
+        f"Undo subset: '{active_key}' — restored {rows_restored} rows"
     )
-    return jsonify({"success": True, "rows_restored": len(prev_df)}), 200
+    return jsonify({"success": True, "rows_restored": rows_restored}), 200
+
+
+def _clear_surrogate(state):
+    """Reset surrogate models and config in both the session and the active dataset snapshot.
+    Preserves pca and workflow_meta so dataset-switch restore still works.
+    Returns the active_dataset_key."""
+    active_key = state["datasets"].get("active_dataset_key")
+    state["surrogate_sessions"]["primary"]["models"] = {}
+    state["surrogate_sessions"]["primary"]["config"] = {
+        "model_type":  None,
+        "test_split":  DEFAULT_TEST_SPLIT,
+        "cv_folds":    DEFAULT_CV_FOLDS,
+        "hyperparams": {},
+    }
+    if active_key and active_key in state["datasets"]["_datasets"]:
+        existing = state["datasets"]["_datasets"][active_key].get("surrogate_session", {})
+        state["datasets"]["_datasets"][active_key]["surrogate_session"] = {
+            **existing,
+            "models": {},
+            "config": {
+                "model_type": None,
+                "test_split": DEFAULT_TEST_SPLIT,
+                "cv_folds":   DEFAULT_CV_FOLDS,
+            },
+        }
+    return active_key
 
 
 # ─── INPUT SCREENING ─────────────────────────────────────────────────────────
@@ -1636,6 +1613,9 @@ def screen_inputs():
     cv_threshold = float(data.get("cv_threshold", 0.01))
 
     state      = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
     primary    = state["datasets"]["primary"]
     meta       = primary["metadata"]
     input_cols = meta.get("input_columns", [])
@@ -1652,7 +1632,6 @@ def screen_inputs():
 
     # Distance correlation matrix — use cache if available, else compute and cache.
     _datasets   = state["datasets"]["_datasets"]
-    active_key  = state["datasets"]["active_dataset_key"]
     cached_dcor = _datasets.get(active_key, {}).get("metadata", {}).get("dcor_matrix")
     if cached_dcor and all(c in cached_dcor for c in input_cols):
         dcor_matrix = {c: {d: cached_dcor[c][d] for d in input_cols} for c in input_cols}
@@ -1755,12 +1734,13 @@ def screen_pca():
     Body JSON (optional):
         n_components (int) — number of components to preview; None = auto (≥95% variance)
     """
-    from sklearn.decomposition import PCA as _PCA
-
     data         = request.get_json(silent=True) or {}
     n_components = data.get("n_components", None)
 
     state      = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
     primary    = state["datasets"]["primary"]
     meta       = primary["metadata"]
     input_cols = meta.get("input_columns", [])
@@ -1776,7 +1756,7 @@ def screen_pca():
     X    = df[input_cols].values.astype(float)
     max_comp = len(input_cols)
 
-    pca_full = _PCA(n_components=max_comp)
+    pca_full = PCA(n_components=max_comp)
     pca_full.fit(X)
 
     ev         = pca_full.explained_variance_ratio_
@@ -1827,13 +1807,13 @@ def screen_apply():
         input_columns (list[str]) — for mode="columns"
         n_components  (int)       — for mode="pca"
     """
-    from sklearn.decomposition import PCA as _PCA
-    import pandas as pd
-
     data       = request.get_json(silent=True) or {}
     mode       = data.get("mode", "columns")
 
     state      = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
     primary    = state["datasets"]["primary"]
     meta       = primary["metadata"]
     all_inputs = meta.get("input_columns", [])
@@ -1844,31 +1824,6 @@ def screen_apply():
             "error_code": "NO_INPUT_COLUMNS",
             "message":    "No input columns designated.",
         }), 400
-
-    def _clear_surrogate():
-        active_key = state["datasets"].get("active_dataset_key")
-        state["surrogate_sessions"]["primary"]["models"] = {}
-        state["surrogate_sessions"]["primary"]["config"] = {
-            "model_type":  None,
-            "test_split":  DEFAULT_TEST_SPLIT,
-            "cv_folds":    DEFAULT_CV_FOLDS,
-            "hyperparams": {},
-        }
-        # Mirror cleared models/config into the dataset's surrogate_session but
-        # preserve any already-saved pca and workflow_meta so a later dataset
-        # switch still restores the full filter/screen state.
-        if active_key and active_key in state["datasets"]["_datasets"]:
-            existing = state["datasets"]["_datasets"][active_key].get("surrogate_session", {})
-            state["datasets"]["_datasets"][active_key]["surrogate_session"] = {
-                **existing,
-                "models": {},
-                "config": {
-                    "model_type": None,
-                    "test_split": DEFAULT_TEST_SPLIT,
-                    "cv_folds":   DEFAULT_CV_FOLDS,
-                },
-            }
-        return active_key
 
     # ── Mode: column subset ───────────────────────────────────────────────────
     if mode == "columns":
@@ -1891,7 +1846,7 @@ def screen_apply():
         meta["n_inputs"]      = len(new_input_cols)
         meta["pca_applied"]   = False
 
-        active_key = _clear_surrogate()
+        active_key = _clear_surrogate(state)
         if active_key and active_key in state["datasets"]["_datasets"]:
             ds_meta = state["datasets"]["_datasets"][active_key]["metadata"]
             ds_meta["input_columns"] = new_input_cols
@@ -1923,7 +1878,7 @@ def screen_apply():
 
         df   = (primary["normalized"] if primary.get("normalized") is not None else primary["clean"])
         X    = df[all_inputs].values.astype(float)
-        pca  = _PCA(n_components=n_components)
+        pca  = PCA(n_components=n_components)
         X_pca = pca.fit_transform(X)
         pc_names = [f"PC{i + 1}" for i in range(n_components)]
 
@@ -1947,7 +1902,7 @@ def screen_apply():
         meta["n_inputs"]      = n_components
         meta["pca_applied"]   = True
 
-        active_key = _clear_surrogate()
+        active_key = _clear_surrogate(state)
         if active_key and active_key in state["datasets"]["_datasets"]:
             ds_meta = state["datasets"]["_datasets"][active_key]["metadata"]
             ds_meta["input_columns"] = pc_names
@@ -2012,10 +1967,10 @@ def _to_python(val):
     if isinstance(val, (np.integer,)):
         return int(val)
     if isinstance(val, (np.floating,)):
-        return None if np.isnan(val) else float(val)
+        return None if not np.isfinite(float(val)) else float(val)
     if isinstance(val, (np.bool_,)):
         return bool(val)
-    if isinstance(val, float) and (val != val):   # catches Python native float('nan')
+    if isinstance(val, float) and not np.isfinite(val):
         return None
     return val
 
@@ -2037,3 +1992,20 @@ def _numpy_to_python(obj):
     if isinstance(obj, list):
         return [_numpy_to_python(i) for i in obj]
     return _to_python(obj)
+
+
+def _compute_column_stats(df):
+    """Return per-column descriptive stats dict ready for JSON serialisation."""
+    stats = {}
+    for col in df.columns:
+        series = df[col].dropna()
+        stats[col] = {
+            "min":        _to_python(series.min())    if len(series) else None,
+            "max":        _to_python(series.max())    if len(series) else None,
+            "mean":       _to_python(series.mean())   if len(series) else None,
+            "std":        _to_python(series.std())    if len(series) else None,
+            "median":     _to_python(series.median()) if len(series) else None,
+            "null_count": int(df[col].isnull().sum()),
+            "skew":       _to_python(series.skew())   if len(series) >= 3 else None,
+        }
+    return stats
