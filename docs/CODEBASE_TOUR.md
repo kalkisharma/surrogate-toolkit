@@ -104,7 +104,7 @@ Read these first, in this order. Everything else makes sense after.
   PUT /api/data/screen/apply (mode="pca")
   → fits PCA on normalized inputs; injects PC columns into normalized DataFrame
   → STATE['surrogate_sessions']['primary']['pca'] = {
-        original_inputs, component_names, pca_object, n_components, ...
+        model, original_inputs, pc_names, n_components, ...
     }
   → metadata.input_columns updated to PC names ['PC1', 'PC2', ...]
   NOTE: the prediction pipeline checks for STATE[...]['pca'] and applies the
