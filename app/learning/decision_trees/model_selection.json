@@ -39,7 +39,7 @@
       "id": "medium",
       "type": "question",
       "text": "How many input variables do you have?",
-      "hint": "Count your designated input columns after any filtering. If you applied PCA in Step 7 — Filter, count the principal components retained, not the original column count.",
+      "hint": "Count your designated input columns after any filtering. If you applied PCA in Step 8 — Filter, count the principal components retained, not the original column count.",
       "choices": [
         { "label": "1 – 8 inputs",    "next": "medium_low_dim" },
         { "label": "9 – 15 inputs",   "next": "medium_mid_dim" },

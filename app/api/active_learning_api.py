@@ -6,8 +6,8 @@ PURPOSE: Blueprint and routes for /api/active/* — coverage, objective-mode,
          and residual-guided active learning recommendations.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-26
-VERSION: 1.1.0
+LAST MODIFIED: 2026-06-03
+VERSION: 1.1.1
 ================================================================================
 """
 
@@ -237,7 +237,7 @@ def _get_training_data(state):
         return None, None, {
             "success": False,
             "error_code": "NO_TRAINED_MODEL",
-            "message": "No trained model. Complete Step 8 — Model first.",
+            "message": "No trained model. Complete Step 9 — Model first.",
         }
 
     input_cols = results["input_columns"]

@@ -2,10 +2,10 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.22
+// Version: 3.5.54
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
-//              workflow panel router (sidebar + 14 lazy-init panels).
+//              workflow panel router (sidebar + 16 lazy-init panels).
 // =============================================================================
 
 import { initLearningMode, registerPrimer } from "./learning_mode.js";
@@ -21,6 +21,7 @@ import { initModelConfig } from "./modules/model_config.js";
 import { initResults } from "./modules/results.js";
 import { initPrediction } from "./modules/prediction.js";
 import { initInterpretation } from "./modules/interpretation.js";
+import { initSubset } from "./modules/data_subset.js";
 import { initScreening } from "./modules/input_screening.js";
 import { initActiveLearning } from "./modules/active_learning.js";
 import { initOptimization } from "./modules/optimization.js";
@@ -321,14 +322,16 @@ async function _renderExploration(uploadResponse) {
   app.appendChild(layout);
 
   // ── Panel containers ──────────────────────────────────────────────────────
-  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "designate", "normalize", "screen", "configure", "results", "predict", "optimize", "interpret", "active", "compare", "export"];
+  const STEP_KEYS   = ["upload", "preview", "explore", "clean", "subset", "designate", "normalize", "screen", "configure", "results", "predict", "optimize", "interpret", "active", "compare", "export"];
   const STEP_LABELS = { upload: "Upload", preview: "Preview", explore: "Explore", clean: "Clean",
+                        subset: "Subset",
                         designate: "Assign", normalize: "Normalize", screen: "Filter", configure: "Model",
                         results: "Results", predict: "Predict", optimize: "Optimize",
                         interpret: "Interpret", active: "Sample", compare: "Compare", export: "Export" };
   const STEP_NUMS   = { upload: 1, preview: 2, explore: 3, clean: 4,
-                        designate: 5, normalize: 6, screen: 7, configure: 8, results: 9, predict: 10,
-                        optimize: 11, interpret: 12, active: 13, compare: 14, export: 15 };
+                        subset: 5,
+                        designate: 6, normalize: 7, screen: 8, configure: 9, results: 10, predict: 11,
+                        optimize: 12, interpret: 13, active: 14, compare: 15, export: 16 };
 
   const panelEls      = {};   // outer panel div — used only for .hidden toggling
   const _panelContent = {};   // inner content div — passed to modules; clearable
@@ -350,13 +353,13 @@ async function _renderExploration(uploadResponse) {
   // ── Step state ────────────────────────────────────────────────────────────
   const hasDesignation = _currentInputCols.length > 0;
   const stepUnlocked = {
-    upload: true, preview: true, explore: true, clean: true, designate: true,
+    upload: true, preview: true, explore: true, clean: true, subset: true, designate: true,
     normalize: hasDesignation, screen: hasDesignation, configure: hasDesignation,
     results: false, predict: false, optimize: false,
     interpret: false, active: false, compare: false, export: hasDesignation,
   };
   const stepCompleted = {
-    upload: true, preview: false, explore: false, clean: false,
+    upload: true, preview: false, explore: false, clean: false, subset: false,
     designate: hasDesignation, normalize: false, screen: false, configure: false,
     results: false, predict: false, optimize: false,
     interpret: false, active: false, compare: false, export: false,
@@ -468,6 +471,7 @@ async function _renderExploration(uploadResponse) {
       case "preview":   _initPreviewPanel(container, key);        break;
       case "explore":   await _initExplorePanel(container, key);  break;
       case "clean":     await _initCleanPanel(container, key);    break;
+      case "subset":    await _initSubsetPanel(container, key);   break;
       case "designate": _initDesignatePanel(container, key);         break;
       case "normalize": _initNormalizePanel(container, key);         break;
       case "screen":    await _initScreenPanel(container, key);      break;
@@ -540,7 +544,23 @@ async function _renderExploration(uploadResponse) {
     await initCleaning(container, onClean);
   }
 
-  // ── Step 5 — Designate ────────────────────────────────────────────────────
+  // ── Step 5 — Subset ───────────────────────────────────────────────────────
+  async function _initSubsetPanel(container, key) {
+    clearEl(container);
+    _subtitle(key);
+    await initSubset(container);
+    // Invalidate explore and clean on commit so they re-fetch fresh data
+    container.addEventListener("subset:committed", async () => {
+      panelDone["explore"] = false;
+      panelDone["clean"]   = false;
+      clearEl(_panelContent["explore"]);
+      clearEl(_panelContent["clean"]);
+      stepCompleted["subset"] = true;
+      buildSidebar();
+    }, { once: false });
+  }
+
+  // ── Step 6 — Designate ────────────────────────────────────────────────────
   function _initDesignatePanel(container, key) {
     _subtitle(key);
     initDesignation(
@@ -578,7 +598,7 @@ async function _renderExploration(uploadResponse) {
     );
   }
 
-  // ── Step 6 — Normalize ────────────────────────────────────────────────────
+  // ── Step 7 — Normalize ────────────────────────────────────────────────────
   function _initNormalizePanel(container, key) {
     clearEl(container);
     _subtitle(key);
@@ -589,7 +609,7 @@ async function _renderExploration(uploadResponse) {
     });
   }
 
-  // ── Step 7 — Screen Inputs ────────────────────────────────────────────────
+  // ── Step 8 — Screen Inputs ────────────────────────────────────────────────
   async function _initScreenPanel(container, key) {
     clearEl(container);
     _subtitle(key);
@@ -610,7 +630,7 @@ async function _renderExploration(uploadResponse) {
     }, { once: false });
   }
 
-  // ── Step 8 — Configure + Train ────────────────────────────────────────────
+  // ── Step 9 — Configure + Train ────────────────────────────────────────────
   function _initConfigurePanel(container, key) {
     clearEl(container);
     _subtitle(key);
@@ -624,7 +644,7 @@ async function _renderExploration(uploadResponse) {
     });
   }
 
-  // ── Step 8 — Results ──────────────────────────────────────────────────────
+  // ── Step 10 — Results ─────────────────────────────────────────────────────
   async function _initResultsPanel(container, key) {
     clearEl(container);
     _subtitle(key);
@@ -641,42 +661,42 @@ async function _renderExploration(uploadResponse) {
     }
   }
 
-  // ── Step 9 — Predict ──────────────────────────────────────────────────────
+  // ── Step 11 — Predict ─────────────────────────────────────────────────────
   async function _initPredictPanel(container, key) {
     clearEl(container);
     _subtitle(key);
     await initPrediction(container);
   }
 
-  // ── Step 10 — Optimize ───────────────────────────────────────────────────
+  // ── Step 12 — Optimize ───────────────────────────────────────────────────
   async function _initOptimizePanel(container, key) {
     clearEl(container);
     _subtitle(key);
     await initOptimization(container);
   }
 
-  // ── Step 11 — Interpret ───────────────────────────────────────────────────
+  // ── Step 13 — Interpret ───────────────────────────────────────────────────
   async function _initInterpretPanel(container, key) {
     clearEl(container);
     _subtitle(key);
     await initInterpretation(container);
   }
 
-  // ── Step 12 — Active Learning ─────────────────────────────────────────────
+  // ── Step 14 — Active Learning ─────────────────────────────────────────────
   async function _initActiveLearningPanel(container, key) {
     clearEl(container);
     _subtitle(key);
     await initActiveLearning(container);
   }
 
-  // ── Step 13 — Compare ─────────────────────────────────────────────────────
+  // ── Step 15 — Compare ─────────────────────────────────────────────────────
   async function _initComparePanel(container, key) {
     clearEl(container);
     _subtitle(key);
     await initComparison(container);
   }
 
-  // ── Step 14 — Export & Compliance ─────────────────────────────────────────
+  // ── Step 16 — Export & Compliance ─────────────────────────────────────────
   async function _initExportPanel(container, key) {
     clearEl(container);
     _subtitle(key);

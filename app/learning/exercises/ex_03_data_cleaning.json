@@ -84,20 +84,20 @@
     {
       "step_num": 6,
       "target_panel": "designate",
-      "instruction": "Open Step 5 — Assign. Designate x1, x2, x3 as inputs and y as the output.",
+      "instruction": "Open Step 6 — Assign. Designate x1, x2, x3 as inputs and y as the output.",
       "quiz": null
     },
     {
       "step_num": 7,
       "target_panel": "normalize",
-      "instruction": "Open Step 6 — Normalize. Apply Min-Max normalization to all three inputs.",
+      "instruction": "Open Step 7 — Normalize. Apply Min-Max normalization to all three inputs.",
       "keywords": ["Normalization", "Min-Max Scaling"],
       "quiz": null
     },
     {
       "step_num": 8,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
+      "instruction": "Open Step 8 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
       "keywords": [],
       "quiz": null
     },

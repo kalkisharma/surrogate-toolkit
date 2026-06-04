@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-02
-VERSION: 3.2.2
+LAST MODIFIED: 2026-06-03
+VERSION: 3.2.3
 ================================================================================
 """
 
@@ -273,7 +273,7 @@ def tune():
             jsonify({
                 "success": False, "error_code": "CONFIG_REQUIRED",
                 "message": "Training configuration has not been saved. "
-                           "Complete Step 8 — Model first.",
+                           "Complete Step 9 — Model first.",
                 "detail": "", "recoverable": True, "allowed_actions": ["configure"],
             }),
             422,
@@ -358,7 +358,7 @@ def interpret():
     if model is None or results is None:
         return jsonify({
             "success": False, "error_code": "NO_TRAINED_MODEL",
-            "message": "No trained model. Train a model in Step 8 — Model first.",
+            "message": "No trained model. Train a model in Step 9 — Model first.",
         }), 404
 
     input_cols  = results["input_columns"]
@@ -511,7 +511,7 @@ def train():
             jsonify({
                 "success": False, "error_code": "CONFIG_REQUIRED",
                 "message": "Training configuration has not been saved. "
-                           "Complete Step 8 — Model first.",
+                           "Complete Step 9 — Model first.",
                 "detail": "", "recoverable": True, "allowed_actions": ["configure"],
             }),
             422,
@@ -1443,7 +1443,7 @@ def train_multifidelity():
         return (
             jsonify({
                 "success": False, "error_code": "LF_NOT_PROCESSED",
-                "message": "LF dataset has not been cleaned. Complete Steps 4–5 for it first.",
+                "message": "LF dataset has not been cleaned. Complete Steps 4–6 for it first.",
                 "detail": "", "recoverable": True, "allowed_actions": ["clean"],
             }),
             422,
@@ -1452,7 +1452,7 @@ def train_multifidelity():
         return (
             jsonify({
                 "success": False, "error_code": "HF_NOT_PROCESSED",
-                "message": "HF dataset has not been cleaned. Complete Steps 4–5 for it first.",
+                "message": "HF dataset has not been cleaned. Complete Steps 4–6 for it first.",
                 "detail": "", "recoverable": True, "allowed_actions": ["clean"],
             }),
             422,
@@ -1470,7 +1470,7 @@ def train_multifidelity():
         return (
             jsonify({
                 "success": False, "error_code": "LF_NO_DESIGNATION",
-                "message": "LF dataset columns have not been designated. Complete Step 5 for it.",
+                "message": "LF dataset columns have not been designated. Complete Step 6 for it.",
                 "detail": "", "recoverable": True, "allowed_actions": ["designate"],
             }),
             422,
@@ -1479,7 +1479,7 @@ def train_multifidelity():
         return (
             jsonify({
                 "success": False, "error_code": "HF_NO_DESIGNATION",
-                "message": "HF dataset columns have not been designated. Complete Step 5 for it.",
+                "message": "HF dataset columns have not been designated. Complete Step 6 for it.",
                 "detail": "", "recoverable": True, "allowed_actions": ["designate"],
             }),
             422,

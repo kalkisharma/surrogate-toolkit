@@ -47,13 +47,13 @@
     {
       "step_num": 5,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. With only 2 inputs there is no multicollinearity to screen. Skip it and move on.",
+      "instruction": "Open Step 8 — Filter Inputs. With only 2 inputs there is no multicollinearity to screen. Skip it and move on.",
       "quiz": null
     },
     {
       "step_num": 6,
       "target_panel": "configure",
-      "instruction": "First run — Linear model: Open Step 8 — Model, select Linear, test split 0.2, 5-fold CV. Train. The R² badge will be red (R² < 0.70). Open the residual plot — you should see large positive residuals clustered in the center of the predicted range, where the model consistently undershoots the Gaussian peak.",
+      "instruction": "First run — Linear model: Open Step 9 — Model, select Linear, test split 0.2, 5-fold CV. Train. The R² badge will be red (R² < 0.70). Open the residual plot — you should see large positive residuals clustered in the center of the predicted range, where the model consistently undershoots the Gaussian peak.",
       "keywords": ["Ridge Regression (Linear)", "R² (Coefficient of Determination)", "Residual Plot", "Test Split", "Cross-Validation (CV)"],
       "quiz": {
         "question": "The linear model achieves R² ≈ 0.60 (red badge). The residual plot shows large positive residuals at intermediate predicted values and near-zero residuals at low predicted values. What does this spatial pattern in the residuals reveal?",

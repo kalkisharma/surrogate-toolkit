@@ -7,8 +7,8 @@ PURPOSE: Blueprint and route handlers for /api/data/*. Wires the ingestion
          JSON responses.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-02
-VERSION: 1.1.0
+LAST MODIFIED: 2026-06-03
+VERSION: 1.2.0
 ================================================================================
 """
 
@@ -1470,6 +1470,154 @@ def clean_transform():
     }), 200
 
 
+# ─── SUBSET ROUTES ─────────────────────────────────────────────────────────────
+
+
+@bp.route("/subset", methods=["POST"])
+def subset_data():
+    """
+    Filter the clean DataFrame to rows satisfying all supplied per-column
+    value-range conditions (AND logic).
+
+    Args (JSON body):
+        conditions (dict): {
+            "col_name": {"lo": float, "hi": float}
+        }
+        Either "lo" or "hi" may be omitted to leave that end open.
+
+    Returns:
+        JSON 200: {
+            "success": true,
+            "rows_before": N,
+            "rows_after": M,
+            "rows_removed": K,
+            "zero_variance_columns": [...]
+        }
+        JSON 4xx: Standard error envelope.
+
+    Notes:
+        Uses _apply_clean() so the subset is treated like a cleaning operation:
+        one-level undo, pca/dcor/stats cache invalidation, primary mirror sync.
+        Conditions are stored in metadata for traceability.
+        Rejected if the result would have fewer than MIN_ROWS rows.
+    """
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+
+    data       = request.get_json(silent=True) or {}
+    conditions = data.get("conditions", {})
+
+    clean_df = state["datasets"]["primary"]["clean"]
+
+    invalid = [c for c in conditions if c not in clean_df.columns]
+    if invalid:
+        return (
+            jsonify({
+                "success": False, "error_code": "INVALID_COLUMNS",
+                "message": f"Unknown column(s): {invalid}",
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    # Build boolean mask — AND of all conditions
+    mask = np.ones(len(clean_df), dtype=bool)
+    for col, bounds in conditions.items():
+        lo = bounds.get("lo")
+        hi = bounds.get("hi")
+        vals = clean_df[col].to_numpy(dtype=float, na_value=float("nan"))
+        if lo is not None:
+            mask &= vals >= float(lo)
+        if hi is not None:
+            mask &= vals <= float(hi)
+
+    result_df = clean_df[mask].reset_index(drop=True)
+
+    if len(result_df) < MIN_ROWS:
+        return (
+            jsonify({
+                "success": False, "error_code": "INSUFFICIENT_ROWS",
+                "message": (
+                    f"The applied conditions would leave only {len(result_df)} row(s). "
+                    f"Minimum is {MIN_ROWS}. Widen the range filters and try again."
+                ),
+                "detail": "", "recoverable": True, "allowed_actions": ["retry"],
+            }),
+            422,
+        )
+
+    # Detect zero-variance columns in the resulting subset
+    zero_var_cols = []
+    for col in result_df.select_dtypes(include="number").columns:
+        series = result_df[col].dropna()
+        if len(series) > 1 and float(series.std()) == 0.0:
+            zero_var_cols.append(col)
+
+    rows_before = len(clean_df)
+    _apply_clean(state, active_key, ds, result_df)
+
+    # Store conditions in metadata for audit / traceability
+    ds["metadata"]["subset_conditions"] = conditions
+    state["datasets"]["primary"]["metadata"]["subset_conditions"] = conditions
+
+    append_audit_event(state, "data_subset", {
+        "dataset":               active_key,
+        "rows_before":           rows_before,
+        "rows_after":            len(result_df),
+        "rows_removed":          rows_before - len(result_df),
+        "n_conditions":          len(conditions),
+        "zero_variance_columns": zero_var_cols,
+    })
+    current_app.logger.info(
+        f"Subset: '{active_key}' — removed {rows_before - len(result_df)} rows "
+        f"via {len(conditions)} condition(s)"
+    )
+
+    return jsonify({
+        "success":               True,
+        "rows_before":           rows_before,
+        "rows_after":            len(result_df),
+        "rows_removed":          rows_before - len(result_df),
+        "zero_variance_columns": zero_var_cols,
+    }), 200
+
+
+@bp.route("/subset/undo", methods=["POST"])
+def undo_subset():
+    """
+    Restore the clean DataFrame from the one-level undo snapshot created by
+    the most recent subset (or clean) operation.
+    """
+    state = current_app.config["STATE"]
+    active_key, ds = _get_active_ds(state)
+    if ds is None:
+        return _no_data_error()
+    if "clean_prev" not in ds:
+        return jsonify({"success": False, "message": "Nothing to undo."}), 400
+
+    prev_df = ds.pop("clean_prev")
+    ds["clean"] = prev_df
+    state["datasets"]["primary"]["clean"] = prev_df
+    ds["metadata"]["n_rows_clean"]  = len(prev_df)
+    state["datasets"]["primary"]["metadata"]["n_rows_clean"] = len(prev_df)
+    ds["metadata"]["summary_stats"] = None
+    ds["metadata"]["dcor_matrix"]   = None
+    ds["metadata"]["pca_result"]    = None
+    ds["metadata"]["subset_conditions"] = None
+    state["datasets"]["primary"]["metadata"]["subset_conditions"] = None
+
+    append_audit_event(state, "subset_undo", {
+        "dataset":       active_key,
+        "rows_restored": len(prev_df),
+    })
+    current_app.logger.info(
+        f"Undo subset: '{active_key}' — restored {len(prev_df)} rows"
+    )
+    return jsonify({"success": True, "rows_restored": len(prev_df)}), 200
+
+
 # ─── INPUT SCREENING ─────────────────────────────────────────────────────────
 
 
@@ -1496,7 +1644,7 @@ def screen_inputs():
         return jsonify({
             "success":    False,
             "error_code": "NO_INPUT_COLUMNS",
-            "message":    "No input columns designated. Complete Step 5 — Assign first.",
+            "message":    "No input columns designated. Complete Step 6 — Assign first.",
         }), 400
 
     df = (primary["normalized"] if primary.get("normalized") is not None else primary["clean"])

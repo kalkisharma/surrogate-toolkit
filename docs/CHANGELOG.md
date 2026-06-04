@@ -19,6 +19,37 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.54] — 2026-06-03
+
+### Added — Step 5: Subset
+
+New workflow step between Clean (4) and Assign (now 6) that allows users to permanently filter the dataset by per-column value ranges before training.
+
+#### Added
+
+- **`app/api/data_api.py`** — Two new routes:
+  - `POST /api/data/subset` — applies per-column `{lo, hi}` range conditions (AND logic) to the clean DataFrame using the `_apply_clean()` helper. Stores conditions in `metadata["subset_conditions"]` for traceability. Returns rows_before/after/removed and any zero-variance columns introduced by the slice.
+  - `POST /api/data/subset/undo` — restores the clean DataFrame from the one-level undo snapshot (same mechanism as clean undo).
+- **`static/js/modules/data_subset.js`** *(new)* — `initSubset(containerEl)` module:
+  - Fetches summary (column min/max) and rows from existing endpoints.
+  - Renders a per-column range filter grid (reuses `scatter2d-filter-*` CSS classes).
+  - Live "Would keep N / M rows" counter computed client-side from slider state.
+  - 2D scatter preview with axis selectors — included points at full opacity, excluded points at 12% opacity (same `renderDataScatter2D` used by Explore).
+  - Commit button: POSTs narrowed conditions only (full-range columns omitted). Fires `subset:committed` event so main.js can invalidate Explore/Clean panels.
+  - Undo button: calls undo endpoint and re-initialises the panel against the restored data.
+- **`static/js/main.js`** — Inserted `"subset"` into `STEP_KEYS` between `"clean"` and `"designate"`. All downstream steps renumbered: Assign=6, Normalize=7, Filter=8, Model=9, Results=10, Predict=11, Optimize=12, Interpret=13, Sample=14, Compare=15, Export=16. Added `_initSubsetPanel()` wrapper and `subset:committed` handler that invalidates Explore/Clean panel cache.
+- **`static/css/main.css`** — New `.subset-*` rule set (title row, row-count badge, status bar, filter section header, preview section, axis selectors, action row).
+
+#### Changed (step renumbering)
+
+- **`app/api/data_api.py`** — "Complete Step 5 — Assign first" → "Step 6".
+- **`app/api/model_api.py`** — "Step 8 — Model" → "Step 9" in four error messages; "Steps 4–5" → "Steps 4–6"; "Step 5 for it" → "Step 6 for it".
+- **`app/api/active_learning_api.py`** — "Step 8 — Model" → "Step 9".
+- **`app/ml/export/bundle.py`** — "Step 8 — Model" → "Step 9".
+- **`app/learning/exercises/*.json`** (11 files), **`app/learning/decision_trees/model_selection.json`** — All step-number references in exercise instruction text updated to match new numbering.
+
+---
+
 ## [3.5.53] — 2026-06-03
 
 ### Full codebase team review — 6 fixes

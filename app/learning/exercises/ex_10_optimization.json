@@ -47,7 +47,7 @@
     {
       "step_num": 5,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. With only 2 inputs (aoa, ar) there is no multicollinearity to screen. Skip it and move on.",
+      "instruction": "Open Step 8 — Filter Inputs. With only 2 inputs (aoa, ar) there is no multicollinearity to screen. Skip it and move on.",
       "quiz": null
     },
     {
@@ -67,7 +67,7 @@
     {
       "step_num": 8,
       "target_panel": "optimize",
-      "instruction": "Open Step 11 — Design Space Optimization. First run single-objective: set objective to Minimize cd (drag). Run. The optimizer will find the input combination (aoa, ar) that minimises predicted cd. Note the recommended aoa and ar values — low aoa and moderate ar, as expected.",
+      "instruction": "Open Step 12 — Design Space Optimization. First run single-objective: set objective to Minimize cd (drag). Run. The optimizer will find the input combination (aoa, ar) that minimises predicted cd. Note the recommended aoa and ar values — low aoa and moderate ar, as expected.",
       "keywords": ["Surrogate-Based Optimization"],
       "quiz": {
         "question": "Single-objective optimization found a design that minimises cd. Is this the best design for an aircraft?",

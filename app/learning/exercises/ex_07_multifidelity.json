@@ -48,7 +48,7 @@
     {
       "step_num": 5,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. These three inputs (x1, x2, x3) are well-designed synthetic parameters with no multicollinearity — VIF will show values near 1. Skip it and move on.",
+      "instruction": "Open Step 8 — Filter Inputs. These three inputs (x1, x2, x3) are well-designed synthetic parameters with no multicollinearity — VIF will show values near 1. Skip it and move on.",
       "quiz": null
     },
     {
@@ -113,7 +113,7 @@
     {
       "step_num": 12,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. Same three inputs as LF — no collinearity issues. Skip it and move on.",
+      "instruction": "Open Step 8 — Filter Inputs. Same three inputs as LF — no collinearity issues. Skip it and move on.",
       "quiz": null
     },
     {
@@ -143,7 +143,7 @@
     {
       "step_num": 15,
       "target_panel": "compare",
-      "instruction": "Open Step 14 — Compare. Both datasets and their trained models are visible. Select 'Multi-Fidelity' mode, set LF dataset to multifidelity_lf and HF dataset to multifidelity_hf. Choose Bridge Correction method and click Train. The correction model learns the discrepancy (HF − LF_prediction) at the 30 HF points.",
+      "instruction": "Open Step 15 — Compare. Both datasets and their trained models are visible. Select 'Multi-Fidelity' mode, set LF dataset to multifidelity_lf and HF dataset to multifidelity_hf. Choose Bridge Correction method and click Train. The correction model learns the discrepancy (HF − LF_prediction) at the 30 HF points.",
       "keywords": ["Bridge Correction", "Kennedy-O'Hagan Co-Kriging", "Multi-Fidelity Modeling"],
       "quiz": {
         "question": "Bridge Correction trains a discrepancy model: δ(x) = y_HF(x) − ŷ_LF(x). What does a large δ at a point indicate?",

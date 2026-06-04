@@ -47,13 +47,13 @@
     {
       "step_num": 5,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. With only 2 inputs there is no multicollinearity to screen. Skip it and move on.",
+      "instruction": "Open Step 8 — Filter Inputs. With only 2 inputs there is no multicollinearity to screen. Skip it and move on.",
       "quiz": null
     },
     {
       "step_num": 6,
       "target_panel": "configure",
-      "instruction": "Baseline — default alpha=0.1: Open Step 8 — Model, select GPR, RBF kernel, alpha=0.1, test split 0.2, 5-fold CV. Train. In the CV table, note the R² mean and the ± std. This is your baseline: mean ≈ 0.91, std ≈ 0.04. The std of 0.04 means scores vary by about ±0.04 across folds — moderate and acceptable.",
+      "instruction": "Baseline — default alpha=0.1: Open Step 9 — Model, select GPR, RBF kernel, alpha=0.1, test split 0.2, 5-fold CV. Train. In the CV table, note the R² mean and the ± std. This is your baseline: mean ≈ 0.91, std ≈ 0.04. The std of 0.04 means scores vary by about ±0.04 across folds — moderate and acceptable.",
       "keywords": ["Gaussian Process Regression (GPR)", "Cross-Validation (CV)", "R² (Coefficient of Determination)"],
       "quiz": {
         "question": "With alpha=0.1, CV R² = 0.91 ± 0.04. The ± std means different folds score differently. What does a low CV std specifically tell you about the model?",

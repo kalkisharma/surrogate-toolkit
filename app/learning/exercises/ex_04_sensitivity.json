@@ -46,7 +46,7 @@
     {
       "step_num": 5,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
+      "instruction": "Open Step 8 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
       "keywords": [],
       "quiz": null
     },
@@ -67,7 +67,7 @@
     {
       "step_num": 8,
       "target_panel": "interpret",
-      "instruction": "Open Step 12 — Interpret (if it is unlocked after training). Click 'Analyze →' to run Sobol sensitivity analysis. Wait for the tornado chart to appear.",
+      "instruction": "Open Step 13 — Interpret (if it is unlocked after training). Click 'Analyze →' to run Sobol sensitivity analysis. Wait for the tornado chart to appear.",
       "keywords": ["Sobol Sensitivity Index", "S₁ (First-Order Sobol Index)", "ST (Total-Order Sobol Index)", "Tornado Chart"],
       "quiz": {
         "question": "In the Sobol tornado chart, what does a large gap between Sₜ and S₁ for an input indicate?",

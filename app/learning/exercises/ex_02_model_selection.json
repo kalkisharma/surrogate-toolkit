@@ -53,7 +53,7 @@
     {
       "step_num": 6,
       "target_panel": "screen",
-      "instruction": "Open Step 7 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
+      "instruction": "Open Step 8 — Filter Inputs. Skip it for now — we will use this panel properly in Exercise 6.",
       "keywords": [],
       "quiz": null
     },
@@ -77,7 +77,7 @@
     {
       "step_num": 8,
       "target_panel": "results",
-      "instruction": "Note the test R² for Linear. Now go back to Step 8 — Model, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
+      "instruction": "Note the test R² for Linear. Now go back to Step 9 — Model, switch to GPR, and retrain. Then try Random Forest. Which model achieves the highest test R²?",
       "keywords": ["R² (Coefficient of Determination)", "Parity Plot", "Gaussian Process Regression (GPR)", "Random Forest (RF)"],
       "quiz": {
         "question": "For this 150-row, 3-input, smooth nonlinear dataset, what is the most likely ranking of models by test R²?",

@@ -7,8 +7,8 @@ PURPOSE: Build a self-contained surrogate export ZIP bundle containing the
          ready-to-use surrogate.py wrapper, and a README.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-26
-LAST MODIFIED: 2026-05-26
-VERSION: 1.0.0
+LAST MODIFIED: 2026-06-03
+VERSION: 1.0.1
 ================================================================================
 """
 
@@ -166,7 +166,7 @@ def build_export_bundle(state):
     model       = models_dict.get("trained")
     results     = models_dict.get("results")
     if model is None or results is None:
-        raise ValueError("No trained model. Train a model in Step 8 — Model first.")
+        raise ValueError("No trained model. Train a model in Step 9 — Model first.")
 
     primary     = state["datasets"]["primary"]
     meta        = primary.get("metadata") or {}
