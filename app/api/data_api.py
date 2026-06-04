@@ -1527,7 +1527,7 @@ def subset_data():
     for col, bounds in conditions.items():
         lo = bounds.get("lo")
         hi = bounds.get("hi")
-        vals = clean_df[col].to_numpy(dtype=float, na_value=float("nan"))
+        vals = clean_df[col].to_numpy(dtype=float)
         if lo is not None:
             mask &= vals >= float(lo)
         if hi is not None:

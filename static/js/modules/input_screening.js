@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/input_screening.js
 // Version: 1.2.0 (app v3.5.52)
-// Description: Step 7 — Input Filtering. Correlation heatmap, VIF table with
+// Description: Step 8 — Input Filtering. Correlation heatmap, VIF table with
 //              3-tier multicollinearity indicators, Sobol ST overlay (when
 //              interpretation cache is present), low-variance flags, input
 //              toggle checkboxes, and optional PCA dimensionality reduction.
@@ -53,10 +53,10 @@ export async function initScreening(containerEl, inputCols = []) {
   if (inputCols.length === 0) {
     containerEl.innerHTML = `
       <div class="section-header">
-        <h2 class="section-title">Step 7 — Filter Inputs</h2>
+        <h2 class="section-title">Step 8 — Filter Inputs</h2>
       </div>
       <p style="color:var(--color-text-muted);padding:var(--space-4) 0;">
-        No input columns designated. Complete Step 5 — Assign first.
+        No input columns designated. Complete Step 6 — Assign first.
       </p>`;
     return;
   }
@@ -64,7 +64,7 @@ export async function initScreening(containerEl, inputCols = []) {
   // Header
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 7 — Filter Inputs</h2>
+    <h2 class="section-title">Step 8 — Filter Inputs</h2>
     <p class="section-desc">Identify and remove redundant or uninformative inputs before training.</p>`;
   containerEl.appendChild(header);
 
@@ -79,7 +79,7 @@ export async function initScreening(containerEl, inputCols = []) {
     almost no signal. A coefficient of variation below 1% usually means the column
     was accidentally included or wasn't varied in the design.</p>
     <p>This step never removes columns automatically — you choose what to drop.
-    You can also skip this step entirely and proceed to Step 8 — Model.</p>
+    You can also skip this step entirely and proceed to Step 9 — Model.</p>
   `);
 
   // Controls row
@@ -449,7 +449,7 @@ function _renderResults(container, resp, rootEl) {
   applyRow.appendChild(applyBtn);
   applyRow.appendChild(el("p", {
     cls: "screen-skip-note",
-    text: "Or skip this step — proceed directly to Step 8 — Model.",
+    text: "Or skip this step — proceed directly to Step 9 — Model.",
   }));
   container.appendChild(applyRow);
 

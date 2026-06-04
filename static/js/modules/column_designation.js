@@ -41,7 +41,7 @@ export function initDesignation(
 ) {
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 5 — Column Designation</h2>
+    <h2 class="section-title">Step 6 — Column Designation</h2>
     <p class="section-desc">Classify each column as an input (feature), output (target), or unused.</p>
   `;
   containerEl.appendChild(header);

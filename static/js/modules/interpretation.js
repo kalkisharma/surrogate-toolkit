@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/interpretation.js
 // Version: 1.1.1
-// Description: Step 12 — Model Interpretation. Sobol global sensitivity
+// Description: Step 13 — Model Interpretation. Sobol global sensitivity
 //              tornado chart + S1/ST table, OAT response curve grid, and
 //              prediction uncertainty summary.
 // =============================================================================
@@ -32,10 +32,10 @@ export async function initInterpretation(containerEl) {
   if (!resultsResp.success) {
     containerEl.innerHTML = `
       <div class="section-header">
-        <h2 class="section-title">Step 12 — Model Interpretation</h2>
+        <h2 class="section-title">Step 13 — Model Interpretation</h2>
       </div>
       <p style="color:var(--color-text-muted);padding:var(--space-4) 0;">
-        No trained model. Complete Step 8 — Model first.
+        No trained model. Complete Step 9 — Model first.
       </p>`;
     return;
   }
@@ -46,7 +46,7 @@ export async function initInterpretation(containerEl) {
   // Header + learning-mode primer
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
-    <h2 class="section-title">Step 12 — Model Interpretation</h2>
+    <h2 class="section-title">Step 13 — Model Interpretation</h2>
     <p class="section-desc">Understand which inputs drive your outputs and how confident the model is.</p>
   `;
   containerEl.appendChild(header);
@@ -215,7 +215,7 @@ function _renderUncertaintySection(container, resp) {
   if (resp.model_type === "gpr") {
     content = `<p class="interpret-unc-note">GPR provides native uncertainty estimates.
       95% confidence intervals are shown as error bars on the parity plot in
-      <strong>Step 8 — Training Results</strong>.</p>`;
+      <strong>Step 10 — Training Results</strong>.</p>`;
   } else if (unc && unc.method === "rf_tree_variance") {
     const widths   = unc.ci_upper.map((u, i) => u - unc.ci_lower[i]);
     const meanWidth = widths.reduce((a, b) => a + b, 0) / widths.length;

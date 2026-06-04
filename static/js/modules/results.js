@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
 // Version: 3.5.51
-// Description: Step 9 — Training Results. Fetches GET /api/model/results and
+// Description: Step 10 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
 //              figures (1×2 subplots, linked x-axes). When multiple training
@@ -378,10 +378,10 @@ export async function initResults(containerEl) {
   if (!resp.success) {
     containerEl.innerHTML = `
       <div class="section-header">
-        <h2 class="section-title">Step 9 — Training Results</h2>
+        <h2 class="section-title">Step 10 — Training Results</h2>
       </div>
       <p style="color: var(--color-text-muted); padding: var(--space-4) 0;">
-        No results yet. Train a model in Step 8 — Model to see metrics here.
+        No results yet. Train a model in Step 9 — Model to see metrics here.
       </p>`;
     return false;
   }
@@ -445,7 +445,7 @@ function _render(containerEl, r) {
   const header = el("div", { cls: "section-header" });
   const sourceNote = r.source_filename ? `<strong>${r.source_filename}</strong> — ` : "";
   header.innerHTML = `
-    <h2 class="section-title">Step 9 — Training Results</h2>
+    <h2 class="section-title">Step 10 — Training Results</h2>
     <p class="section-desc">
       ${sourceNote}Model trained on ${r.n_train.toLocaleString()} rows,
       evaluated on ${r.n_test.toLocaleString()} held-out rows.
@@ -485,7 +485,7 @@ function _render(containerEl, r) {
   if (r.normalization_warning) {
     const normWarn = el("div", { cls: "results-warning-box results-warning-box--norm" });
     normWarn.appendChild(el("p", { cls: "results-warning-text",
-      text: "⚠ Normalization was not applied — model trained on raw data. Results may be unreliable. Return to Step 6 — Normalize, click Apply, then retrain." }));
+      text: "⚠ Normalization was not applied — model trained on raw data. Results may be unreliable. Return to Step 7 — Normalize, click Apply, then retrain." }));
     containerEl.appendChild(normWarn);
   }
 

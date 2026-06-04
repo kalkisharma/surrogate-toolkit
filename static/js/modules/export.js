@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/export.js
 // Version: 1.1.0
-// Description: Step 15 — Export & Compliance panel. Generates HTML analysis
+// Description: Step 16 — Export & Compliance panel. Generates HTML analysis
 //              reports with classification watermarks, downloads surrogate model
 //              bundles, and exports the audit log.
 // =============================================================================
@@ -25,7 +25,7 @@ export async function initExport(containerEl) {
   clearEl(containerEl);
 
   const header = el("div", { cls: "section-header" });
-  header.innerHTML = `<h2 class="section-title">Step 15 — Export &amp; Compliance</h2>
+  header.innerHTML = `<h2 class="section-title">Step 16 — Export &amp; Compliance</h2>
     <p class="section-desc">Generate a self-contained HTML analysis report, or download your trained surrogate model for use in your own Python scripts.</p>`;
   containerEl.appendChild(header);
 
@@ -93,7 +93,7 @@ export async function initExport(containerEl) {
   const modelResp = await get("/api/model/results");
   if (!modelResp.success) {
     modelBtn.disabled = true;
-    modelBtn.title    = "Train a model in Step 8 — Model first.";
+    modelBtn.title    = "Train a model in Step 9 — Model first.";
   }
 
   // ── Export history ───────────────────────────────────────────────────────

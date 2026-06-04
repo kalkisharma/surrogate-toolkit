@@ -3,7 +3,7 @@
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/optimization.js
 // Version: 1.0.0
-// Description: Step 11 — Design Space Optimization. Single-objective via
+// Description: Step 12 — Design Space Optimization. Single-objective via
 //              differential_evolution; multi-objective via NSGA-II (pymoo).
 // =============================================================================
 
@@ -23,10 +23,10 @@ export async function initOptimization(containerEl) {
   if (!resultsResp.success || !resultsResp.results) {
     containerEl.innerHTML = `
       <div class="section-header">
-        <h2 class="section-title">Step 11 — Design Space Optimization</h2>
+        <h2 class="section-title">Step 12 — Design Space Optimization</h2>
       </div>
       <p style="color:var(--color-text-muted);padding:var(--space-4) 0;">
-        No trained model. Complete Step 8 — Model first.
+        No trained model. Complete Step 9 — Model first.
       </p>`;
     return;
   }
@@ -41,7 +41,7 @@ export async function initOptimization(containerEl) {
 
   // ── Header ───────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
-  header.innerHTML = `<h2 class="section-title">Step 11 — Design Space Optimization</h2>
+  header.innerHTML = `<h2 class="section-title">Step 12 — Design Space Optimization</h2>
     <p class="section-desc">Find the inputs that minimize or maximize a surrogate output. Single-objective uses differential evolution; multi-objective uses NSGA-II to find the Pareto front.</p>`;
   containerEl.appendChild(header);
 

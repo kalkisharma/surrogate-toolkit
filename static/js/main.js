@@ -550,7 +550,18 @@ async function _renderExploration(uploadResponse) {
     _subtitle(key);
     await initSubset(container);
     // Invalidate explore and clean on commit so they re-fetch fresh data
-    container.addEventListener("subset:committed", async () => {
+    container.addEventListener("subset:committed", async (e) => {
+      // Refresh meta so downstream subtitles show the reduced row count
+      const freshSummary = await get("/api/data/summary");
+      if (freshSummary.success) {
+        meta.n_rows = freshSummary.n_rows ?? meta.n_rows;
+        const freshNulls = {};
+        for (const [col, s] of Object.entries(freshSummary.stats || {})) {
+          freshNulls[col] = s.null_count ?? 0;
+        }
+        meta.null_counts = freshNulls;
+      }
+      // Invalidate explore and clean so they re-fetch on next visit
       panelDone["explore"] = false;
       panelDone["clean"]   = false;
       clearEl(_panelContent["explore"]);
