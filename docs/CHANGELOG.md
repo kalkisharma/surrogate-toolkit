@@ -19,6 +19,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.56] — 2026-06-04
+
+### Changed — Subset step UX overhaul
+- **Layout**: two-column grid replaces single-column; filter list on left, live chart pinned sticky on right — chart stays visible while scrolling through filters
+- **Settings panel**: replaced custom compact grid with full `chart-settings-panel` format matching Explore 2D Scatter (Title, Typography, Markers, Figure, Legend, Gridlines sections); settings controls scrollable via `max-height: 420px; overflow-y: auto`
+- **Commit button**: loading state (`Committing…`, disabled) while POST is in flight; errors and warnings shown in prominent status bar below button (not toast-only)
+- **Filter values**: font-size increased from `0.6875rem` to `0.75rem` for legibility
+- **Sliders**: gap between lo/hi sliders increased from `3px` to `8px` to eliminate overlap
+- **Status bar**: new `subset-status--error` and `subset-status--warn` variants with color-coded border/background
+
 ## [3.5.54] — 2026-06-03
 
 ### Added — Step 5: Subset
