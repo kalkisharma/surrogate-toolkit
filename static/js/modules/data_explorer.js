@@ -2,13 +2,13 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.6.1
+// Version: 1.6.2
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, expandable plot settings,
 //              column distribution histograms, dCor heatmap, and 2D scatter.
 // =============================================================================
 
-import { renderScatterMatrix, renderDCorHeatmap, renderDataScatter2D, renderColumnHistogram, renderIOScatter } from "../charts.js";
+import { renderScatterMatrix, renderDCorHeatmap, renderDataScatter2D, renderColumnHistogram, renderIOScatter, highlightScatterMatrixPoint, revertScatterMatrixHighlight } from "../charts.js";
 import { registerPrimer, registerTooltip } from "../learning_mode.js";
 import { mean, stdDev, median, skewness, detectOutliers, el, formatNum, clearEl } from "../utils.js";
 import { get } from "../api.js";
@@ -105,7 +105,7 @@ function _rerender() {
  * Show a compact row-inspection card for the clicked SPLOM point.
  * Computes per-column IQR bounds to identify which columns pushed the row to outlier status.
  */
-function _showRowInspector(rowIdx, rows, columns, inspectorEl) {
+function _showRowInspector(rowIdx, rows, columns, inspectorEl, onClose = null) {
   clearEl(inspectorEl);
   const row = rows[rowIdx];
   if (!row) return;
@@ -146,7 +146,7 @@ function _showRowInspector(rowIdx, rows, columns, inspectorEl) {
   hdr.appendChild(titleGroup);
   const closeBtn = el("button", { cls: "row-inspector-close", type: "button" });
   closeBtn.textContent = "×";
-  closeBtn.addEventListener("click", () => clearEl(inspectorEl));
+  closeBtn.addEventListener("click", () => { clearEl(inspectorEl); if (onClose) onClose(); });
   hdr.appendChild(closeBtn);
   card.appendChild(hdr);
 
@@ -159,7 +159,7 @@ function _showRowInspector(rowIdx, rows, columns, inspectorEl) {
   const tableWrap = el("div", { cls: "row-inspector-table-wrap" });
   const table = el("table", { cls: "row-inspector-table" });
   const thead = el("thead");
-  thead.innerHTML = "<tr><th>Column</th><th>Value</th><th class='row-inspector-z-th'>Z-score</th></tr>";
+  thead.innerHTML = "<tr><th class='row-inspector-th-col'>Column</th><th class='row-inspector-th-val'>Value</th><th class='row-inspector-th-z'>Z-score</th></tr>";
   table.appendChild(thead);
   const tbody = el("tbody");
 
@@ -364,7 +364,27 @@ export async function initExploration(containerEl, uploadResponse) {
   // ── Row inspector (populated on SPLOM point click) ────────────────────────
   const rowInspectorEl = el("div", { cls: "row-inspector-wrap" });
   containerEl.appendChild(rowInspectorEl);
-  _onPointClickCb = (rowIdx) => _showRowInspector(rowIdx, plotRows, _allColumns, rowInspectorEl);
+  function _baseSize() {
+    return _chartSettings.markerSize !== null
+      ? _chartSettings.markerSize
+      : Math.max(4, Math.min(8, 400 / _currentRows.length));
+  }
+  function _palette() { return _chartSettings.palette || "blueRed"; }
+
+  _onPointClickCb = (rowIdx) => {
+    highlightScatterMatrixPoint(
+      _chartEl, rowIdx, _currentRows,
+      _showOutliers ? _outlierIndices : new Set(),
+      _palette(), _baseSize(),
+    );
+    _showRowInspector(rowIdx, plotRows, _allColumns, rowInspectorEl, () => {
+      revertScatterMatrixHighlight(
+        _chartEl, _currentRows,
+        _showOutliers ? _outlierIndices : new Set(),
+        _palette(), _baseSize(),
+      );
+    });
+  };
 
   // ── Stats section (below chart) ───────────────────────────────────────────
   const statsEl = _buildStatsSection(_allColumns, plotRows, usingFullStats ? _fullStats : null, totalRows);

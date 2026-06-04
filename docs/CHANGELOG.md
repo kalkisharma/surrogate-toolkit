@@ -19,6 +19,13 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.70] — 2026-06-04
+
+### Improved — Row inspector table alignment + SPLOM point highlighting
+- Table uses `table-layout: fixed` with explicit `th` widths (42/33/25%) so columns are always proportional regardless of content; `text-overflow: ellipsis` on all `td`
+- `highlightScatterMatrixPoint()` in `charts.js`: selected point turns amber and enlarges to 2× base size; all other markers dim to 10–18% opacity via per-point rgba color array using `Plotly.restyle` (fast, no full redraw)
+- `revertScatterMatrixHighlight()` in `charts.js`: restores full-opacity outlier/normal palette colors and base marker size; called when inspector close button is pressed
+
 ## [3.5.69] — 2026-06-04
 
 ### Improved — Row inspector Z-score column and outlier highlighting

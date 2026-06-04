@@ -260,6 +260,41 @@ export function updateScatterMatrixOutliers(containerEl, rows, outlierIndices, p
   Plotly.restyle(containerEl, { "marker.color": [colors] }, [0]);
 }
 
+/** Replace the alpha component of an rgba(...) string. */
+function _dimRgba(rgba, alpha) {
+  return rgba.replace(/,\s*[\d.]+\)$/, `, ${alpha})`);
+}
+
+/**
+ * Highlight one SPLOM point: dim all others, enlarge and amber-color the selected one.
+ * Uses Plotly.restyle so it is fast even on large datasets.
+ */
+export function highlightScatterMatrixPoint(containerEl, rowIdx, rows, outlierIndices, palette = "blueRed", baseSize = 6) {
+  if (!containerEl._fullLayout) return;
+  const theme  = _getThemeColors(palette);
+  const colors = rows.map((_, i) => {
+    if (i === rowIdx) return "#fbbf24";
+    return outlierIndices.has(i)
+      ? _dimRgba(theme.outlier, 0.18)
+      : _dimRgba(theme.normal,  0.10);
+  });
+  const sizes = rows.map((_, i) => i === rowIdx ? Math.max(10, Math.round(baseSize * 2)) : baseSize);
+  // eslint-disable-next-line no-undef
+  Plotly.restyle(containerEl, { "marker.color": [colors], "marker.size": [sizes] }, [0]);
+}
+
+/**
+ * Revert SPLOM marker colours and sizes to the standard outlier/normal palette.
+ * Called when the row inspector is closed.
+ */
+export function revertScatterMatrixHighlight(containerEl, rows, outlierIndices, palette = "blueRed", baseSize = 6) {
+  if (!containerEl._fullLayout) return;
+  const theme  = _getThemeColors(palette);
+  const colors = rows.map((_, i) => outlierIndices.has(i) ? theme.outlier : theme.normal);
+  // eslint-disable-next-line no-undef
+  Plotly.restyle(containerEl, { "marker.color": [colors], "marker.size": [baseSize] }, [0]);
+}
+
 /**
  * Resize all Plotly charts inside containerEl to fit their container.
  * Call after layout changes (e.g. sidebar toggle).
