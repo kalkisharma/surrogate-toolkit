@@ -7,7 +7,7 @@ PURPOSE: Single source of truth for all configurable constants. Nothing is
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-02
-VERSION: 3.5.59
+VERSION: 3.5.60
 ================================================================================
 """
 
@@ -15,7 +15,7 @@ VERSION: 3.5.59
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "3.5.59"                     # bumped in settings.py, all changed file headers, and index.html on every release
+VERSION = "3.5.60"                     # bumped in settings.py, all changed file headers, and index.html on every release
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 

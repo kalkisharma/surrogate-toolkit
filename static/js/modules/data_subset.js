@@ -697,19 +697,19 @@ export async function initSubset(containerEl) {
 
     let resp;
     try {
-      showSpinner("Applying subset…");
+      showSpinner(card);
       resp = await post("/api/data/subset", { conditions });
       console.log("[Subset] POST response:", resp);
     } catch (fetchErr) {
       console.error("[Subset] Unexpected fetch error:", fetchErr);
-      hideSpinner();
+      hideSpinner(card);
       commitBtn.disabled    = false;
       commitBtn.textContent = "Commit Subset";
       _showStatus("error", `Unexpected error: ${fetchErr.message}`);
       return;
     }
 
-    hideSpinner();
+    hideSpinner(card);
     commitBtn.disabled    = false;
     commitBtn.textContent = "Commit Subset";
 
@@ -757,9 +757,9 @@ export async function initSubset(containerEl) {
   undoBtn.addEventListener("click", async () => {
     undoBtn.disabled    = true;
     undoBtn.textContent = "Undoing…";
-    showSpinner("Undoing subset…");
+    showSpinner(card);
     const resp = await post("/api/data/subset/undo", {});
-    hideSpinner();
+    hideSpinner(card);
     undoBtn.textContent = "Undo";
 
     if (!resp.success) {

@@ -19,6 +19,15 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.60] — 2026-06-04
+
+### Fixed — Subset commit spinner crash
+- `showSpinner` / `hideSpinner` expect a DOM element; code was passing a string `"Applying subset…"` causing a `TypeError: el.querySelector is not a function` that silently aborted the commit handler and left the button permanently disabled
+- Fixed both commit and undo handlers to pass `card` (the panel card element)
+- Fixed `hideSpinner()` call in the catch block that had no argument, causing a second uncaught rejection
+
+---
+
 ## [3.5.59] — 2026-06-04
 
 ### Fixed — Subset commit robustness + scrollable filter grid
