@@ -17,7 +17,7 @@
     {
       "step_num": 2,
       "target_panel": "explore",
-      "instruction": "Open the scatter matrix (Step 3). Look at the x1 vs y and x2 vs y plots.",
+      "instruction": "Open the scatter matrix (Step 3). Look at the x1 vs y and x2 vs y plots. Try clicking any marker in the scatter matrix — a row inspector card will appear showing that row's column values and Z-scores (how many standard deviations each value is from the column mean). Close it by clicking the ✕ on the card.",
       "keywords": [],
       "quiz": {
         "question": "What kind of relationship does the x1 vs y scatter suggest?",
@@ -52,7 +52,7 @@
     {
       "step_num": 5,
       "target_panel": "normalize",
-      "instruction": "Open Step 7 — Normalize. Select Min-Max and click Apply. Min-Max is chosen here because x1 and x2 have known, bounded ranges — it scales every input to [0, 1] so neither variable overshadows the other just because it has larger numbers. Z-Score (the alternative) is better suited when data may have outliers or an unbounded range. Once you see the green success notification, you can move on.",
+      "instruction": "Open Step 7 — Normalize. Select Min-Max and click Apply. Min-Max is chosen here because x1 and x2 have known, bounded ranges — it scales every input to [0, 1] so neither variable overshadows the other just because it has larger numbers. Z-Score is better when data may have outliers or an unbounded range. Log₁₀ Transform is a third option suited to right-skewed data that spans several orders of magnitude (e.g., 0.001 to 10,000) — it compresses the wide range before training. Once you see the green success notification, you can move on.",
       "keywords": ["Normalization", "Min-Max Scaling", "Z-Score Scaling"],
       "quiz": {
         "question": "What happens if you skip normalization before training?",

@@ -19,6 +19,22 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.75] — 2026-06-04
+
+### Added — Normalization topic in Learning Guide
+- New `app/learning/normalization.json` with six sections: what normalization does, when to use Min-Max vs Z-Score vs Log₁₀, None passthrough, and a quick-reference decision guide
+- `normalization` added to `_TOPIC_FILES` in `learning_api.py` and `_TOPICS` list in `learning_guide.js`
+
+### Updated — Exercise content
+- Exercise 1 Step 2 (Explore): instruction now mentions clicking a SPLOM marker to open the row inspector
+- Exercise 1 Step 5 (Normalize): instruction now describes all three normalization methods including Log₁₀ and its use case
+- Exercise intro text updated to cover all 11 exercises with a logical grouping (1–3 full workflow, 4–7 advanced analysis, 8–11 model tuning)
+
+### Updated — README
+- Version badge updated to v3.5.74; Step 7 description updated to mention Log₁₀
+
+---
+
 ## [3.5.74] — 2026-06-04
 
 ### Fixed — Log₁₀ histogram overflow

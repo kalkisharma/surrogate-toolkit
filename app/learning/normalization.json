@@ -1,0 +1,28 @@
+{
+  "sections": [
+    {
+      "title": "What normalization does",
+      "body": "Normalization rescales your input columns before they are passed to the surrogate model. Most surrogate models — especially GPR — measure similarity between data points by computing distances in the input space. If one input ranges from 0 to 10,000 and another from 0 to 1, a small change in the first input looks enormous compared to a large change in the second, even if the second input is more physically important. Normalization puts all inputs on a comparable scale so the model weights them fairly."
+    },
+    {
+      "title": "Min-Max scaling [0, 1]",
+      "body": "Min-Max shifts and stretches each input column so its minimum maps to 0 and its maximum maps to 1. It preserves the shape of the distribution exactly. Use Min-Max when your inputs have known, bounded physical ranges (e.g., angle of attack from 0° to 20°), when there are no significant outliers that would compress the bulk of the data into a narrow slice of [0, 1], and when you want predictions to remain interpretable in the original units after inverse-scaling."
+    },
+    {
+      "title": "Z-Score standardization (μ=0, σ=1)",
+      "body": "Z-Score subtracts the mean and divides by the standard deviation, producing a distribution centered at zero with unit variance. Use Z-Score when your inputs do not have hard physical bounds, when outliers are present (a single extreme value cannot compress the rest of the data the way it can with Min-Max), or when you are training a GPR with the RBF kernel and want the length-scale hyperparameters to start in a sensible range."
+    },
+    {
+      "title": "Log₁₀ Transform",
+      "body": "Log₁₀ applies the base-10 logarithm to each input column. It is the right choice when your data is right-skewed — most values cluster near zero but a long tail of large values stretches to the right — and when the inputs span several orders of magnitude (e.g., material stiffness from 1 MPa to 100 GPa). Compressing that range before training prevents the model from treating the high end as disproportionately important. If any input contains zero or negative values, the toolkit automatically shifts the column so its minimum maps to 1 before applying the log."
+    },
+    {
+      "title": "What happens if you skip normalization",
+      "body": "Selecting 'None (passthrough)' sends raw input values directly to the model. This is only appropriate if your inputs are already on comparable scales or if you have deliberately pre-scaled them before upload. For GPR, skipping normalization almost always degrades model quality because the kernel length-scale hyperparameters must compensate for the raw input ranges during optimization — a difficult task when those ranges differ by orders of magnitude. For Random Forest and Linear models the impact is smaller but still present."
+    },
+    {
+      "title": "Choosing the right method — quick guide",
+      "body": "Bounded, well-behaved inputs with no outliers → Min-Max. Unbounded inputs, outliers present, or GPR with RBF kernel → Z-Score. Right-skewed inputs spanning orders of magnitude → Log₁₀. Already scaled inputs → None. When in doubt, Z-Score is the safest default for GPR."
+    }
+  ]
+}

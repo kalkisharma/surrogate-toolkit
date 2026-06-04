@@ -41,6 +41,7 @@ _TOPIC_FILES = {
     "sensitivity":          "sensitivity.json",
     "active_learning":      "active_learning.json",
     "data_cleaning":        "data_cleaning.json",
+    "normalization":        "normalization.json",
     "input_filtering":      "input_filtering.json",
     "multifidelity":        "multifidelity.json",
     "model_troubleshooting": "model_troubleshooting.json",

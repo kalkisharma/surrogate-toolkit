@@ -6,7 +6,7 @@ A dual-purpose surrogate modeling tool for engineers and their teams.
 
 **Teaching tool** — junior engineers learn surrogate modeling concepts through guided workflows, contextual explanations, and a learning mode toggle.
 
-**Current version:** v3.5.54
+**Current version:** v3.5.74
 
 ---
 
@@ -44,7 +44,7 @@ The toolkit guides engineers through a 16-step sidebar workflow:
 | 4 | Clean | Null imputation, outlier removal (IQR), duplicate removal, log-transform |
 | 5 | Subset | Per-column range filters that permanently slice the dataset; live scatter preview shows included vs. excluded points before commit |
 | 6 | Assign | Label each column as input, output, or unused |
-| 7 | Normalize | Min-max or z-score normalization of input columns |
+| 7 | Normalize | Min-max, z-score, or log₁₀ normalization of input columns; before/after histograms for log₁₀ |
 | 8 | Filter | Distance correlation heatmap, VIF, low-variance flags; select input columns for training |
 | 9 | Model | Select model type (GPR, RF, Linear), test split, CV folds, hyperparameters |
 | 10 | Results | Test set: R², NRMSE (%), MAE with color badges; CV summary with fold timing; parity and residual plots; GPR ±1.96σ error bars; model config shows cores and optimizer restarts |
