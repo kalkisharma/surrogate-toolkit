@@ -518,23 +518,6 @@ export async function initSubset(containerEl) {
   // If no designation exists yet, show everything as "Variables"
   const useDesignation = inputFilters.length > 0 || outputFilters.length > 0;
 
-  function _buildFilterSection(sectionTitle, cols) {
-    if (cols.length === 0) return;
-
-    const section = el("div", { cls: "subset-filter-section" });
-    const header  = el("div", { cls: "subset-section-header" });
-    header.textContent = `${sectionTitle} (${cols.length})`;
-    section.appendChild(header);
-
-    const grid = el("div", { cls: "subset-filter-grid" });
-    section.appendChild(grid);
-    card.appendChild(section);
-
-    for (const col of cols) {
-      _buildFilterCard(col, grid);
-    }
-  }
-
   function _buildFilterCard(col, container) {
     const lo   = colMins[col];
     const hi   = colMaxs[col];
@@ -603,6 +586,27 @@ export async function initSubset(containerEl) {
     nLo.addEventListener("change", () => _sync(parseFloat(nLo.value), filterRanges[col][1]));
     nHi.addEventListener("change", () => _sync(filterRanges[col][0],  parseFloat(nHi.value)));
     rstBtn.addEventListener("click", () => _sync(colMins[col], colMaxs[col]));
+  }
+
+  // Scrollable filter container — sits below the chart, scrolls independently
+  const filterScrollEl = el("div", { cls: "subset-filter-scroll" });
+  card.appendChild(filterScrollEl);
+
+  function _buildFilterSection(sectionTitle, cols) {
+    if (cols.length === 0) return;
+
+    const section = el("div", { cls: "subset-filter-section" });
+    const header  = el("div", { cls: "subset-section-header" });
+    header.textContent = `${sectionTitle} (${cols.length})`;
+    section.appendChild(header);
+
+    const grid = el("div", { cls: "subset-filter-grid" });
+    section.appendChild(grid);
+    filterScrollEl.appendChild(section);
+
+    for (const col of cols) {
+      _buildFilterCard(col, grid);
+    }
   }
 
   if (useDesignation) {
@@ -690,43 +694,63 @@ export async function initSubset(containerEl) {
 
     commitBtn.disabled    = true;
     commitBtn.textContent = "Committing…";
-    showSpinner("Applying subset…");
-    const resp = await post("/api/data/subset", { conditions });
+
+    let resp;
+    try {
+      showSpinner("Applying subset…");
+      resp = await post("/api/data/subset", { conditions });
+      console.log("[Subset] POST response:", resp);
+    } catch (fetchErr) {
+      console.error("[Subset] Unexpected fetch error:", fetchErr);
+      hideSpinner();
+      commitBtn.disabled    = false;
+      commitBtn.textContent = "Commit Subset";
+      _showStatus("error", `Unexpected error: ${fetchErr.message}`);
+      return;
+    }
+
     hideSpinner();
     commitBtn.disabled    = false;
     commitBtn.textContent = "Commit Subset";
 
     if (!resp.success) {
+      console.warn("[Subset] Server returned failure:", resp);
       _showStatus("error", resp.message || "Subset failed — check the server log.");
       showError(resp.message || "Subset failed.");
       return;
     }
 
-    showSuccess(
-      `Subset applied — kept ${resp.rows_after.toLocaleString()} of `
-      + `${resp.rows_before.toLocaleString()} rows.`
-    );
-    if (resp.zero_variance_columns?.length) {
-      showWarning(`Zero-variance after subset: ${resp.zero_variance_columns.join(", ")}.`);
+    try {
+      showSuccess(
+        `Subset applied — kept ${resp.rows_after.toLocaleString()} of `
+        + `${resp.rows_before.toLocaleString()} rows.`
+      );
+      if (resp.zero_variance_columns?.length) {
+        showWarning(`Zero-variance after subset: ${resp.zero_variance_columns.join(", ")}.`);
+      }
+
+      rowCountEl.textContent = `${resp.rows_after.toLocaleString()} rows (subset active)`;
+      rowCountEl.classList.add("subset-row-count--active");
+
+      _showStatus("ok",
+        `Subset committed — ${resp.rows_removed.toLocaleString()} rows removed, `
+        + `${resp.rows_after.toLocaleString()} remain.`
+        + (resp.zero_variance_columns?.length
+          ? ` Zero-variance: ${resp.zero_variance_columns.join(", ")}`
+          : "")
+      );
+
+      undoBtn.disabled = false;
+
+      containerEl.dispatchEvent(new CustomEvent("subset:committed", {
+        bubbles: true,
+        detail: { rows_after: resp.rows_after, rows_before: resp.rows_before },
+      }));
+    } catch (uiErr) {
+      console.error("[Subset] Error updating UI after success:", uiErr);
+      _showStatus("ok", `Subset committed — ${resp.rows_after} rows remain.`);
+      undoBtn.disabled = false;
     }
-
-    rowCountEl.textContent = `${resp.rows_after.toLocaleString()} rows (subset active)`;
-    rowCountEl.classList.add("subset-row-count--active");
-
-    _showStatus("ok",
-      `Subset committed — ${resp.rows_removed.toLocaleString()} rows removed, `
-      + `${resp.rows_after.toLocaleString()} remain.`
-      + (resp.zero_variance_columns?.length
-        ? ` Zero-variance: ${resp.zero_variance_columns.join(", ")}`
-        : "")
-    );
-
-    undoBtn.disabled = false;
-
-    containerEl.dispatchEvent(new CustomEvent("subset:committed", {
-      bubbles: true,
-      detail: { rows_after: resp.rows_after, rows_before: resp.rows_before },
-    }));
   });
 
   // ── Undo ───────────────────────────────────────────────────────────────────

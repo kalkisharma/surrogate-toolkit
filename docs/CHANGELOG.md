@@ -19,6 +19,15 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.59] — 2026-06-04
+
+### Fixed — Subset commit robustness + scrollable filter grid
+- **Commit handler**: wrapped POST call and success-path UI updates in `try/catch`; any unexpected exception now restores the button, hides the spinner, and shows an error in the status bar instead of leaving the UI stuck at "Committing…"
+- **Diagnostic logging**: added `console.log("[Subset] POST response:", resp)` and `console.warn/error` calls so commit failures are visible in the browser DevTools console
+- **Filter scroll**: filter section now wraps in a `.subset-filter-scroll` container (`max-height: 420px; overflow-y: auto`) so the chart stays in view while scrolling through many filter cards
+
+---
+
 ## [3.5.58] — 2026-06-04
 
 ### Changed — Subset step full-width layout (v1.4.0)

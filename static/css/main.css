@@ -2723,8 +2723,17 @@ body,
 /* Full-width chart */
 .subset-chart { min-height: 420px; }
 
+/* Scrollable filter wrapper — sits below the chart, fixed height so plot stays visible */
+.subset-filter-scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: var(--space-2);
+  margin-top: var(--space-4);
+  scrollbar-width: thin;
+}
+
 /* Filter section groups (Inputs / Outputs / Variables) */
-.subset-filter-section { margin-bottom: var(--space-5); margin-top: var(--space-4); }
+.subset-filter-section { margin-bottom: var(--space-5); }
 
 /* Section label: "Inputs (3)", "Outputs (2)", etc. */
 .subset-section-header {
