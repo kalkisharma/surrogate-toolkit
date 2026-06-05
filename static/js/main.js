@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.74
+// Version: 3.5.91
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -1084,13 +1084,49 @@ function _initGlobalHeader() {
     headerAddBtn.addEventListener("click", () => headerAddInput.click());
   }
 
+  // ── Project ▾ dropdown ───────────────────────────────────────────────────────
+  const projectMenuBtn      = document.getElementById("project-menu-btn");
+  const projectMenuDropdown = document.getElementById("project-menu-dropdown");
+  if (projectMenuBtn && projectMenuDropdown) {
+    projectMenuBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = !projectMenuDropdown.classList.contains("hidden");
+      projectMenuDropdown.classList.toggle("hidden", open);
+      projectMenuBtn.setAttribute("aria-expanded", String(!open));
+    });
+    document.addEventListener("click", (e) => {
+      if (!projectMenuDropdown.classList.contains("hidden") &&
+          !projectMenuDropdown.contains(e.target) &&
+          e.target !== projectMenuBtn) {
+        projectMenuDropdown.classList.add("hidden");
+        projectMenuBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
   // Save / Open project buttons
   const saveBtn       = document.getElementById("header-save-project-btn");
   const openBtn       = document.getElementById("header-open-project-btn");
   const openFileInput = document.getElementById("header-open-project-input");
-  if (saveBtn) saveBtn.addEventListener("click", _saveProject);
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => {
+      if (projectMenuDropdown) {
+        projectMenuDropdown.classList.add("hidden");
+        projectMenuBtn?.setAttribute("aria-expanded", "false");
+      }
+      _saveProject();
+    });
+  }
   if (openBtn && openFileInput) {
-    openBtn.addEventListener("click", () => openFileInput.click());
+    openBtn.addEventListener("click", () => {
+      if (document.getElementById("workflow-sidebar") &&
+          !confirm("Opening a project will replace your current session. Continue?")) return;
+      if (projectMenuDropdown) {
+        projectMenuDropdown.classList.add("hidden");
+        projectMenuBtn?.setAttribute("aria-expanded", "false");
+      }
+      openFileInput.click();
+    });
     openFileInput.addEventListener("change", () => {
       const file = openFileInput.files[0];
       if (!file) return;

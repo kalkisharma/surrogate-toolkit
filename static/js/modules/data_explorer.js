@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/data_explorer.js
-// Version: 1.6.2
+// Version: 1.6.3
 // Description: Data exploration view — full-dataset scatter matrix, per-column
 //              stats below chart, outlier overlay, expandable plot settings,
 //              column distribution histograms, dCor heatmap, and 2D scatter.
@@ -1111,6 +1111,7 @@ export function buildIOSection(containerEl, rows, inputCols, outputCols, allColu
 
   function _rebuildGroups() {
     clearEl(groupsEl);
+    const toRender = [];   // collect (inp, out) pairs; render after DOM is built
     for (const out of outputCols) {
       if (!visibleOutputs.has(out)) continue;
       const group = el("div", { cls: "io-output-group" });
@@ -1160,11 +1161,14 @@ export function buildIOSection(containerEl, rows, inputCols, outputCols, allColu
       for (const inp of inputCols) {
         if (!selectedInputs[out].has(inp)) continue;
         grid.appendChild(chartEls[out][inp]);
-        _renderPair(inp, out);
+        toRender.push([inp, out]);
       }
       group.appendChild(grid);
       groupsEl.appendChild(group);
     }
+    // Render after the full DOM tree is attached so Plotly can measure
+    // clientWidth/clientHeight correctly on the first draw.
+    toRender.forEach(([inp, out]) => _renderPair(inp, out));
   }
 
   function _rerenderAll() {

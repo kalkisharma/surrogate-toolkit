@@ -1128,8 +1128,9 @@ input, select, textarea { font-family: inherit; }
   margin: 0 var(--space-1);
 }
 
-/* ── Header settings dropdown ────────────────────────────────────────────────── */
-.global-header__settings-wrap {
+/* ── Header settings / project dropdowns ────────────────────────────────────── */
+.global-header__settings-wrap,
+.global-header__project-wrap {
   position: relative;
 }
 .global-header__notif-wrap {

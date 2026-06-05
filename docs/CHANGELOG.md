@@ -22,6 +22,29 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.91] — 2026-06-05
+
+### Changed — Header file operations reorganized into "Project ▾" dropdown
+
+- Replaced "Open" and "Save" header buttons with a **Project ▾** dropdown containing
+  "Open Project" and "Save Project" items; reduces button count and makes intent clearer.
+- Renamed "Load File" header button to **+ Load CSV** to distinguish data loading from
+  project session management.
+- Added confirmation dialog when opening a project while a dataset is already loaded.
+- `main.js`: added project dropdown toggle + click-outside close (same pattern as settings
+  gear); open button closes dropdown before triggering file picker.
+- `main.css`: added `.global-header__project-wrap` to `position: relative` rule so the
+  dropdown anchors correctly.
+
+### Fixed — Step 6 IO scatter plots blank on first render
+
+- `data_explorer.js` `_rebuildGroups()`: deferred `_renderPair()` calls until after the
+  full DOM subtree is appended to the document. Plotly needs `clientWidth`/`clientHeight`
+  to be non-zero on first draw; calling it before parent nodes are in the live DOM
+  resulted in zero-size charts that never recovered.
+
+---
+
 ## [3.5.90] — 2026-06-05
 
 ### Fixed — Unformatted sklearn warnings printed to terminal during training
