@@ -22,6 +22,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.95] — 2026-06-05
+
+### Changed — Sidebar reorganized into three sections: Prepare / Train / Tools
+
+- Renamed "Workflow" section header to **Prepare** (steps 1–8).
+- Added new **Train** section header before step 9 (Model) covering steps 9–10.
+- Renamed "Tools" section header remains **Tools** (steps 11–16).
+- Step numbering unchanged (global 1–16); section headers are visual grouping only.
+- No CSS changes required — existing `sidebar-group-divider` styles handle three sections.
+
+---
+
 ## [3.5.94] — 2026-06-05
 
 ### Fixed — GET /api/model/results returns 404 on every fresh dataset load

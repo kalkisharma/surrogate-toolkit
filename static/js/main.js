@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.93
+// Version: 3.5.95
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -382,9 +382,9 @@ async function _renderExploration(uploadResponse) {
     });
     sidebarEl.appendChild(collapseBtn);
 
-    const workflowDivider = el("div", { cls: "sidebar-group-divider sidebar-group-divider--first" });
-    workflowDivider.innerHTML = `<span class="sidebar-group-label">Workflow</span>`;
-    sidebarEl.appendChild(workflowDivider);
+    const prepareDivider = el("div", { cls: "sidebar-group-divider sidebar-group-divider--first" });
+    prepareDivider.innerHTML = `<span class="sidebar-group-label">Prepare</span>`;
+    sidebarEl.appendChild(prepareDivider);
 
     for (const key of STEP_KEYS) {
       const isActive   = key === _activeKey;
@@ -402,6 +402,11 @@ async function _renderExploration(uploadResponse) {
       const icnEl = el("span", { cls: "step-item__icon",
         text: isLocked ? "🔒" : isComplete ? "✓" : "" });
 
+      if (key === "configure") {
+        const divider = el("div", { cls: "sidebar-group-divider" });
+        divider.innerHTML = `<span class="sidebar-group-label">Train</span>`;
+        sidebarEl.appendChild(divider);
+      }
       if (key === "predict") {
         const divider = el("div", { cls: "sidebar-group-divider" });
         divider.innerHTML = `<span class="sidebar-group-label">Tools</span>`;
