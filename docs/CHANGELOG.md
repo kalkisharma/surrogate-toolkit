@@ -22,6 +22,21 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.93] — 2026-06-05
+
+### Changed — Load CSV moved into Project dropdown; disabled until dataset loaded
+
+- Removed the standalone "+ Load CSV" header button that appeared/disappeared dynamically.
+- "+ Load CSV" is now the first item in the Project ▾ dropdown, always visible but
+  disabled until at least one dataset is loaded; enabled by `_setLoadFileVisible(true)`
+  when `_renderExploration()` fires.
+- Clicking "+ Load CSV" closes the dropdown before triggering the file picker.
+- `main.css`: added `.global-header__btn:disabled` — opacity 0.38, not-allowed cursor.
+- Final Project ▾ order: Load CSV | sep | Open Project, Save Project | sep |
+  Class, View STATE | sep | Clear Session.
+
+---
+
 ## [3.5.92] — 2026-06-05
 
 ### Changed — Session settings merged into Project ▾ dropdown; ⚙ button removed

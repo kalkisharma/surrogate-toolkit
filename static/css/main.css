@@ -1120,6 +1120,11 @@ input, select, textarea { font-family: inherit; }
   border-color: var(--color-error);
   color: var(--color-error);
 }
+.global-header__btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .global-header__sep {
   width: 1px;
   height: 18px;

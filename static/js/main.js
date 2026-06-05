@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.92
+// Version: 3.5.93
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -82,10 +82,10 @@ function getApp() {
   return document.getElementById("app");
 }
 
-/** Show or hide the global header "Load File" button. */
+/** Enable or disable the Project dropdown "Load CSV" button. */
 function _setLoadFileVisible(visible) {
   const btn = document.getElementById("header-load-file-btn");
-  if (btn) btn.classList.toggle("hidden", !visible);
+  if (btn) btn.disabled = !visible;
 }
 
 /** Render the entry / upload view into #app. */
@@ -1057,11 +1057,15 @@ function _initGlobalHeader() {
     showSuccess("Session cleared.");
   });
 
-  // "Load File" button in header triggers the hidden CSV file input
+  // "Load CSV" button (inside Project dropdown) triggers the hidden CSV file input
   const headerAddBtn   = document.getElementById("header-load-file-btn");
   const headerAddInput = document.getElementById("header-add-file-input");
   if (headerAddBtn && headerAddInput) {
-    headerAddBtn.addEventListener("click", () => headerAddInput.click());
+    headerAddBtn.addEventListener("click", () => {
+      projectMenuDropdown?.classList.add("hidden");
+      projectMenuBtn?.setAttribute("aria-expanded", "false");
+      headerAddInput.click();
+    });
   }
 
   // ── Project ▾ dropdown ───────────────────────────────────────────────────────
