@@ -217,7 +217,7 @@ All constants live in `config/settings.py`. Never hardcode values elsewhere.
 This project uses an internal convention inspired by Semantic Versioning.
 It is **not** strict SemVer — there are no API compatibility guarantees.
 
-The project uses 25 phases across 4 milestones. See `docs/PHASES.md` for full phase definitions.
+The project uses 27 phases across 5 milestones. See `docs/PHASES.md` for full phase definitions.
 
 ### Milestone map
 
@@ -226,7 +226,8 @@ The project uses 25 phases across 4 milestones. See `docs/PHASES.md` for full ph
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete |
-| **M4** | v4.0.0 | 17–25 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
+| **M4** | v4.0.0 | 17–24 | Workflow Completeness & UQ | 🔲 In progress — Phases 17–21 complete |
+| **M5** | v5.0.0 | 25–27 | Team Deployment, Auth & HPC | 🔲 Not started |
 
 ### Phase → version map
 
@@ -254,9 +255,11 @@ The project uses 25 phases across 4 milestones. See `docs/PHASES.md` for full ph
 | Phase 20 | Design Space Explorer | v3.4.1 | ✅ Complete |
 | Phase 21 | Exercise Walkthrough Polish & Training Guardrails | v3.4.8 – v3.5.10 | ✅ Complete |
 | Phase 22 | Per-Observation Noise (Heteroscedastic Inputs) | v3.6.0 | 🔲 Not started |
-| Phase 23 | Authentication | v3.7.0 | 🔲 Not started |
-| Phase 24 | Surrogate Export & Sharing | v3.8.0 | 🔲 Not started |
-| Phase 25 | HPC Integration | v4.0.0 | 🔲 Not started |
+| Phase 23 | DOE Generation | v3.7.0 | 🔲 Not started |
+| Phase 24 | Forward UQ & Reliability | v4.0.0 | 🔲 Not started |
+| Phase 25 | Authentication | v4.1.0 | 🔲 Not started |
+| Phase 26 | Surrogate Export & Sharing | v4.2.0 | 🔲 Not started |
+| Phase 27 | HPC Integration | v5.0.0 | 🔲 Not started |
 
 ### Files to update on every version bump
 

@@ -15,9 +15,41 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M1** | v1.0.0 | 1–5 | Full end-to-end surrogate workflow | ✅ Complete |
 | **M2** | v2.0.0 | 6–11 | Advanced analysis & production readiness | ✅ Complete |
 | **M3** | v3.0.0 | 12–16 | Teaching platform & advanced ML | ✅ Complete — Phases 12 & 13 delivered; 14, 15, 16 complete |
-| **M4** | v4.0.0 | 17–25 | Team deployment, auth, HPC integration | 🔲 In progress — Phases 17–21 complete |
+| **M4** | v4.0.0 | 17–24 | Workflow Completeness & UQ | 🔲 In progress — Phases 17–21 complete |
+| **M5** | v5.0.0 | 25–27 | Team Deployment, Auth & HPC | 🔲 Not started |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.5.81] — 2026-06-04
+
+### Changed — Roadmap restructure and doc updates (team consensus)
+
+**PHASES.md:**
+- Header updated: total phases 25 → 27, 4 milestones → 5
+- Milestone map: M4 theme changed to "Workflow Completeness & UQ" (phases 17–24); M5 added — "Team Deployment, Auth & HPC" (phases 25–27, v5.0.0)
+- **Phase 17:** Exercise count updated 7 → 12; datasets updated 7 → 12; added ex_08 through ex_12 with descriptions (model_selection, alpha_regularization, optimization, noise_weighting, pce); backend counts corrected
+- **Phase 21 extended scope:** Added note that exercises 8–12 were delivered as part of this phase
+- **Phase 23 (new):** Full DOE Generation scope added — LHS/Sobol/full factorial/random sampling via `scipy.stats.qmc`; "Design DOE" modal in global header; `app/api/doe_api.py`; no new packages
+- **Phase 24 (new):** Full Forward UQ & Reliability scope added — Monte Carlo propagation (N=10,000) through trained surrogate; output histograms + P10/P50/P90 + reliability threshold query; Step 14 "Propagate" inserted between Interpret and Sample; `POST /api/model/propagate`; no new packages
+- **Phase 25 (renumbered):** Authentication (was Phase 23); version v4.1.0 (was v3.7.0); opens M5
+- **Phase 26 (renumbered):** Surrogate Export & Sharing (was Phase 24); version v4.2.0 (was v3.8.0)
+- **Phase 27 (renumbered):** HPC Integration (was Phase 25); version v5.0.0 (unchanged); M5 completion milestone
+- M5 section header added before Phase 25
+- Cross-phase dependency table: Phase 23–27 entries updated to reflect new scope and numbering
+- New dependencies table: Phase 23 (scipy already present), Phase 24 (numpy already present), Phase 25 (Flask-Login/bcrypt), Phase 27 (celery/redis)
+
+**DEVELOPER.md:**
+- Phase count updated: 25 phases → 27 phases, 4 milestones → 5
+- Milestone map updated to match PHASES.md (M4 theme + M5 row)
+- Phase → version table: Phase 23 (DOE Gen, v3.7.0), Phase 24 (Forward UQ, v4.0.0), Phase 25 (Auth, v4.1.0), Phase 26 (Sharing, v4.2.0), Phase 27 (HPC, v5.0.0)
+
+**README.md:**
+- Step 9 model list updated from "GPR, RF, Linear" to full list: GPR, RF, RBF, PCE, Linear; Ensemble (CV-weighted + stacking); Multi-Fidelity (Kennedy-O'Hagan co-kriging, experimental)
+
+**CHANGELOG.md:**
+- Milestone map updated to match PHASES.md
 
 ---
 

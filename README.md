@@ -6,7 +6,7 @@ A dual-purpose surrogate modeling tool for engineers and their teams.
 
 **Teaching tool** — junior engineers learn surrogate modeling concepts through guided workflows, contextual explanations, and a learning mode toggle.
 
-**Current version:** v3.5.80 | **Last updated:** 2026-06-04
+**Current version:** v3.5.81 | **Last updated:** 2026-06-04
 
 ---
 
@@ -46,7 +46,7 @@ The toolkit guides engineers through a 16-step sidebar workflow:
 | 6 | Assign | Label each column as input, output, or unused |
 | 7 | Normalize | Min-max, z-score, or log₁₀ normalization of input columns; before/after histograms for log₁₀ |
 | 8 | Filter | Distance correlation heatmap, VIF, low-variance flags; select input columns for training |
-| 9 | Model | Select model type (GPR, RF, Linear), test split, CV folds, hyperparameters |
+| 9 | Model | Select model type (GPR, RF, RBF, PCE, Linear; Ensemble (CV-weighted + stacking); Multi-Fidelity (Kennedy-O'Hagan co-kriging, experimental)), test split, CV folds, hyperparameters |
 | 10 | Results | Test set: R², NRMSE (%), MAE with color badges; CV summary with fold timing; parity and residual plots; GPR ±1.96σ error bars; model config shows cores and optimizer restarts |
 | 11 | Predict | Single-point and batch prediction with extrapolation warnings |
 | 12 | Optimize | Single-objective (differential evolution) and multi-objective (NSGA-II/pymoo) optimization |
