@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-03
-VERSION: 3.2.3
+LAST MODIFIED: 2026-06-05
+VERSION: 3.2.4
 ================================================================================
 """
 
@@ -47,6 +47,18 @@ from config.settings import (
 )
 
 bp = Blueprint("model", __name__)
+
+
+def _safe_json(obj):
+    """Recursively replace float nan/inf with None so jsonify produces valid JSON."""
+    if isinstance(obj, float):
+        return None if not np.isfinite(obj) else obj
+    if isinstance(obj, dict):
+        return {k: _safe_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_safe_json(v) for v in obj]
+    return obj
+
 
 # ─── ERROR CODE → HTTP STATUS ─────────────────────────────────────────────────
 
@@ -608,6 +620,11 @@ def train():
 
     # Guard: k-fold requires at least n_folds samples in the training set.
     safe_folds = min(cv_folds, len(X_train))
+    if safe_folds < cv_folds:
+        warnings.append(
+            f"Requested {cv_folds} CV folds but training set has only "
+            f"{len(X_train)} sample(s). CV was run with {safe_folds} fold(s) instead."
+        )
     cv_results = run_cross_validation(
         model, X_train, y_train, output_cols, safe_folds, input_cols,
         n_jobs=n_jobs, n_outputs=len(output_cols)
@@ -737,7 +754,7 @@ def train():
         f"n_test={len(X_test)}"
     )
 
-    return jsonify({"success": True, "results": results}), 200
+    return jsonify({"success": True, "results": _safe_json(results)}), 200
 
 
 @bp.route("/results", methods=["GET"])

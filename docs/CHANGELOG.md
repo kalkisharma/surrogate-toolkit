@@ -1,6 +1,6 @@
 # Changelog
 
-**Last updated:** 2026-06-04
+**Last updated:** 2026-06-05
 
 All notable changes to the Surrogate Modeling Toolkit are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -19,6 +19,51 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M5** | v5.0.0 | 25–27 | Team Deployment, Auth & HPC | 🔲 Not started |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.5.85] — 2026-06-05
+
+### Fixed — training with cv_folds > n_train or n_test < 2 produced "unreadable response"
+
+- **Root cause:** Two conditions on tiny datasets (e.g. `edge_small_n.csv`, 8 rows):
+  1. `r2_score` returns `float('nan')` when the test set has fewer than 2 samples.
+     Python's `json` module serializes `nan` as bare `NaN` (not valid per RFC 7159).
+     The browser's `JSON.parse` throws on `NaN`, causing "Server returned an unreadable
+     response (HTTP 200)" — training succeeded but the result was invisible.
+  2. When `cv_folds > len(X_train)`, the fold count was silently capped at `n_train`
+     with no user feedback. The `UndefinedMetricWarning` appeared in the server
+     terminal but nothing reached the UI.
+- **Fix:**
+  - Added `_safe_json(obj)` helper in `model_api.py` that recursively replaces
+    `float('nan')` and `float('inf')` with `None` (JSON `null`). Applied to `results`
+    at the `jsonify` call in `POST /api/model/train`. The raw `results` dict stored
+    in STATE is unchanged (Python handles `nan` internally).
+  - Added explicit warning when `cv_folds` is capped: *"Requested N CV folds but
+    training set has only M sample(s). CV was run with K fold(s) instead."*
+- **Files changed:** `app/api/model_api.py` (v3.2.3 → v3.2.4)
+
+---
+
+## [3.5.84] — 2026-06-04
+
+### Fixed — IO scatter plots render incorrectly on first draw (clipped title, no data for constant columns)
+
+- **Root cause:** `_rebuildGroups()` called `_renderPair()` (Plotly) immediately after
+  `grid.appendChild(chartEl)`, but before `grid → group → groupsEl` had been appended
+  to the live DOM. Plotly's layout engine calls `clientWidth`/`clientHeight` on the
+  container div; a detached element returns 0 for both, so the initial layout was
+  computed against a zero-size box. Two visible effects:
+  1. Plot titles were clipped (top margin computed relative to zero height)
+  2. `x_constant` (all values identical → zero x-range) showed no data because
+     Plotly's auto-range padding requires a valid container width to scale correctly
+  Both effects disappeared after the user adjusted chart height, because the resize
+  event fired `Plotly.react()` on elements already in the live DOM.
+- **Fix:** `_rebuildGroups()` now collects `[inp, out]` pairs into a `toRender` array
+  while building the DOM tree, then calls `_renderPair()` for all pairs only after
+  the full group/grid structure has been appended to `groupsEl`. One-line change at
+  the call site; `_rerenderAll()` (theme/settings updates) was already safe.
+- **File changed:** `static/js/modules/data_explorer.js` (v1.6.2 → v1.6.3)
 
 ---
 
