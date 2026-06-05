@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-05
-VERSION: 3.2.4
+VERSION: 3.2.5
 ================================================================================
 """
 
@@ -816,7 +816,7 @@ def get_results():
     results_out["input_orig_mins"] = orig_mins
     results_out["input_orig_maxs"] = orig_maxs
 
-    return jsonify({"success": True, "results": results_out, "history": history, "runs": runs}), 200
+    return jsonify({"success": True, "results": _safe_json(results_out), "history": _safe_json(history), "runs": _safe_json(runs)}), 200
 
 
 # ── Design Space Explorer ─────────────────────────────────────────────────────

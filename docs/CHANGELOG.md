@@ -22,6 +22,22 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.87] — 2026-06-05
+
+### Fixed — Results panel shows "No results yet" after training on tiny datasets
+
+- **Root cause:** `GET /api/model/results` (called when Step 10 loads) did not apply
+  `_safe_json` — only `POST /api/model/train` did. The `nan` R² values stored in
+  STATE flowed through unchanged into the `jsonify` call, producing bare `NaN` in
+  the JSON response. The browser parse failed silently and `results.js` fell through
+  to the "No results yet" placeholder.
+- **Fix:** Apply `_safe_json` to `results_out`, `history`, and `runs` in the
+  `GET /api/model/results` response, matching the sanitization already in place on
+  the train endpoint.
+- **File changed:** `app/api/model_api.py` (v3.2.4 → v3.2.5)
+
+---
+
 ## [3.5.86] — 2026-06-05
 
 ### Added — Notification history panel
