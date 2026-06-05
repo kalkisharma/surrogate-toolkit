@@ -22,6 +22,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.92] — 2026-06-05
+
+### Changed — Session settings merged into Project ▾ dropdown; ⚙ button removed
+
+- Class selector, { } View STATE, and ✕ Clear Session moved from the settings
+  gear dropdown into the Project ▾ dropdown (below a separator).
+- Removed the standalone ⚙ settings button entirely — one fewer icon in the header.
+- `main.js`: removed settings-gear wiring block; clear-session handler now closes
+  the project dropdown instead.
+
+---
+
 ## [3.5.91] — 2026-06-05
 
 ### Changed — Header file operations reorganized into "Project ▾" dropdown

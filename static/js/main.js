@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.91
+// Version: 3.5.92
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -978,26 +978,6 @@ function _initGlobalHeader() {
   const themeBtn = document.getElementById("theme-toggle");
   const classSel = document.getElementById("classification-select");
 
-  // ── Settings gear dropdown ────────────────────────────────────────────────────
-  const settingsBtn      = document.getElementById("settings-toggle");
-  const settingsDropdown = document.getElementById("settings-dropdown");
-  if (settingsBtn && settingsDropdown) {
-    settingsBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const open = !settingsDropdown.classList.contains("hidden");
-      settingsDropdown.classList.toggle("hidden", open);
-      settingsBtn.setAttribute("aria-expanded", String(!open));
-    });
-    document.addEventListener("click", (e) => {
-      if (!settingsDropdown.classList.contains("hidden") &&
-          !settingsDropdown.contains(e.target) &&
-          e.target !== settingsBtn) {
-        settingsDropdown.classList.add("hidden");
-        settingsBtn.setAttribute("aria-expanded", "false");
-      }
-    });
-  }
-
   // ── Notification history panel ────────────────────────────────────────────────
   const notifBtn   = document.getElementById("notif-history-btn");
   const notifPanel = document.getElementById("notif-history-panel");
@@ -1069,8 +1049,8 @@ function _initGlobalHeader() {
     await post("/api/state/reset", {});
     const switcher = document.getElementById("dataset-switcher-group");
     if (switcher) switcher.remove();
-    settingsDropdown.classList.add("hidden");
-    settingsBtn.setAttribute("aria-expanded", "false");
+    projectMenuDropdown?.classList.add("hidden");
+    projectMenuBtn?.setAttribute("aria-expanded", "false");
     resetExercise();
     closeGuide();
     renderUploadView();
