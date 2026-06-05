@@ -7,8 +7,8 @@ PURPOSE: CSV ingestion pipeline. Validates, coerces, and returns a clean
          imports — so it can be unit tested without an app context.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-11
-VERSION: 0.1.0
+LAST MODIFIED: 2026-06-04
+VERSION: 0.1.1
 ================================================================================
 """
 
@@ -311,6 +311,27 @@ def ingest_csv(
                     f"Column '{col}': {new_nulls} non-numeric value(s) converted to NaN."
                 )
             df[col] = coerced
+
+    # ── 9.5. INF COERCION ─────────────────────────────────────────────────────
+    # pandas.read_csv reads literal "inf"/"-inf" CSV strings as float('inf').
+    # These pass the is_numeric_dtype check in step 9 and slip through undetected.
+    # Three downstream effects if left in:
+    #   • dcor math: np.abs(inf - inf) = nan → RuntimeWarning in stats.py
+    #   • stats serialisation: mean(inf) → _to_python coerces to null, but
+    #     null_counts still shows 0 — two contradictory signals in the UI
+    #   • Excel: "-inf" in a CSV cell is parsed as =-inf (named-range formula)
+    #     and displays as #NAME? when the file is opened
+    # Coercing to NaN fixes all three: step 10 then catches any column where
+    # the inf fraction pushes it above MISSING_VALUE_THRESHOLD.
+    for col in df.columns:
+        if pd.api.types.is_numeric_dtype(df[col]):
+            inf_mask = np.isinf(df[col])
+            n_inf = int(inf_mask.sum())
+            if n_inf:
+                df[col] = df[col].where(~inf_mask, other=np.nan)
+                coercion_warnings.append(
+                    f"Column '{col}': {n_inf} infinite value(s) (±inf) replaced with NaN."
+                )
 
     # ── 10. NULL TOLERANCE ────────────────────────────────────────────────────
     null_counts = df.isnull().sum()

@@ -22,6 +22,31 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.82] — 2026-06-04
+
+### Fixed — ingestion: ±inf values silently bypassed null pipeline
+
+- **Root cause:** `pandas.read_csv` parses the literal strings `"inf"` and `"-inf"` as
+  `float('inf')`. These values are numeric dtype, so they passed step 9 (float coercion)
+  undetected and were stored in STATE as-is.
+- **Three downstream effects fixed:**
+  1. **Inconsistent null display** — `mean(inf)` serialised to `null` via `_to_python()`,
+     so Preview showed `null` in the cell while the null counter showed `0/N`. Fixed:
+     inf→NaN before step 10, so `null_counts` and the display agree.
+  2. **Distance correlation RuntimeWarning** — `np.abs(inf - inf) = nan` in `stats.py`
+     propagated through the centering step, corrupting the entire dcor column for
+     `x_with_inf`. Fixed: inf is NaN before dcor runs; NaN rows are skipped.
+  3. **Excel `#NAME?` display** — CSV cells containing `-inf` are treated as the formula
+     `=-[named_range_inf]` by Excel, rendering as `#NAME?`. Fixed: inf never reaches
+     the stored CSV because coercion happens at ingestion.
+- **Fix:** added step 9.5 in `ingest_csv()` — iterates numeric columns, replaces
+  `±inf` with `NaN`, appends a `coercion_warnings` entry. Step 10 (null tolerance)
+  then naturally catches any column where the replaced values push null fraction above
+  `MISSING_VALUE_THRESHOLD`.
+- **Files changed:** `app/data/ingestion.py` (v0.1.0 → v0.1.1)
+
+---
+
 ## [3.5.81] — 2026-06-04
 
 ### Changed — Roadmap restructure and doc updates (team consensus)
