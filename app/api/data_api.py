@@ -889,7 +889,7 @@ def normalize():
     clean_df = ds["clean"]
 
     try:
-        normalized_df, params = normalize_dataframe(clean_df, input_columns, method)
+        normalized_df, params, norm_warnings = normalize_dataframe(clean_df, input_columns, method)
     except Exception as exc:
         current_app.logger.error(f"Normalization error: {exc}")
         return (
@@ -941,6 +941,7 @@ def normalize():
         "input_columns": input_columns,
         "hist_data":     hist_data,
         "sample_rows":   sample_rows,
+        "warnings":      norm_warnings,
     }), 200
 
 

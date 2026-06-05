@@ -7,8 +7,8 @@ PURPOSE: Feature normalization and scaling for designated input columns.
          Phase 22C: extract_noise_array() prepares per-sample σ² for model training.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-02
-VERSION: 0.5.0
+LAST MODIFIED: 2026-06-04
+VERSION: 0.5.1
 ================================================================================
 """
 
@@ -32,10 +32,13 @@ def normalize_dataframe(
         method:  "minmax" | "zscore" | "log" | "none"
 
     Returns:
-        (normalized_df, params) where:
+        (normalized_df, params, warnings) where:
             normalized_df — full copy of df with `columns` scaled
             params        — dict keyed by column name with scaler parameters
                             needed for inverse transform in Phase 4
+            warnings      — list of human-readable warning strings; non-empty
+                            when a column could not be meaningfully scaled
+                            (e.g. zero variance for z-score / min-max)
 
     Raises:
         ValueError: if method is not recognised.
@@ -46,9 +49,10 @@ def normalize_dataframe(
     result = df.copy()
 
     if method == "none":
-        return result, {}
+        return result, {}, []
 
-    params = {}
+    params   = {}
+    warnings = []
     for col in columns:
         series = df[col].dropna()
         if len(series) == 0:
@@ -61,6 +65,11 @@ def normalize_dataframe(
             rng = col_max - col_min
             if rng == 0:
                 result[col] = 0.0
+                warnings.append(
+                    f"'{col}' has zero range (all values identical) — "
+                    f"min-max normalization set it to 0. Consider removing "
+                    f"it in the Filter step."
+                )
             else:
                 result[col] = (df[col] - col_min) / rng
             params[col] = {"method": "minmax", "min": col_min, "max": col_max}
@@ -70,6 +79,11 @@ def normalize_dataframe(
             col_std  = float(series.std())
             if col_std == 0:
                 result[col] = 0.0
+                warnings.append(
+                    f"'{col}' has zero variance (all values identical) — "
+                    f"z-score normalization set it to 0. Consider removing "
+                    f"it in the Filter step."
+                )
             else:
                 result[col] = (df[col] - col_mean) / col_std
             params[col] = {"method": "zscore", "mean": col_mean, "std": col_std}
@@ -82,7 +96,7 @@ def normalize_dataframe(
             result[col] = np.log10(shifted.clip(lower=1e-12))
             params[col] = {"method": "log", "shift": shift}
 
-    return result, params
+    return result, params, warnings
 
 
 def extract_noise_array(df: pd.DataFrame, error_columns: dict):

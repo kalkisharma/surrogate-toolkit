@@ -22,6 +22,27 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.83] — 2026-06-04
+
+### Fixed — normalization: zero-variance columns silently set to 0 with no user warning
+
+- **Root cause:** `normalize_dataframe()` already guarded against std=0 / range=0 by
+  setting affected columns to `0.0`, but returned no indication that this happened.
+  The prediction pipeline had matching guards (`sigma != 0 else 0.0`), so prediction
+  was safe — but the user saw a blank tooltip and no stats with no explanation.
+- **Fix:** `normalize_dataframe()` now returns a third element `warnings: list[str]`.
+  Each zero-variance column appends a message identifying the column, the method that
+  couldn't be applied, and a suggestion to remove it in the Filter step.
+- **Frontend:** `normalization.js` reads `resp.warnings` after a successful apply and
+  fires one `showWarning()` toast per affected column.
+- **Example warning:** `'x_constant' has zero variance (all values identical) —
+  z-score normalization set it to 0. Consider removing it in the Filter step.`
+- **Files changed:** `app/data/normalization.py` (v0.5.0 → v0.5.1),
+  `app/api/data_api.py` (unpacks 3-tuple, passes warnings to response),
+  `static/js/modules/normalization.js` (v0.9.12 → v0.9.13; showWarning import + toast)
+
+---
+
 ## [3.5.82] — 2026-06-04
 
 ### Fixed — ingestion: ±inf values silently bypassed null pipeline

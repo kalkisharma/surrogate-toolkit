@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/normalization.js
-// Version: 0.9.12
+// Version: 0.9.13
 // Description: Normalization step — lets users pick a scaling method for input
 //              columns and applies it via POST /api/data/normalize.
 //              Gated: rendered only after column designation is confirmed.
@@ -11,7 +11,7 @@
 // =============================================================================
 
 import { post } from "../api.js";
-import { showError, showSuccess } from "../notifications.js";
+import { showError, showSuccess, showWarning } from "../notifications.js";
 import { showSpinner, hideSpinner } from "../loading.js";
 import { registerPrimer } from "../learning_mode.js";
 import { el, clearEl } from "../utils.js";
@@ -375,6 +375,9 @@ export function initNormalization(containerEl, currentMethod, nInputs, onApplied
 
     const label = METHODS.find(m => m.value === selectedMethod)?.label ?? selectedMethod;
     showSuccess(`${label} normalization applied to ${resp.n_columns} input column${resp.n_columns !== 1 ? "s" : ""}.`);
+    if (resp.warnings && resp.warnings.length > 0) {
+      resp.warnings.forEach(w => showWarning(w));
+    }
     if (onApplied) onApplied(selectedMethod);
 
     // Refresh the status display inline
