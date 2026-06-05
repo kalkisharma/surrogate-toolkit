@@ -760,6 +760,7 @@ export async function initModelConfig(containerEl, onTrain) {
           id:   "model-train-btn",
         });
         statusDiv.appendChild(trainBtn);
+        requestAnimationFrame(() => trainBtn.scrollIntoView({ behavior: "smooth", block: "nearest" }));
       }
 
       trainBtn.onclick = async () => {

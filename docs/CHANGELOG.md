@@ -22,6 +22,20 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.88] — 2026-06-05
+
+### Fixed — Panel opens at wrong scroll position; Train Model button not scrolled into view
+
+- **Panel scroll:** `activatePanel()` now calls `window.scrollTo({ top: 0, behavior: "instant" })`
+  before rendering the panel, so every step opens at the top of the page instead of
+  inheriting the previous step's scroll position.
+- **Train button scroll:** After "Save Configuration" appends the Train Model button,
+  `scrollIntoView({ behavior: "smooth", block: "nearest" })` is called in a
+  `requestAnimationFrame` so the button is immediately visible without manual scrolling.
+- **Files changed:** `static/js/main.js`, `static/js/modules/model_config.js`
+
+---
+
 ## [3.5.87] — 2026-06-05
 
 ### Fixed — Results panel shows "No results yet" after training on tiny datasets

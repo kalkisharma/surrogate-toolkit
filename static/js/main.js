@@ -430,6 +430,7 @@ async function _renderExploration(uploadResponse) {
     if (!stepUnlocked[key]) return;
     _activeKey = key;
     for (const k of STEP_KEYS) panelEls[k].classList.toggle("hidden", k !== key);
+    window.scrollTo({ top: 0, behavior: "instant" });
     buildSidebar();
     put("/api/state/session", { active_tab: key }).catch(() => {});
     if (!panelDone[key]) {
