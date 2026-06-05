@@ -37,6 +37,7 @@ from config.settings import (
     DEFAULT_CV_FOLDS,
     DEFAULT_RANDOM_STATE,
     DEFAULT_TEST_SPLIT,
+    DIMENSIONALITY_WARNING_THRESHOLD,
     GPR_PARALLEL_ROW_THRESHOLD,
     MAX_MODEL_HISTORY,
     MAX_PLOT_ROWS,
@@ -589,6 +590,15 @@ def train():
                 f"identical. Model metrics are trivially perfect and do not reflect "
                 f"predictive capability. Review this column before using the model."
             )
+
+    # High-dimensionality warning for GPR
+    n_inputs = X_train.shape[1]
+    if model_type == "gpr" and n_inputs > DIMENSIONALITY_WARNING_THRESHOLD:
+        warnings.append(
+            f"GPR with {n_inputs} inputs may underperform — kernel optimisation becomes "
+            f"unreliable above {DIMENSIONALITY_WARNING_THRESHOLD} inputs (curse of dimensionality). "
+            f"Consider switching to Random Forest, or apply PCA in Step 8 to reduce dimensionality."
+        )
 
     if model_type == "gpr" and len(X_train) < 30:
         warnings.append(

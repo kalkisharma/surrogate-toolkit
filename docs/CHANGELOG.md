@@ -22,6 +22,22 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.97] — 2026-06-05
+
+### Fixed — Compare unlocked prematurely; GPR high-dimensionality warning missing
+
+- **Compare (Step 15) unlock:** removed unlock from designation callback and the
+  premature `GET /api/data/datasets` fire-and-forget check. Compare now unlocks
+  with the other Tools steps (Predict, Optimize, Interpret, Sample) after a model
+  is successfully trained. Both post-training blocks updated (results init + state
+  restore on `_renderExploration` init).
+- **`DIMENSIONALITY_WARNING_THRESHOLD` wired up:** constant was defined in
+  `settings.py` (value: 10) but never imported or used. `model_api.py` now imports
+  it and appends a training warning when GPR is used with more inputs than the
+  threshold, advising RF or PCA instead.
+
+---
+
 ## [3.5.96] — 2026-06-05
 
 ### Added — Zero-variance output column warnings at Assign and Results

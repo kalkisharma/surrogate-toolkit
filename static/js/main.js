@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.96
+// Version: 3.5.97
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -452,13 +452,6 @@ async function _renderExploration(uploadResponse) {
   // Register with module-level exercise:navigate listener
   _activatePanelFn = activatePanel;
 
-  // Unlock Compare once we know 2+ datasets are loaded (fire-and-forget)
-  get("/api/data/datasets").then(resp => {
-    if (resp.success && resp.count >= 2 && !stepUnlocked["compare"]) {
-      stepUnlocked["compare"] = true;
-      buildSidebar();
-    }
-  });
 
   // ── Per-panel subtitle ────────────────────────────────────────────────────
   // Writes to the stable _panelSubEl[key] div — outside the content div that
@@ -633,7 +626,6 @@ async function _renderExploration(uploadResponse) {
         stepUnlocked["normalize"]  = true;
         stepUnlocked["screen"]     = true;
         stepUnlocked["configure"]  = true;
-        stepUnlocked["compare"]    = true;
         stepUnlocked["export"]     = true;
         stepCompleted["designate"] = true;
         buildSidebar();
@@ -746,6 +738,7 @@ async function _renderExploration(uploadResponse) {
       stepUnlocked["optimize"]   = true;
       stepUnlocked["interpret"]  = true;
       stepUnlocked["active"]     = true;
+      stepUnlocked["compare"]    = true;
       buildSidebar();
     }
   }
@@ -801,6 +794,7 @@ async function _renderExploration(uploadResponse) {
     stepUnlocked["optimize"]   = true;
     stepUnlocked["interpret"]  = true;
     stepUnlocked["active"]     = true;
+    stepUnlocked["compare"]    = true;
   }
 
   // ── Initial render ────────────────────────────────────────────────────────
