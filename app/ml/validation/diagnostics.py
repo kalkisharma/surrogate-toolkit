@@ -5,14 +5,17 @@ MODULE: app/ml/validation/
 PURPOSE: Model diagnostic metrics — R², RMSE, MAE per output column
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-12
-VERSION: 0.7.0
+LAST MODIFIED: 2026-06-05
+VERSION: 0.7.1
 ================================================================================
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
 
+import warnings
+
 import numpy as np
+from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 
@@ -75,9 +78,12 @@ def compute_metrics(
     for i, col in enumerate(output_columns):
         yt = y_true[:, i]
         yp = y_pred[:, i]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UndefinedMetricWarning)
+            r2 = float(r2_score(yt, yp))
         results.append({
             "column": col,
-            "r2":   round(float(r2_score(yt, yp)), 6),
+            "r2":   round(r2, 6),
             "rmse": round(float(np.sqrt(mean_squared_error(yt, yp))), 6),
             "mae":  round(float(mean_absolute_error(yt, yp)), 6),
         })

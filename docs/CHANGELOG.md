@@ -22,6 +22,26 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.90] — 2026-06-05
+
+### Fixed — Unformatted sklearn warnings printed to terminal during training
+
+- **Root cause:** sklearn's `ConvergenceWarning` (GPR kernel optimizer hitting search
+  bounds) and `UndefinedMetricWarning` (R² undefined with < 2 samples) bypass Python's
+  logging system entirely and write directly to `stderr`, producing unformatted output
+  that looks like application errors to the user.
+- **Fix:** Both are suppressed at the call site using `warnings.catch_warnings()` +
+  `warnings.simplefilter("ignore", ...)` — scoped narrowly so only the expected,
+  already-handled warnings are silenced. All other warnings remain visible.
+  - `ConvergenceWarning` suppressed inside `GPRModel.fit()` (the outcome is already
+    captured: the model trains with whatever hyperparameters the optimizer found).
+  - `UndefinedMetricWarning` suppressed inside `compute_metrics()` (the outcome is
+    already handled: `nan` R² is returned and displayed as "—" in the UI).
+- **Files changed:** `app/ml/models/gpr_model.py` (v1.5.6 → v1.5.7),
+  `app/ml/validation/diagnostics.py` (v0.7.0 → v0.7.1)
+
+---
+
 ## [3.5.89] — 2026-06-05
 
 ### Fixed — Predict/Optimize/Interpret steps stay locked after training on tiny datasets

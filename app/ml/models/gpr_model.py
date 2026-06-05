@@ -5,16 +5,18 @@ MODULE: app/ml/models/
 PURPOSE: Gaussian Process Regression surrogate model
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-03
-VERSION: 1.5.6
+LAST MODIFIED: 2026-06-05
+VERSION: 1.5.7
 ================================================================================
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
 
+import warnings
 from typing import Optional
 
 import numpy as np
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern, RationalQuadratic
 from sklearn.multioutput import MultiOutputRegressor
@@ -122,7 +124,9 @@ class GPRModel(BaseSurrogateModel):
         self._model = MultiOutputRegressor(single_gpr, n_jobs=effective_mor_jobs)
 
         import joblib
-        with joblib.parallel_backend("threading"):
+        with joblib.parallel_backend("threading"), \
+             warnings.catch_warnings():
+            warnings.simplefilter("ignore", ConvergenceWarning)
             self._model.fit(X, y)
         self._noise_active = noise_array is not None
         self._input_columns = list(input_columns)
