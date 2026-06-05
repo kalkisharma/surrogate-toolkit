@@ -371,6 +371,10 @@ def upload():
                 "output_columns":    [],
                 "normalization_method": None,
                 "error_columns":     error_columns,
+                "zero_variance_columns": [
+                    col for col, s in ds_meta["summary_stats"].items()
+                    if s.get("std") is not None and s["std"] == 0.0
+                ],
             },
             "preview": {
                 "columns":    meta["columns"],

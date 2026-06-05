@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/column_designation.js
-// Version: 0.6.0
+// Version: 0.7.0
 // Description: Column designation step — lets users classify each column as
 //              Input, Output, or Unused. Sends POST /api/data/designate.
 //              Pre-populates from existing metadata on dataset switch.
@@ -28,7 +28,7 @@ import { el } from "../utils.js";
  * @param {Function}    onConfirm    - Called with ({input_columns, output_columns, error_columns}) after successful POST.
  * @param {Object}      errorColumns - Phase 22B: {output_col: error_col} pairs detected at upload. Default {}.
  */
-export function initDesignation(
+export function initDesignation(  // eslint-disable-line max-params
   containerEl,
   columns,
   dtypes,
@@ -38,7 +38,9 @@ export function initDesignation(
   initOutputs,
   onConfirm,
   errorColumns = {},
+  zeroVarianceCols = [],
 ) {
+  const zeroVarSet = new Set(zeroVarianceCols);
   const header = el("div", { cls: "section-header" });
   header.innerHTML = `
     <h2 class="section-title">Step 6 — Column Designation</h2>
@@ -121,8 +123,11 @@ export function initDesignation(
 
     const tr = el("tr");
     if (errorColSet.has(col)) tr.classList.add("desig-error-row");
+    const zeroVarBadge = zeroVarSet.has(col)
+      ? `<span class="desig-zero-var-badge" title="Zero variance — all values are identical. Designating as output yields trivially perfect metrics.">⚠ const</span>`
+      : "";
     tr.innerHTML = `
-      <td class="desig-col-name" title="${col}">${col}</td>
+      <td class="desig-col-name" title="${col}">${col}${zeroVarBadge}</td>
       <td class="desig-dtype text-mono">${dtype}</td>
       <td class="desig-null ${nullCls}">${pct}%</td>
       <td class="desig-role-cell"></td>
@@ -166,6 +171,12 @@ export function initDesignation(
 
   // ── Confirm button ─────────────────────────────────────────────────────────
   const alreadyDesignated = initInputs.length > 0 && initOutputs.length > 0;
+
+  const zeroVarBanner = el("div", { cls: "desig-zero-var-banner hidden" });
+  zeroVarBanner.innerHTML = `<span class="desig-zero-var-banner__icon">⚠</span>
+    <span class="desig-zero-var-banner__text"></span>`;
+  containerEl.appendChild(zeroVarBanner);
+
   const confirmBtn = el("button", {
     cls:  "btn btn-primary",
     text: alreadyDesignated ? "Update Designation" : "Confirm Designation →",
@@ -183,6 +194,18 @@ export function initDesignation(
     if (outputCols.length === 0) {
       showError("Designate at least one Output column.");
       return;
+    }
+
+    const zeroVarOutputs = outputCols.filter(c => zeroVarSet.has(c));
+    if (zeroVarOutputs.length > 0) {
+      const names = zeroVarOutputs.map(c => `'${c}'`).join(", ");
+      zeroVarBanner.querySelector(".desig-zero-var-banner__text").textContent =
+        `Output column${zeroVarOutputs.length > 1 ? "s" : ""} ${names} ${zeroVarOutputs.length > 1 ? "have" : "has"} zero variance — ` +
+        `all values are identical. Model metrics will be trivially perfect and do not reflect predictive capability. ` +
+        `Consider reviewing this column before training.`;
+      zeroVarBanner.classList.remove("hidden");
+    } else {
+      zeroVarBanner.classList.add("hidden");
     }
 
     // Phase 22B: confirmed error columns = detected pairs minus user overrides

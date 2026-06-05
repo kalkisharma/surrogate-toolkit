@@ -579,6 +579,17 @@ def train():
 
     # ── Training size warnings ────────────────────────────────────────────────
     warnings = []
+
+    # Zero-variance output check — trivially perfect metrics are misleading
+    y_arr = y_train if y_train.ndim > 1 else y_train.reshape(-1, 1)
+    for i, col in enumerate(output_cols):
+        if float(np.std(y_arr[:, i])) == 0.0:
+            warnings.append(
+                f"Output '{col}' has zero variance in the training set — all values are "
+                f"identical. Model metrics are trivially perfect and do not reflect "
+                f"predictive capability. Review this column before using the model."
+            )
+
     if model_type == "gpr" and len(X_train) < 30:
         warnings.append(
             f"Training set has only {len(X_train)} rows. "

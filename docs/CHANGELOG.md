@@ -22,6 +22,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.96] — 2026-06-05
+
+### Added — Zero-variance output column warnings at Assign and Results
+
+- **Assign (Step 6, primary):** `data_api.py` upload response now includes
+  `zero_variance_columns` list (columns where std == 0). `column_designation.js`
+  shows an inline `⚠ const` badge next to each zero-variance column name. On
+  Confirm, if any zero-variance column is designated as output a warning banner
+  appears explaining that metrics will be trivially perfect.
+- **Results (Step 10, secondary):** `model_api.py` training route checks each
+  output column's training-set std; appends a warning if zero, shown alongside
+  the results metrics.
+- New CSS: `.desig-zero-var-badge` (inline amber tag) and `.desig-zero-var-banner`
+  (panel-level warning box), both light/dark themed.
+
+---
+
 ## [3.5.95] — 2026-06-05
 
 ### Changed — Sidebar reorganized into three sections: Prepare / Train / Tools
