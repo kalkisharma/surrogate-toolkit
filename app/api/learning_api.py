@@ -57,7 +57,7 @@ _GUIDE_FILES = {
 
 def _load_json(rel_path: str):
     abs_path = os.path.normpath(os.path.join(_LEARNING_DIR, rel_path))
-    with open(abs_path, "r", encoding="utf-8") as f:
+    with open(abs_path, "r", encoding="utf-8-sig") as f:  # utf-8-sig strips BOM if present
         return json.load(f)
 
 
@@ -121,7 +121,7 @@ def _load_exercise(exercise_id: str) -> dict:
     """Load exercise JSON by id. Raises FileNotFoundError if not found."""
     safe_id = secure_filename(exercise_id)
     path = os.path.join(_EXERCISES_DIR, f"{safe_id}.json")
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8-sig") as f:
         return json.load(f)
 
 
@@ -133,7 +133,7 @@ def _list_exercises() -> list:
     for fname in sorted(os.listdir(_EXERCISES_DIR)):
         if fname.endswith(".json"):
             try:
-                with open(os.path.join(_EXERCISES_DIR, fname), "r", encoding="utf-8") as f:
+                with open(os.path.join(_EXERCISES_DIR, fname), "r", encoding="utf-8-sig") as f:
                     exercises.append(json.load(f))
             except Exception:
                 pass
