@@ -1132,6 +1132,86 @@ input, select, textarea { font-family: inherit; }
 .global-header__settings-wrap {
   position: relative;
 }
+.global-header__notif-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.global-header__notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  padding: 0 4px;
+  min-width: 16px;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
+}
+.global-header__dropdown--notif {
+  padding: 0;
+  gap: 0;
+  min-width: 320px;
+  max-width: 400px;
+}
+.notif-history__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.notif-history__title {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.notif-history__list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+.notif-history__empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  margin: 0;
+}
+.notif-history__entry {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.notif-history__entry:last-child { border-bottom: none; }
+.notif-history__icon {
+  font-size: 12px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.notif-history__icon--success { color: #22c55e; }
+.notif-history__icon--error   { color: #ef4444; }
+.notif-history__icon--warning { color: #f59e0b; }
+.notif-history__icon--info    { color: #3b82f6; }
+.notif-history__content { flex: 1; min-width: 0; }
+.notif-history__message {
+  font-size: 12px;
+  color: var(--color-text);
+  word-break: break-word;
+  user-select: text;
+}
+.notif-history__time {
+  font-size: 10px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
 .global-header__dropdown {
   position: absolute;
   top: calc(100% + 6px);

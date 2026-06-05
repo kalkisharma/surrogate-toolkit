@@ -2,10 +2,11 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/notifications.js
-// Version: 1.0.0
+// Version: 1.1.0
 // Description: Centralised toast notification system. All modules call
 //              showSuccess/showError/showWarning/showInfo — never implement
-//              toast logic elsewhere.
+//              toast logic elsewhere. Maintains an in-session log accessible
+//              via getNotifLog() for the notification history panel.
 // =============================================================================
 
 const ICONS = {
@@ -14,6 +15,38 @@ const ICONS = {
   warning: "⚠",
   info:    "ℹ",
 };
+
+// ── Notification log ──────────────────────────────────────────────────────────
+
+const _notifLog = [];     // {ts: Date, type: string, message: string}
+let _unseenCount = 0;
+
+export function getNotifLog() { return [..._notifLog]; }
+
+export function clearLog() {
+  _notifLog.length = 0;
+  _unseenCount = 0;
+  _updateBadge();
+}
+
+export function clearUnseen() {
+  _unseenCount = 0;
+  _updateBadge();
+}
+
+function _pushLog(type, message) {
+  _notifLog.push({ ts: new Date(), type, message });
+  if (_notifLog.length > 100) _notifLog.shift();
+  _unseenCount++;
+  _updateBadge();
+}
+
+function _updateBadge() {
+  const badge = document.getElementById("notif-badge");
+  if (!badge) return;
+  badge.textContent = _unseenCount > 99 ? "99+" : String(_unseenCount);
+  badge.style.display = _unseenCount > 0 ? "" : "none";
+}
 
 /**
  * @param {string} message
@@ -50,6 +83,7 @@ export function showInfo(message, duration = 4000) {
 // ── Internal ──────────────────────────────────────────────────────────────────
 
 function _show(type, message, duration) {
+  _pushLog(type, message);
   const container = document.getElementById("notification-container");
   if (!container) return;
 

@@ -11,7 +11,7 @@
 import { initLearningMode, registerPrimer } from "./learning_mode.js";
 import { get, post, put } from "./api.js";
 import { refreshState, getPath, getAvailableCores } from "./state.js";
-import { showSuccess, showError, showWarning } from "./notifications.js";
+import { showSuccess, showError, showWarning, getNotifLog, clearUnseen, clearLog } from "./notifications.js";
 import { showSpinner, hideSpinner } from "./loading.js";
 import { initExploration, updateColumnSelectorRoles, notifyExploreVisible, buildIOSection } from "./modules/data_explorer.js";
 import { initCleaning } from "./modules/data_cleaning.js";
@@ -994,6 +994,64 @@ function _initGlobalHeader() {
         settingsDropdown.classList.add("hidden");
         settingsBtn.setAttribute("aria-expanded", "false");
       }
+    });
+  }
+
+  // ── Notification history panel ────────────────────────────────────────────────
+  const notifBtn   = document.getElementById("notif-history-btn");
+  const notifPanel = document.getElementById("notif-history-panel");
+  const notifList  = document.getElementById("notif-history-list");
+  const notifClear = document.getElementById("notif-history-clear");
+
+  function _renderNotifLog() {
+    if (!notifList) return;
+    const log = getNotifLog();
+    clearEl(notifList);
+    if (log.length === 0) {
+      notifList.appendChild(el("p", { cls: "notif-history__empty", text: "No notifications yet." }));
+      return;
+    }
+    const ICONS_HIST = { success: "✓", error: "✕", warning: "⚠", info: "ℹ" };
+    for (let i = log.length - 1; i >= 0; i--) {
+      const entry = log[i];
+      const row = el("div", { cls: "notif-history__entry" });
+      const icon = el("span", { cls: `notif-history__icon notif-history__icon--${entry.type}`, text: ICONS_HIST[entry.type] || "•" });
+      const body = el("div", { cls: "notif-history__content" });
+      body.appendChild(el("div", { cls: "notif-history__message", text: entry.message }));
+      const ts = entry.ts;
+      const timeStr = ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      body.appendChild(el("div", { cls: "notif-history__time", text: timeStr }));
+      row.appendChild(icon);
+      row.appendChild(body);
+      notifList.appendChild(row);
+    }
+  }
+
+  if (notifBtn && notifPanel) {
+    notifBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = !notifPanel.classList.contains("hidden");
+      notifPanel.classList.toggle("hidden", open);
+      notifBtn.setAttribute("aria-expanded", String(!open));
+      if (!open) {
+        clearUnseen();
+        _renderNotifLog();
+      }
+    });
+    document.addEventListener("click", (e) => {
+      if (!notifPanel.classList.contains("hidden") &&
+          !notifPanel.contains(e.target) &&
+          e.target !== notifBtn) {
+        notifPanel.classList.add("hidden");
+        notifBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  if (notifClear) {
+    notifClear.addEventListener("click", () => {
+      clearLog();
+      _renderNotifLog();
     });
   }
 

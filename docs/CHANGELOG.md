@@ -22,6 +22,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.86] — 2026-06-05
+
+### Added — Notification history panel
+
+- **Bell icon (🔔) in global header** with a red badge count for unseen notifications.
+- Clicking the bell opens a dropdown panel showing all toast notifications from the
+  current session in reverse-chronological order with timestamps, type icon, and
+  selectable message text for copy-paste.
+- Badge clears when the panel is opened. "Clear" button empties the log.
+- Circular buffer: max 100 entries; oldest are dropped when exceeded.
+- **Root change:** `notifications.js` `_show()` now pushes every toast to `_notifLog`
+  and increments `_unseenCount`, which updates the badge via `_updateBadge()`.
+- **Files changed:** `static/js/notifications.js` (v1.0.0 → v1.1.0),
+  `static/js/main.js`, `app/templates/index.html`, `static/css/main.css`
+
+---
+
 ## [3.5.85] — 2026-06-05
 
 ### Fixed — training with cv_folds > n_train or n_test < 2 produced "unreadable response"
