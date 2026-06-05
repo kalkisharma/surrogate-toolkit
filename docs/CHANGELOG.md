@@ -22,6 +22,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.94] — 2026-06-05
+
+### Fixed — GET /api/model/results returns 404 on every fresh dataset load
+
+- `model_api.py` `get_results()`: changed HTTP status from 404 to 200 when no
+  model has been trained yet. The route itself is always valid; 404 incorrectly
+  implies the endpoint doesn't exist and produced alarming terminal noise on every
+  "Continue to Explore Data" click. Frontend already checks `success` flag, so
+  behaviour is unchanged — only the status code is corrected.
+
+---
+
 ## [3.5.93] — 2026-06-05
 
 ### Changed — Load CSV moved into Project dropdown; disabled until dataset loaded

@@ -7,7 +7,7 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
 LAST MODIFIED: 2026-06-05
-VERSION: 3.2.5
+VERSION: 3.2.6
 ================================================================================
 """
 
@@ -780,7 +780,7 @@ def get_results():
                 "warnings":        list[str]
               }
             }
-        JSON 404:
+        JSON 200 (no model yet):
             {
               "success": false,
               "error_code": "NO_TRAINED_MODEL",
@@ -788,8 +788,9 @@ def get_results():
             }
 
     Notes:
-        Returns 404 if no model has been trained in this session. The frontend
-        uses this to decide whether to render the results card on page re-render.
+        Returns 200 with success=false if no model has been trained. 404 would
+        be misleading (the route exists; the data simply isn't there yet). The
+        frontend checks success to decide whether to render the results card.
 
     Future:
         Return history of all trained models once MAX_MODEL_HISTORY is enforced.
@@ -806,7 +807,7 @@ def get_results():
                 "success": False, "error_code": "NO_TRAINED_MODEL",
                 "message": "No trained model in this session. Train a model first.",
             }),
-            404,
+            200,
         )
 
     # Augment results with original-space input bounds so optimization and
