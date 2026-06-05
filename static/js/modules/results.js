@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/results.js
-// Version: 1.0.0
+// Version: 1.0.1
 // Description: Step 10 — Training Results. Fetches GET /api/model/results and
 //              renders per-output R², RMSE, MAE with R² colour coding, plus a
 //              cross-validation summary and combined parity/residual diagnostic
@@ -782,7 +782,7 @@ function _buildMetricsTable(testMetrics) {
     }
     tr.innerHTML = `
       <td class="results-col-name">${m.column}</td>
-      <td><span class="results-badge results-badge--${r2c}">${m.r2.toFixed(4)}</span></td>
+      <td><span class="results-badge results-badge--${r2c}">${m.r2 != null ? m.r2.toFixed(4) : "—"}</span></td>
       <td>${rmseCell}</td>
       <td class="results-metric">${_fmt(m.mae)}</td>`;
     tbody.appendChild(tr);
@@ -812,8 +812,8 @@ function _buildCVTable(perOutput) {
     const r2c = _r2Class(m.mean_r2);
     tr.innerHTML = `
       <td class="results-col-name">${m.column}</td>
-      <td><span class="results-badge results-badge--${r2c}">${m.mean_r2.toFixed(4)}</span>
-          <span class="results-std">± ${m.std_r2.toFixed(4)}</span></td>
+      <td><span class="results-badge results-badge--${r2c}">${m.mean_r2 != null ? m.mean_r2.toFixed(4) : "—"}</span>
+          ${m.std_r2 != null ? `<span class="results-std">± ${m.std_r2.toFixed(4)}</span>` : ""}</td>
       <td><span class="results-badge results-badge--neutral">${_fmt(m.mean_rmse)}</span>
           <span class="results-std">± ${_fmt(m.std_rmse)}</span></td>
       <td><span class="results-badge results-badge--neutral">${_fmt(m.mean_mae)}</span>

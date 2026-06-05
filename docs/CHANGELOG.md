@@ -22,6 +22,25 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.89] — 2026-06-05
+
+### Fixed — Predict/Optimize/Interpret steps stay locked after training on tiny datasets
+
+- **Root cause:** `_buildCVTable()` in `results.js` called `m.mean_r2.toFixed(4)` and
+  `m.std_r2.toFixed(4)` unconditionally. When CV folds have < 2 validation samples,
+  `r2_score` returns `nan`, which `_safe_json` converts to `null` in the response.
+  Calling `.toFixed(4)` on `null` throws `TypeError`, silently killing `_render()`.
+  Since `initResults()` threw instead of returning `true`, `_initResultsPanel` never
+  reached the `stepUnlocked["predict"] = true` lines — so all downstream steps
+  (Predict, Optimize, Interpret, Sample) remained locked indefinitely.
+  The same throw could occur in `_buildMetricsTable()` on test-set R² for datasets
+  small enough that the test split contains only 1 sample.
+- **Fix:** Null-guard both call sites: display "—" when the value is `null`, and
+  omit the ± std span entirely rather than rendering "± —".
+- **File changed:** `static/js/modules/results.js` (v1.0.0 → v1.0.1)
+
+---
+
 ## [3.5.88] — 2026-06-05
 
 ### Fixed — Panel opens at wrong scroll position; Train Model button not scrolled into view
