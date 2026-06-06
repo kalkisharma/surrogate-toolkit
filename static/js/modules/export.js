@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/export.js
-// Version: 1.2.0
+// Version: 1.2.1
 // Description: Step 16 — Export & Compliance panel. Generates HTML analysis
 //              reports with classification watermarks, downloads surrogate model
 //              bundles, and exports the audit log.
@@ -58,9 +58,8 @@ export async function initExport(containerEl) {
     clsSel.appendChild(opt);
   }
 
-  // Pre-select from current session compliance classification
-  const stateResp = await get("/api/state/session");
-  const sessionCls = stateResp?.session?.classification || "Unclassified";
+  // Pre-select from the header classification selector (already reflects session state)
+  const sessionCls = document.getElementById("classification-select")?.value || "Unclassified";
   if (SUPPORTED_CLASSIFICATIONS.includes(sessionCls)) clsSel.value = sessionCls;
 
   clsRow.appendChild(clsLbl);

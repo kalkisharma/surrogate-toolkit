@@ -22,6 +22,20 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.5.98] — 2026-06-05
+
+### Fixed — Export panel 405; upload auto-scroll to Continue button
+
+- **Export 405:** `export.js` called `GET /api/state/session` to pre-populate
+  the classification selector, but that route only accepts PUT — returning 405.
+  Fixed by reading the value directly from the `#classification-select` DOM
+  element already in the header, which always reflects the current session state.
+- **Upload auto-scroll:** after `_renderInlineGate` appends the "Continue to
+  Explore Data →" button, a `requestAnimationFrame` scroll ensures it is visible
+  without the user needing to manually scroll down.
+
+---
+
 ## [3.5.97] — 2026-06-05
 
 ### Fixed — Compare unlocked prematurely; GPR high-dimensionality warning missing
