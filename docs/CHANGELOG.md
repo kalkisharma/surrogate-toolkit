@@ -22,6 +22,18 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.0] — 2026-06-06
+
+### Fixed — Interpret cache-probe returns 404 for no cached result
+
+- **`GET /api/model/interpret` 404:** the route returned HTTP 404 when no
+  cached interpretation existed for the requested `output_col`, polluting the
+  terminal on every panel load. Changed to HTTP 200 with `success: false` —
+  consistent with the `/api/model/results` fix in v3.5.96. Frontend behavior
+  unchanged (checks `cached.success` not status code).
+
+---
+
 ## [3.5.99] — 2026-06-06
 
 ### Fixed — Upload page deep smooth scroll after dataset loads

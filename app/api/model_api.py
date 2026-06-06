@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-05
-VERSION: 3.2.6
+LAST MODIFIED: 2026-06-06
+VERSION: 3.2.7
 ================================================================================
 """
 
@@ -435,7 +435,7 @@ def get_interpret():
     cache       = models_dict.get("interpretation", {})
     if output_col and output_col in cache:
         return jsonify({"success": True, "cached": True, **cache[output_col]}), 200
-    return jsonify({"success": False, "error_code": "NO_INTERPRETATION"}), 404
+    return jsonify({"success": False, "error_code": "NO_INTERPRETATION"}), 200
 
 
 @bp.route("/train", methods=["POST"])
