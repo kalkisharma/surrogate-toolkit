@@ -1,6 +1,6 @@
 # Changelog
 
-**Last updated:** 2026-06-05
+**Last updated:** 2026-06-06
 
 All notable changes to the Surrogate Modeling Toolkit are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -19,6 +19,19 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M5** | v5.0.0 | 25–27 | Team Deployment, Auth & HPC | 🔲 Not started |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.5.99] — 2026-06-06
+
+### Fixed — Upload page deep smooth scroll after dataset loads
+
+- **Upload scroll:** after `_renderInlineGate` appends the dataset summary and
+  "Continue to Explore Data →" button, the page now scrolls to the top of the
+  gate section header (not just the button) using `block: "start"` for a
+  deeper scroll and a 80 ms `setTimeout` for a noticeably smoother animation.
+  Previously used `requestAnimationFrame` + `block: "nearest"` which produced
+  a short, abrupt scroll.
 
 ---
 

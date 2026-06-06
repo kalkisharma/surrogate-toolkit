@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/main.js
-// Version: 3.5.98
+// Version: 3.5.99
 // Description: SPA entry point. Bootstraps global header (theme, level, cores,
 //              learning mode, save/open), renders the upload view, and drives the
 //              workflow panel router (sidebar + 16 lazy-init panels).
@@ -270,7 +270,7 @@ function _renderInlineGate(uploadSection, uploadResponse) {
   gate1.classList.add("active");
   uploadSection.appendChild(gate1);
   uploadSection.appendChild(confirmBtn);
-  requestAnimationFrame(() => confirmBtn.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+  setTimeout(() => gateHeader.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
 
   confirmBtn.addEventListener("click", async () => {
     confirmBtn.disabled    = true;
