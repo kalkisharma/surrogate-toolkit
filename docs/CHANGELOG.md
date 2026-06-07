@@ -22,6 +22,17 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.1] — 2026-06-06
+
+### Fixed — Export report/model 500 error (`attachment_filename`)
+
+- **`send_file` TypeError:** all three `send_file()` calls in `export_api.py`
+  used the old `attachment_filename=` keyword removed in Flask 2.0. Renamed
+  to `download_name=` (the Flask 3.x name) — fixes HTTP 500 on report,
+  model bundle, and NumPy bundle export.
+
+---
+
 ## [3.6.0] — 2026-06-06
 
 ### Fixed — Interpret cache-probe returns 404 for no cached result

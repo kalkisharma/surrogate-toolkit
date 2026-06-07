@@ -7,8 +7,8 @@ PURPOSE: Blueprint and routes for /api/export/*. Provides CSV download of
          export, and surrogate model bundle download.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-04
-VERSION: 1.3.0
+LAST MODIFIED: 2026-06-06
+VERSION: 1.3.1
 ================================================================================
 """
 
@@ -139,7 +139,7 @@ def export_report():
 
     return send_file(
         io.BytesIO(html_bytes),
-        attachment_filename=filename,
+        download_name=filename,
         as_attachment=True,
         mimetype="text/html",
     )
@@ -217,7 +217,7 @@ def export_model():
 
     return send_file(
         io.BytesIO(zip_bytes),
-        attachment_filename=zip_name,
+        download_name=zip_name,
         as_attachment=True,
         mimetype="application/zip",
     )
@@ -285,7 +285,7 @@ def export_model_numpy():
 
     return send_file(
         io.BytesIO(zip_bytes),
-        attachment_filename=zip_name,
+        download_name=zip_name,
         as_attachment=True,
         mimetype="application/zip",
     )
