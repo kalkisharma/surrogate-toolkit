@@ -3550,7 +3550,7 @@ details.screen-pca-wrap[open] .screen-pca-toggle::before { content: "▼"; }
 .al-diversity-slider { width: 160px; cursor: pointer; }
 .al-diversity-val    { font-weight: 600; min-width: 2.5rem; font-size: 0.85rem; color: var(--color-text-primary); }
 .al-diversity-note   { font-size: 0.78rem; color: var(--color-text-muted); }
-.al-field-note       { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 2px; }
+.al-n-note           { font-size: 0.72rem; color: var(--color-text-muted); margin: -10px 0 var(--space-3); }
 .al-field {
   display: flex;
   flex-direction: column;

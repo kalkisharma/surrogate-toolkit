@@ -133,6 +133,7 @@ export async function initActiveLearning(containerEl) {
   // ── Render controls for active mode ──────────────────────────────────────────
   function renderControls() {
     clearEl(controlsDiv);
+    diversityRow.classList.toggle("hidden", _activeMode === "coverage");
     if (_activeMode === "coverage") {
       _buildCoverageControls(controlsDiv, inputCols, resultsDiv, historyDiv);
     } else if (_activeMode === "residual") {
@@ -169,11 +170,12 @@ function _buildCoverageControls(container, inputCols, resultsDiv, historyDiv) {
   const row = el("div", { cls: "al-control-row" });
 
   const nInput = _makeNInput(10);
-  row.appendChild(_makeField("Recommendations:", nInput, "max 50 · may increase in a future version"));
+  row.appendChild(_makeField("Recommendations:", nInput));
 
   const runBtn = el("button", { cls: "btn btn-primary", text: "Run Coverage →" });
   row.appendChild(runBtn);
   container.appendChild(row);
+  container.appendChild(el("p", { cls: "al-n-note", text: "Recommendations: max 50 · may increase in a future version" }));
 
   runBtn.addEventListener("click", async () => {
     const n = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
@@ -195,7 +197,7 @@ function _buildObjectiveControls(container, inputCols, outputCols, resultsDiv, h
 
   // N
   const nInput = _makeNInput(10);
-  row.appendChild(_makeField("Recommendations:", nInput, "max 50 · may increase in a future version"));
+  row.appendChild(_makeField("Recommendations:", nInput));
 
   // Output
   const outSel = el("select", { cls: "model-config-select" });
@@ -238,6 +240,7 @@ function _buildObjectiveControls(container, inputCols, outputCols, resultsDiv, h
   const runBtn = el("button", { cls: "btn btn-primary", text: "Run Objective →" });
   row.appendChild(runBtn);
   container.appendChild(row);
+  container.appendChild(el("p", { cls: "al-n-note", text: "Recommendations: max 50 · may increase in a future version" }));
 
   runBtn.addEventListener("click", async () => {
     const n     = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
@@ -266,7 +269,7 @@ function _buildResidualControls(container, inputCols, outputCols, resultsDiv, hi
   const row = el("div", { cls: "al-control-row" });
 
   const nInput = _makeNInput(10);
-  row.appendChild(_makeField("Recommendations:", nInput, "max 50 · may increase in a future version"));
+  row.appendChild(_makeField("Recommendations:", nInput));
 
   const outSel = el("select", { cls: "model-config-select" });
   for (const col of outputCols) {
@@ -279,6 +282,7 @@ function _buildResidualControls(container, inputCols, outputCols, resultsDiv, hi
   const runBtn = el("button", { cls: "btn btn-primary", text: "Run Residual →" });
   row.appendChild(runBtn);
   container.appendChild(row);
+  container.appendChild(el("p", { cls: "al-n-note", text: "Recommendations: max 50 · may increase in a future version" }));
 
   runBtn.addEventListener("click", async () => {
     const n = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
@@ -479,12 +483,11 @@ function _makeNInput(defaultVal) {
   return inp;
 }
 
-function _makeField(labelText, inputEl, note) {
+function _makeField(labelText, inputEl) {
   const wrap = el("div", { cls: "al-field" });
   const lbl  = el("label", { cls: "hyperparam-label", text: labelText });
   wrap.appendChild(lbl);
   wrap.appendChild(inputEl);
-  if (note) wrap.appendChild(el("span", { cls: "al-field-note", text: note }));
   return wrap;
 }
 

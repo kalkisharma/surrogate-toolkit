@@ -22,6 +22,19 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.5] — 2026-06-06
+
+### Fixed — Sample panel formatting; Diversity slider hidden under Coverage
+
+- **Recommendation note layout:** moved "max 50" note out of the flex field
+  wrapper (which caused height misalignment) and into a sibling `<p>` below
+  the control row, leaving the row itself undisturbed.
+- **Diversity slider:** now hidden when Coverage mode is active (Coverage
+  always uses full diversity by design). Slider reappears on switch to
+  Objective or Residual.
+
+---
+
 ## [3.6.4] — 2026-06-06
 
 ### Added — Recommendations field shows max cap note
