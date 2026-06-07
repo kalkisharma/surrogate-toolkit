@@ -1044,10 +1044,12 @@ def _train(client):
 
 
 def test_model_results_no_model(client):
-    """GET /api/model/results before training returns 404 NO_TRAINED_MODEL."""
+    """GET /api/model/results before training returns 200 with success=false."""
     resp = client.get("/api/model/results")
-    assert resp.status_code == 404
-    assert json.loads(resp.data)["error_code"] == "NO_TRAINED_MODEL"
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data["success"] is False
+    assert data["error_code"] == "NO_TRAINED_MODEL"
 
 
 # ─── POST /api/model/train — error cases ─────────────────────────────────────

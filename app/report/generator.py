@@ -15,7 +15,7 @@ VERSION: 1.1.0
 # Copyright © 2026 Kalki Sharma. All rights reserved.
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Optional
 
 
 def build_report_data(state: dict, classification: str) -> dict:

@@ -1,6 +1,6 @@
 # Changelog
 
-**Last updated:** 2026-06-06
+**Last updated:** 2026-06-07
 
 All notable changes to the Surrogate Modeling Toolkit are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -19,6 +19,24 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M5** | v5.0.0 | 25–27 | Team Deployment, Auth & HPC | 🔲 Not started |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.6.7] — 2026-06-07
+
+### Fixed — Code review: 4 housekeeping fixes
+
+- **Version strings:** `index.html` cache-busting query strings, version badge,
+  and `currentVer` JS variable updated from 3.6.5 → 3.6.6 (were missed in
+  the v3.6.6 release); `main.js` file header updated to match.
+- **Stale test:** `test_model_results_no_model` expected HTTP 404 but the
+  endpoint was changed to return 200 with `success: false` in v3.6.1.
+  Updated assertion and docstring to match current contract.
+- **Unused imports:** removed `Dict`, `List` from `generator.py`; removed
+  `LOG_TRANSFORM_SKEW_THRESHOLD` from `data_api.py` (referenced only in a
+  comment, not in executable code).
+- **Untracked fixture:** committed `tests/fixtures/edge_cases/edge_inf_only.csv`
+  alongside the other 10 edge case fixtures in that folder.
 
 ---
 
