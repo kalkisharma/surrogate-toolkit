@@ -1,0 +1,68 @@
+name: Build Windows Release
+
+# Triggers on any version tag push (e.g. v3.6.9)
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller pyinstaller-hooks-contrib
+
+      - name: Build executable
+        run: pyinstaller surrogate_toolkit.spec --clean --noconfirm
+
+      - name: Assemble release folder
+        shell: powershell
+        run: |
+          $dist = "dist\SurrogateToolkit"
+          Copy-Item README.md                          "$dist\README.md"
+          Copy-Item docs\USERGUIDE.md                  "$dist\USERGUIDE.md"
+          Copy-Item docs\CHANGELOG.md                  "$dist\CHANGELOG.md"
+          Copy-Item LICENSE.md                         "$dist\LICENSE.md"
+          Copy-Item tests\fixtures\sample_clean.csv    "$dist\sample_data.csv"
+
+      - name: Create release zip
+        shell: powershell
+        run: |
+          $version  = "${{ github.ref_name }}"
+          $zipName  = "SurrogateToolkit-$version-Windows.zip"
+          Compress-Archive -Path "dist\SurrogateToolkit" -DestinationPath $zipName
+          echo "ZIP_NAME=$zipName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_NAME }}
+          body: |
+            ## Surrogate Modeling Toolkit ${{ github.ref_name }} — Windows
+
+            ### Installation
+            1. Download and unzip `SurrogateToolkit-${{ github.ref_name }}-Windows.zip`
+            2. Double-click `SurrogateToolkit.exe`
+            3. The browser opens automatically at `http://127.0.0.1:5000`
+
+            A sample aerodynamics dataset (`sample_data.csv`) is included — use it to try the full workflow.
+            See `USERGUIDE.md` for the step-by-step walkthrough and `CHANGELOG.md` for what changed in this release.
+
+            ### Notes
+            - No Python installation required
+            - All data stays local — no external services
+            - If Windows Defender flags the exe, add the folder to the exclusion list
+          draft: false
+          prerelease: false

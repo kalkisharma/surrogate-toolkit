@@ -6,7 +6,7 @@ A dual-purpose surrogate modeling tool for engineers and their teams.
 
 **Teaching tool** — junior engineers learn surrogate modeling concepts through guided workflows, contextual explanations, and a learning mode toggle.
 
-**Current version:** v3.6.8 | **Last updated:** 2026-06-07
+**Current version:** v3.6.9 | **Last updated:** 2026-06-07
 
 ---
 

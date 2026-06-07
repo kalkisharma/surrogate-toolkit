@@ -22,6 +22,25 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.9] — 2026-06-07
+
+### Added — Windows standalone executable + GitHub Actions release pipeline
+
+- **`surrogate_toolkit.spec`** — PyInstaller one-dir build spec; bundles all
+  templates, static assets, learning JSON, and exercise datasets; collects all
+  submodules for pymoo, chaospy, and SALib; excludes gunicorn/pytest from the exe
+- **`build_release.bat`** — manual build script; runs PyInstaller then copies
+  README, USERGUIDE, CHANGELOG, LICENSE, and sample_data.csv into the dist folder
+- **`.github/workflows/release.yml`** — GitHub Actions pipeline; triggers on any
+  `v*` tag push; builds on `windows-latest`, assembles release folder, zips, and
+  publishes a GitHub Release with install instructions and the zip as an attachment
+- **`run.py`** — detects `sys.frozen` (PyInstaller exe context) and switches to
+  waitress + 1.5s auto-open browser; development path (`python run.py`) unchanged
+- **`requirements.txt`** — added `waitress>=3.0.0`; gunicorn now has
+  `sys_platform != "win32"` marker so it skips on Windows installs/builds
+
+---
+
 ## [3.6.8] — 2026-06-07
 
 ### Improved — README and USERGUIDE tester-readiness
