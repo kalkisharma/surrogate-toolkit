@@ -6,14 +6,15 @@
 #
 # Dependencies: pip install pyinstaller pyinstaller-hooks-contrib waitress
 
-from PyInstaller.utils.hooks import collect_all, collect_data_files
+from PyInstaller.utils.hooks import collect_data_files, collect_all
 
-# Collect all submodules and data for packages that use dynamic/lazy imports.
-pymoo_datas,    pymoo_bins,    pymoo_hidden    = collect_all("pymoo")
-chaospy_datas,  chaospy_bins,  chaospy_hidden  = collect_all("chaospy")
-salib_datas,    salib_bins,    salib_hidden     = collect_all("SALib")
+# collect_all() crashes on pymoo.gradient.toolbox.core (Cython access violation
+# in PyInstaller's isolated import scanner on Windows). Use collect_data_files
+# only for pymoo, then list the submodules we actually use as hiddenimports.
+pymoo_datas   = collect_data_files("pymoo")
+chaospy_datas, chaospy_bins, chaospy_hidden = collect_all("chaospy")
+salib_datas,   salib_bins,   salib_hidden   = collect_all("SALib")
 
-# Application data files — templates, static assets, and learning content.
 app_datas = [
     ("app/templates", "app/templates"),
     ("static",        "static"),
@@ -21,11 +22,21 @@ app_datas = [
 ]
 
 all_datas    = app_datas + pymoo_datas + chaospy_datas + salib_datas
-all_binaries = pymoo_bins + chaospy_bins + salib_bins
-all_hidden   = pymoo_hidden + chaospy_hidden + salib_hidden + [
+all_binaries = chaospy_bins + salib_bins
+all_hidden   = chaospy_hidden + salib_hidden + [
     "waitress",
+    # pymoo — only the submodules the app actually uses
+    "pymoo",
+    "pymoo.core.problem",
+    "pymoo.optimize",
+    "pymoo.algorithms.moo.nsga2",
+    "pymoo.operators.crossover.sbx",
+    "pymoo.operators.mutation.pm",
+    "pymoo.operators.sampling.rnd",
+    "pymoo.termination.default",
+    "pymoo.util.nds.non_dominated_sorting",
+    # sklearn / scipy commonly missed by static analysis
     "sklearn.utils._cython_blas",
-    "sklearn.neighbors._typedefs",
     "sklearn.neighbors._quad_tree",
     "sklearn.tree._utils",
     "scipy.special.cython_special",
@@ -45,7 +56,7 @@ a = Analysis(
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zlib)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
