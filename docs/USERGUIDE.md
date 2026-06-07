@@ -1,6 +1,6 @@
 # User Guide
 
-**Version:** v3.5.77 | **Last updated:** 2026-06-04
+**Version:** v3.6.8 | **Last updated:** 2026-06-07
 
 A step-by-step walkthrough of the 16-step surrogate modeling workflow.
 
@@ -153,6 +153,8 @@ A training summary card at the top shows your current configuration: normalizati
 | **Linear** | Simple relationships, interpretability | Ridge regression; no uncertainty estimates |
 | **RBF** | Smooth interpolation | scipy RBFInterpolator; thin-plate spline or multiquadric |
 | **PCE** | Smooth responses with known input distributions | Polynomial Chaos Expansion; gives Sobol sensitivity indices analytically as a by-product |
+| **Ensemble** | Combining model strengths | CV-weighted blend + stacking; slower to train |
+| **Multi-Fidelity** | Two datasets at different fidelity levels | **Experimental** — Kennedy-O'Hagan co-kriging; requires two loaded datasets; behavior may differ from other model types |
 
 ### Parameters
 

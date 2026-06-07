@@ -6,7 +6,7 @@ A dual-purpose surrogate modeling tool for engineers and their teams.
 
 **Teaching tool** — junior engineers learn surrogate modeling concepts through guided workflows, contextual explanations, and a learning mode toggle.
 
-**Current version:** v3.6.7 | **Last updated:** 2026-06-07
+**Current version:** v3.6.8 | **Last updated:** 2026-06-07
 
 ---
 
@@ -20,8 +20,11 @@ conda activate surrogate-toolkit
 # or with pip:
 pip install -r requirements.txt
 
-# 2. Configure (optional)
+# 2. Configure (optional — app runs on 127.0.0.1:5000 by default without this)
+# macOS/Linux:
 cp .env.example .env
+# Windows:
+copy .env.example .env
 # Edit .env to change HOST, PORT, or enable DEBUG
 
 # 3. Run
@@ -29,6 +32,10 @@ python run.py
 ```
 
 Open `http://127.0.0.1:5000` in your browser.
+
+A sample aerodynamics dataset is included at `tests/fixtures/sample_clean.csv` — use it to try the full workflow end-to-end.
+
+For the full step-by-step walkthrough, see [`docs/USERGUIDE.md`](docs/USERGUIDE.md).
 
 ---
 
@@ -51,9 +58,18 @@ The toolkit guides engineers through a 16-step sidebar workflow:
 | 11 | Predict | Single-point and batch prediction with extrapolation warnings |
 | 12 | Optimize | Single-objective (differential evolution) and multi-objective (NSGA-II/pymoo) optimization |
 | 13 | Interpret | Sobol global sensitivity indices, one-at-a-time response curves, GPR/RF uncertainty intervals |
-| 14 | Sample | Active learning recommendations — coverage mode (uncertainty) and objective mode (expected improvement) |
+| 14 | Sample | Active learning recommendations — coverage, objective (expected improvement), and residual modes; recommendations capped at 50 per run |
 | 15 | Compare | Side-by-side comparison of two trained surrogates: metrics table, prediction scatter, bias histogram, linear error model |
 | 16 | Export | Self-contained HTML analysis report with classification watermark; ITAR/EAR acknowledgment gate; export audit log |
+
+---
+
+## Known limitations
+
+| Area | Limitation |
+|---|---|
+| Step 14 — Sample | Recommendation count is capped at 50 per run; the UI shows the actual count used |
+| Step 9 — Multi-Fidelity | Experimental (Kennedy-O'Hagan co-kriging); requires two loaded datasets and may behave differently from other model types |
 
 ---
 
@@ -120,7 +136,8 @@ See `docs/DEVELOPER.md` for full developer setup and architecture notes.
 ## Production deployment
 
 ```bash
-gunicorn "app:create_app()"
+gunicorn "app:create_app()"  # macOS/Linux only
+# Windows: use python run.py, or a WSGI adapter such as waitress
 ```
 
 The app runs on a single machine with no external services required. One instance per engineer. All data stays local.

@@ -22,6 +22,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.8] — 2026-06-07
+
+### Improved — README and USERGUIDE tester-readiness
+
+- **USERGUIDE link:** added pointer to `docs/USERGUIDE.md` in README Quickstart
+- **Sample data:** noted `tests/fixtures/sample_clean.csv` in README Quickstart
+- **USERGUIDE version:** updated header from v3.5.77 → v3.6.8 / 2026-06-07
+- **Known limitations section:** added to README — Sample 50-rec cap and
+  Multi-Fidelity experimental status
+- **Windows `cp` fix:** Quickstart now shows both `cp` (macOS/Linux) and
+  `copy` (Windows) variants; clarified that `.env` is optional
+- **gunicorn note:** added `# macOS/Linux only` comment with waitress alternative
+- **USERGUIDE Step 9:** added Ensemble and Multi-Fidelity rows to model type
+  table; Multi-Fidelity marked **Experimental**
+
+---
+
 ## [3.6.7] — 2026-06-07
 
 ### Fixed — Code review: 4 housekeeping fixes
