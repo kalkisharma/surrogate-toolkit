@@ -22,6 +22,16 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.4] — 2026-06-06
+
+### Added — Recommendations field shows max cap note
+
+- Added "max 50 · may increase in a future version" hint beneath the
+  Recommendations input in all three Sample modes. Users can now see the
+  current limit without having to discover it by trial.
+
+---
+
 ## [3.6.3] — 2026-06-06
 
 ### Fixed — Sample recommendation count silently capped without feedback

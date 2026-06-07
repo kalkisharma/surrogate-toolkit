@@ -169,7 +169,7 @@ function _buildCoverageControls(container, inputCols, resultsDiv, historyDiv) {
   const row = el("div", { cls: "al-control-row" });
 
   const nInput = _makeNInput(10);
-  row.appendChild(_makeField("Recommendations:", nInput));
+  row.appendChild(_makeField("Recommendations:", nInput, "max 50 · may increase in a future version"));
 
   const runBtn = el("button", { cls: "btn btn-primary", text: "Run Coverage →" });
   row.appendChild(runBtn);
@@ -195,7 +195,7 @@ function _buildObjectiveControls(container, inputCols, outputCols, resultsDiv, h
 
   // N
   const nInput = _makeNInput(10);
-  row.appendChild(_makeField("Recommendations:", nInput));
+  row.appendChild(_makeField("Recommendations:", nInput, "max 50 · may increase in a future version"));
 
   // Output
   const outSel = el("select", { cls: "model-config-select" });
@@ -266,7 +266,7 @@ function _buildResidualControls(container, inputCols, outputCols, resultsDiv, hi
   const row = el("div", { cls: "al-control-row" });
 
   const nInput = _makeNInput(10);
-  row.appendChild(_makeField("Recommendations:", nInput));
+  row.appendChild(_makeField("Recommendations:", nInput, "max 50 · may increase in a future version"));
 
   const outSel = el("select", { cls: "model-config-select" });
   for (const col of outputCols) {
@@ -479,11 +479,12 @@ function _makeNInput(defaultVal) {
   return inp;
 }
 
-function _makeField(labelText, inputEl) {
+function _makeField(labelText, inputEl, note) {
   const wrap = el("div", { cls: "al-field" });
   const lbl  = el("label", { cls: "hyperparam-label", text: labelText });
   wrap.appendChild(lbl);
   wrap.appendChild(inputEl);
+  if (note) wrap.appendChild(el("span", { cls: "al-field-note", text: note }));
   return wrap;
 }
 
