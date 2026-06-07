@@ -22,6 +22,10 @@
       "body": "UCB is an alternative acquisition function: UCB(x) = −μ(x) + κ·σ(x), where κ controls the exploration–exploitation balance. High κ (default 2.0) favours exploration of uncertain regions; low κ favours exploitation near the current best. UCB is simpler to tune than EI and less prone to collapse when the surrogate is miscalibrated. The toolkit uses κ=2.0 by default in objective mode — this corresponds to a 95% upper confidence bound on the prediction."
     },
     {
+      "title": "Batch Diversity — Spreading Recommendations Across the Space",
+      "body": "When you request N > 1 recommendations, a naive strategy picks the N candidates with the highest acquisition score. The problem: acquisition scores peak in a single region, so all N points cluster there. The Diversity slider (0–1) controls how aggressively the algorithm spreads recommendations across the design space. At 0, the algorithm picks the top N by raw score — maximum clustering near the peak. At 1, it ignores acquisition score entirely and picks points that are as far apart as possible. At the default (0.5), a greedy sequential selection blends both: pick the first point by raw score, then score remaining candidates by a weighted combination of their acquisition value and their minimum distance to already-selected points. Coverage mode always uses full diversity by design (distance-only criterion); the slider applies to Objective and Residual modes only."
+    },
+    {
       "title": "When Active Learning Cannot Help",
       "body": "Active learning requires a model that provides uncertainty estimates — only GPR and Kriging qualify in the toolkit. Random Forest uncertainty (tree variance) is too coarse for acquisition function optimisation. Active learning also assumes that adding more simulation runs is possible — if your dataset is fixed and complete, use cross-validation and sensitivity analysis instead. Finally, if the surrogate already has R² ≥ 0.98 uniformly across the test set, additional sampling yields diminishing returns and the budget is better spent on validation runs."
     }

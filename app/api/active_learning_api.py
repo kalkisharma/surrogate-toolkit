@@ -6,8 +6,8 @@ PURPOSE: Blueprint and routes for /api/active/* — coverage, objective-mode,
          and residual-guided active learning recommendations.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-03
-VERSION: 1.1.1
+LAST MODIFIED: 2026-06-06
+VERSION: 1.2.0
 ================================================================================
 """
 
@@ -80,12 +80,13 @@ def objective():
     """
     state       = current_app.config["STATE"]
     data        = request.get_json(silent=True) or {}
-    n_recs      = min(int(data.get("n_recommendations", 10)), 50)
-    n_cand      = min(int(data.get("n_candidates", 2000)), 10000)
-    acquisition = data.get("acquisition", "EI")
-    direction   = data.get("direction", "minimize")
-    output_col  = data.get("output_col")
-    kappa       = float(data.get("kappa", 2.0))
+    n_recs           = min(int(data.get("n_recommendations", 10)), 50)
+    n_cand           = min(int(data.get("n_candidates", 2000)), 10000)
+    acquisition      = data.get("acquisition", "EI")
+    direction        = data.get("direction", "minimize")
+    output_col       = data.get("output_col")
+    kappa            = float(data.get("kappa", 2.0))
+    diversity_weight = min(max(float(data.get("diversity_weight", 0.5)), 0.0), 1.0)
 
     X_train, input_cols, err = _get_training_data(state)
     if err:
@@ -104,6 +105,7 @@ def objective():
     result = ObjectiveRecommender().recommend(
         model, X_train, input_cols, output_idx,
         n_recs, n_cand, acquisition, direction, model_type, kappa,
+        diversity_weight=diversity_weight,
     )
     result["output_col"] = output_col
     _denorm_recommendations(result, state)
@@ -138,9 +140,10 @@ def residual():
     """
     state      = current_app.config["STATE"]
     data       = request.get_json(silent=True) or {}
-    n_recs     = min(int(data.get("n_recommendations", 10)), 50)
-    n_cand     = min(int(data.get("n_candidates", 2000)), 10000)
-    output_col = data.get("output_col")
+    n_recs           = min(int(data.get("n_recommendations", 10)), 50)
+    n_cand           = min(int(data.get("n_candidates", 2000)), 10000)
+    output_col       = data.get("output_col")
+    diversity_weight = min(max(float(data.get("diversity_weight", 0.5)), 0.0), 1.0)
 
     X_train, input_cols, err = _get_training_data(state)
     if err:
@@ -172,6 +175,7 @@ def residual():
     from app.ml.active_learning.residual_mode import ResidualRecommender
     result = ResidualRecommender().recommend(
         X_train, X_test, residuals, input_cols, n_recs, n_cand,
+        diversity_weight=diversity_weight,
     )
     result["output_col"] = output_col
     _denorm_recommendations(result, state)

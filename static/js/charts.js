@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/charts.js
-// Version: 2.5.7
+// Version: 2.5.8
 // Description: Plotly wrapper — the ONLY file that calls Plotly.* methods.
 //              All other modules import from here; never call Plotly directly.
 //
@@ -927,7 +927,7 @@ export function renderDesignSpaceScatter(containerEl, X_train, recommendations, 
 
   const layout = {
     height: 380,
-    margin: { t: 16, b: 50, l: 60, r: 16 },
+    margin: { t: 52, b: 50, l: 60, r: 16 },
     xaxis: { title: { text: xCol, font: { size: fontSize } },
              color: _fc, gridcolor: "rgba(128,128,128,0.18)", zeroline: false },
     yaxis: { title: { text: yCol, font: { size: fontSize } },
@@ -936,7 +936,7 @@ export function renderDesignSpaceScatter(containerEl, X_train, recommendations, 
     plot_bgcolor:  _pb,
     paper_bgcolor: _ppb,
     showlegend:    true,
-    legend:        { x: 1, xanchor: "right", y: 1, font: { size: fontSize - 1 } },
+    legend:        { orientation: "h", x: 0.5, xanchor: "center", y: 1.14, yanchor: "bottom", font: { size: fontSize - 1 } },
   };
 
   // eslint-disable-next-line no-undef

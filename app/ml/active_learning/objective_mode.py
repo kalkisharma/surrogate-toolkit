@@ -6,8 +6,8 @@ PURPOSE: Objective-guided recommendation using Expected Improvement (EI) or
          Upper Confidence Bound (UCB) acquisition functions.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-15
-VERSION: 1.0.0
+LAST MODIFIED: 2026-06-06
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -32,6 +32,7 @@ class ObjectiveRecommender:
         model_type: str = "gpr",
         kappa: float = 2.0,
         seed: int = 42,
+        diversity_weight: float = 0.5,
     ) -> dict:
         """
         Generate objective-guided recommendations using EI or UCB.
@@ -84,21 +85,17 @@ class ObjectiveRecommender:
             y_pred, y_std, f_best, acquisition, direction, kappa
         )
 
-        # Top N by score
-        top_idx        = np.argsort(scores)[::-1][:n_recommendations]
-        top_candidates = candidates[top_idx]
-        top_scores     = scores[top_idx]
-        top_preds      = y_pred[top_idx]
-        top_stds       = y_std[top_idx]
+        # Greedy diversity-weighted selection
+        selected_indices = self._greedy_diverse_select(
+            candidates, scores, n_recommendations, diversity_weight
+        )
 
         recommendations = []
-        for rank, (point, score, pred, std) in enumerate(
-            zip(top_candidates, top_scores, top_preds, top_stds), start=1
-        ):
-            rec = {col: float(point[j]) for j, col in enumerate(input_cols)}
-            rec["_score"]       = float(score)
-            rec["_predicted"]   = float(pred)
-            rec["_uncertainty"] = float(std)
+        for rank, idx in enumerate(selected_indices, start=1):
+            rec = {col: float(candidates[idx, j]) for j, col in enumerate(input_cols)}
+            rec["_score"]       = float(scores[idx])
+            rec["_predicted"]   = float(y_pred[idx])
+            rec["_uncertainty"] = float(y_std[idx])
             rec["_rank"]        = rank
             recommendations.append(rec)
 
@@ -143,6 +140,41 @@ class ObjectiveRecommender:
                 return None
 
         return None  # linear: no native uncertainty
+
+    def _greedy_diverse_select(
+        self,
+        candidates: np.ndarray,
+        scores: np.ndarray,
+        n_recommendations: int,
+        diversity_weight: float,
+    ) -> list:
+        """Greedy sequential selection blending acquisition score and spatial diversity."""
+        n = len(candidates)
+        score_min, score_max = scores.min(), scores.max()
+        norm_scores = (scores - score_min) / (score_max - score_min + 1e-12)
+
+        selected_indices = []
+        remaining_mask   = np.ones(n, dtype=bool)
+        min_dist_to_sel  = np.full(n, np.inf)
+
+        for _ in range(min(n_recommendations, n)):
+            if diversity_weight > 0 and selected_indices:
+                finite   = min_dist_to_sel[np.isfinite(min_dist_to_sel)]
+                dist_max = float(finite.max()) if len(finite) else 1.0
+                norm_dists = np.minimum(min_dist_to_sel / (dist_max + 1e-12), 1.0)
+                combined = (1.0 - diversity_weight) * norm_scores + diversity_weight * norm_dists
+            else:
+                combined = norm_scores
+
+            combined_masked = np.where(remaining_mask, combined, -np.inf)
+            idx = int(np.argmax(combined_masked))
+            selected_indices.append(idx)
+            remaining_mask[idx] = False
+
+            new_dists = np.sqrt(((candidates - candidates[idx]) ** 2).sum(axis=1))
+            min_dist_to_sel = np.minimum(min_dist_to_sel, new_dists)
+
+        return selected_indices
 
     def _acquisition_scores(
         self,

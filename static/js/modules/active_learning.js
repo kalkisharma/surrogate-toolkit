@@ -2,7 +2,7 @@
 // surrogate-toolkit
 // Copyright (c) 2026 Kalki Sharma. All rights reserved.
 // File: static/js/modules/active_learning.js
-// Version: 1.3.0
+// Version: 1.4.0
 // Description: Step 14 — Active Learning. Coverage mode (max-min distance),
 //              objective mode (EI / UCB), and residual-guided mode recommendation
 //              panels with design space scatter, recommendation table, CSV export,
@@ -24,6 +24,7 @@ let _axisX           = 0;
 let _axisY           = 1;
 let _cachedXTrain    = null;          // training-data rows in model input space; module-level so axis callbacks always see latest value
 let _pcaApplied      = false;         // true when PCA was applied — controls which data source is used for X_train in scatter
+let _diversityWeight = 0.5;           // shared across modes; 0 = cluster at peak, 1 = max spread
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -75,6 +76,11 @@ export async function initActiveLearning(containerEl) {
     test-set points weighted by their prediction error. Points near high-residual
     test samples score highest — directing new runs to regions where the surrogate
     is currently least accurate.</p>
+    <p>The <strong>Diversity</strong> slider (0–1) controls how spread out the
+    recommended points are. At 0, all recommendations cluster at the
+    highest-scoring region. At 1, points are maximally spread across the space.
+    Default 0.5 balances both. Applies to Objective and Residual modes; Coverage
+    mode always uses full diversity by design.</p>
   `);
 
   // ── Mode tabs ────────────────────────────────────────────────────────────────
@@ -93,6 +99,24 @@ export async function initActiveLearning(containerEl) {
   tabs.appendChild(tabObjective);
   tabs.appendChild(tabResidual);
   containerEl.appendChild(tabs);
+
+  // ── Shared diversity slider (persists across mode switches) ──────────────────
+  const diversityRow = el("div", { cls: "al-control-row al-diversity-row" });
+  const divLabel  = el("label", { cls: "hyperparam-label", text: "Diversity:" });
+  divLabel.title  = "0 = cluster at highest-scoring region · 1 = maximum spread across space";
+  const divSlider = el("input", { type: "range", cls: "al-diversity-slider",
+    min: "0", max: "1", step: "0.05", value: String(_diversityWeight) });
+  const divVal    = el("span",  { cls: "al-diversity-val", text: _diversityWeight.toFixed(2) });
+  const divNote   = el("span",  { cls: "al-diversity-note", text: "(Objective & Residual modes)" });
+  divSlider.addEventListener("input", () => {
+    _diversityWeight = parseFloat(divSlider.value);
+    divVal.textContent = _diversityWeight.toFixed(2);
+  });
+  diversityRow.appendChild(divLabel);
+  diversityRow.appendChild(divSlider);
+  diversityRow.appendChild(divVal);
+  diversityRow.appendChild(divNote);
+  containerEl.appendChild(diversityRow);
 
   // ── Controls panel ────────────────────────────────────────────────────────────
   const controlsDiv = el("div", { cls: "al-controls" });
@@ -154,7 +178,7 @@ function _buildCoverageControls(container, inputCols, resultsDiv, historyDiv) {
   runBtn.addEventListener("click", async () => {
     const n = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
     runBtn.disabled = true; runBtn.textContent = "Running…"; showSpinner(runBtn);
-    const resp = await post("/api/active/coverage", { n_recommendations: n });
+    const resp = await post("/api/active/coverage", { n_recommendations: n, diversity_weight: _diversityWeight });
     hideSpinner(runBtn); runBtn.disabled = false; runBtn.textContent = "Run Coverage →";
     if (!resp.success) { showError(resp.message || "Coverage analysis failed."); return; }
     _lastResult = resp;
@@ -220,10 +244,11 @@ function _buildObjectiveControls(container, inputCols, outputCols, resultsDiv, h
     runBtn.disabled = true; runBtn.textContent = "Running…"; showSpinner(runBtn);
     const resp = await post("/api/active/objective", {
       n_recommendations: n,
-      output_col:  outSel.value,
-      direction:   dirSel.value,
-      acquisition: acqSel.value,
+      output_col:        outSel.value,
+      direction:         dirSel.value,
+      acquisition:       acqSel.value,
       kappa,
+      diversity_weight:  _diversityWeight,
     });
     hideSpinner(runBtn); runBtn.disabled = false; runBtn.textContent = "Run Objective →";
     if (!resp.success) { showError(resp.message || "Objective analysis failed."); return; }
@@ -258,7 +283,8 @@ function _buildResidualControls(container, inputCols, outputCols, resultsDiv, hi
     runBtn.disabled = true; runBtn.textContent = "Running…"; showSpinner(runBtn);
     const resp = await post("/api/active/residual", {
       n_recommendations: n,
-      output_col: outSel.value,
+      output_col:        outSel.value,
+      diversity_weight:  _diversityWeight,
     });
     hideSpinner(runBtn); runBtn.disabled = false; runBtn.textContent = "Run Residual →";
     if (!resp.success) { showError(resp.message || "Residual analysis failed."); return; }

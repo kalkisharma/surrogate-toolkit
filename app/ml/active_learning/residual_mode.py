@@ -7,8 +7,8 @@ PURPOSE: Residual-guided active learning: recommend new simulation points in
          Gaussian kernel proximity to existing test-set residuals.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-26
-LAST MODIFIED: 2026-05-26
-VERSION: 1.0.0
+LAST MODIFIED: 2026-06-06
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -25,8 +25,7 @@ class ResidualRecommender:
         score(c) = Σ_t |residual_t| · exp(−‖c − t‖² / 2h²)
     where h = median pairwise Euclidean distance between test points.
     Candidates are drawn from a Latin Hypercube over the training bounding box.
-    Greedy selection picks high-score candidates sequentially, skipping
-    near-duplicates (separation < 1e-6 × mean range).
+    Greedy diversity-weighted selection spreads recommendations across the space.
     """
 
     def recommend(
@@ -38,16 +37,18 @@ class ResidualRecommender:
         n_recommendations: int = 10,
         n_candidates: int = 2000,
         seed: int = 42,
+        diversity_weight: float = 0.5,
     ) -> dict:
         """
         Args:
-            X_train:          (N, d) normalized training inputs.
-            X_test:           (M, d) normalized test inputs.
-            residuals:        (M,) per-test-point absolute residual magnitudes.
-            input_cols:       Ordered list of input column names (length d).
+            X_train:           (N, d) normalized training inputs.
+            X_test:            (M, d) normalized test inputs.
+            residuals:         (M,) per-test-point absolute residual magnitudes.
+            input_cols:        Ordered list of input column names (length d).
             n_recommendations: Number of points to return (≤ n_candidates).
-            n_candidates:     LHS pool size.
-            seed:             Random seed for reproducibility.
+            n_candidates:      LHS pool size.
+            seed:              Random seed for reproducibility.
+            diversity_weight:  0 = cluster at highest score; 1 = max spread (default 0.5).
 
         Returns:
             dict with keys: mode, input_cols, bounds, recommendations,
@@ -81,28 +82,15 @@ class ResidualRecommender:
         weights  = np.exp(-sq_dists / (2 * h ** 2))                        # (n_cand, M)
         scores   = weights @ residuals                                       # (n_cand,)
 
-        # Greedy selection — descending score, skip near-duplicates
-        order      = np.argsort(-scores)
-        range_mean = float((bounds_max - bounds_min).mean())
-        min_sep    = range_mean * 1e-6
-        picked_pts = []
-        selected   = []
-
-        for idx in order:
-            if len(selected) >= n_recommendations:
-                break
-            pt = candidates[idx]
-            if picked_pts:
-                min_dist = min(np.linalg.norm(pt - p) for p in picked_pts)
-                if min_dist < min_sep:
-                    continue
-            selected.append((float(scores[idx]), pt))
-            picked_pts.append(pt)
+        # Greedy diversity-weighted selection
+        selected_indices = self._greedy_diverse_select(
+            candidates, scores, n_recommendations, diversity_weight
+        )
 
         recommendations = []
-        for rank, (score, pt) in enumerate(selected, 1):
-            rec = {col: float(pt[j]) for j, col in enumerate(input_cols)}
-            rec["_score"] = score
+        for rank, idx in enumerate(selected_indices, 1):
+            rec = {col: float(candidates[idx, j]) for j, col in enumerate(input_cols)}
+            rec["_score"] = float(scores[idx])
             rec["_rank"]  = rank
             recommendations.append(rec)
 
@@ -119,3 +107,38 @@ class ResidualRecommender:
             "n_training":        int(len(X_train)),
             "n_test":            int(len(X_test)),
         }
+
+    def _greedy_diverse_select(
+        self,
+        candidates: np.ndarray,
+        scores: np.ndarray,
+        n_recommendations: int,
+        diversity_weight: float,
+    ) -> list:
+        """Greedy sequential selection blending acquisition score and spatial diversity."""
+        n = len(candidates)
+        score_min, score_max = scores.min(), scores.max()
+        norm_scores = (scores - score_min) / (score_max - score_min + 1e-12)
+
+        selected_indices = []
+        remaining_mask   = np.ones(n, dtype=bool)
+        min_dist_to_sel  = np.full(n, np.inf)
+
+        for _ in range(min(n_recommendations, n)):
+            if diversity_weight > 0 and selected_indices:
+                finite   = min_dist_to_sel[np.isfinite(min_dist_to_sel)]
+                dist_max = float(finite.max()) if len(finite) else 1.0
+                norm_dists = np.minimum(min_dist_to_sel / (dist_max + 1e-12), 1.0)
+                combined = (1.0 - diversity_weight) * norm_scores + diversity_weight * norm_dists
+            else:
+                combined = norm_scores
+
+            combined_masked = np.where(remaining_mask, combined, -np.inf)
+            idx = int(np.argmax(combined_masked))
+            selected_indices.append(idx)
+            remaining_mask[idx] = False
+
+            new_dists = np.sqrt(((candidates - candidates[idx]) ** 2).sum(axis=1))
+            min_dist_to_sel = np.minimum(min_dist_to_sel, new_dists)
+
+        return selected_indices

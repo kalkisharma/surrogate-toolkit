@@ -22,6 +22,25 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.2] — 2026-06-06
+
+### Added — Active learning diversity slider; scatter legend moved above plot
+
+- **Diversity slider:** new shared control (0–1, default 0.5) in the Sample
+  panel above the mode tabs. At 0, objective/residual modes pick the top-N
+  by raw acquisition score (clusters at peak). At 1, points are maximally
+  spread. At 0.5 (default) a greedy sequential selection blends acquisition
+  score and distance-to-selected. Coverage mode ignores the slider (already
+  uses full diversity). Applies to objective and residual modes.
+- **Scatter legend:** moved from inside the plot (overlapping data) to above
+  the plot in horizontal orientation. Top margin increased from 16 → 52 px;
+  legend uses `orientation:"h"`, centered at `y:1.14`. Plot area width and
+  height unchanged.
+- **Guide & Learning:** `active_learning.json` adds "Batch Diversity" section;
+  inline Learning primer extended with diversity slider explanation.
+
+---
+
 ## [3.6.1] — 2026-06-06
 
 ### Fixed — Export report/model 500 error (`attachment_filename`)
