@@ -177,6 +177,7 @@ function _buildCoverageControls(container, inputCols, resultsDiv, historyDiv) {
 
   runBtn.addEventListener("click", async () => {
     const n = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
+    nInput.value = n;
     runBtn.disabled = true; runBtn.textContent = "Running…"; showSpinner(runBtn);
     const resp = await post("/api/active/coverage", { n_recommendations: n, diversity_weight: _diversityWeight });
     hideSpinner(runBtn); runBtn.disabled = false; runBtn.textContent = "Run Coverage →";
@@ -240,6 +241,7 @@ function _buildObjectiveControls(container, inputCols, outputCols, resultsDiv, h
 
   runBtn.addEventListener("click", async () => {
     const n     = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
+    nInput.value = n;
     const kappa = parseFloat(kappaInput.value) || 2.0;
     runBtn.disabled = true; runBtn.textContent = "Running…"; showSpinner(runBtn);
     const resp = await post("/api/active/objective", {
@@ -280,6 +282,7 @@ function _buildResidualControls(container, inputCols, outputCols, resultsDiv, hi
 
   runBtn.addEventListener("click", async () => {
     const n = Math.min(Math.max(parseInt(nInput.value) || 10, 1), 50);
+    nInput.value = n;
     runBtn.disabled = true; runBtn.textContent = "Running…"; showSpinner(runBtn);
     const resp = await post("/api/active/residual", {
       n_recommendations: n,

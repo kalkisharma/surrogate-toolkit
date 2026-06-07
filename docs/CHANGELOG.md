@@ -22,6 +22,17 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.3] — 2026-06-06
+
+### Fixed — Sample recommendation count silently capped without feedback
+
+- If a user typed a value above 50 (e.g. 1000), the backend silently capped
+  it at 50 while the input still showed 1000. Now the input value is written
+  back to the clamped number before the request fires, so the user always
+  sees exactly what count was used.
+
+---
+
 ## [3.6.2] — 2026-06-06
 
 ### Added — Active learning diversity slider; scatter legend moved above plot

@@ -15,7 +15,7 @@ VERSION: 3.6.2
 
 # ─── VERSION ──────────────────────────────────────────────────────────────────
 
-VERSION = "3.6.2"                     # bumped in settings.py, all changed file headers, and index.html on every release
+VERSION = "3.6.3"                     # bumped in settings.py, all changed file headers, and index.html on every release
 
 # ─── DATA VALIDATION ──────────────────────────────────────────────────────────
 
