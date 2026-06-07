@@ -7,8 +7,8 @@ PURPOSE: Collect STATE data into a flat dict for the Jinja2 report template.
          is available.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-15
-LAST MODIFIED: 2026-05-15
-VERSION: 1.0.0
+LAST MODIFIED: 2026-06-06
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -43,6 +43,7 @@ def build_report_data(state: dict, classification: str) -> dict:
         "sensitivity":    _build_sensitivity_section(interpretation),
         "active_learning": _build_al_section(al_history),
         "audit_events":   audit_events[-50:],
+        "audit_total":    len(audit_events),
     }
 
 
@@ -77,16 +78,33 @@ def _build_model_section(results: Optional[dict]) -> Optional[dict]:
         return None
 
     parity_charts = _build_parity_charts(results)
-    cv = results.get("cv_results", {})
+    cv            = results.get("cv_results", {}) or {}
+
+    # Enrich test metrics with NRMSE (%) to match app display
+    raw_metrics = results.get("test_metrics", [])
+    test_metrics = []
+    for m in raw_metrics:
+        entry = dict(m)
+        r = m.get("output_range")
+        entry["nrmse_pct"] = round(m["rmse"] / r * 100, 2) if r else None
+        test_metrics.append(entry)
+
+    # Kernel length scales (GPR only)
+    kls_raw = results.get("kernel_length_scales")
+    kernel_length_scales = None
+    if kls_raw and isinstance(kls_raw, dict):
+        kernel_length_scales = kls_raw  # {output_col: {input_col: value}}
 
     return {
-        "model_type":   results.get("model_type", "—"),
-        "hyperparams":  results.get("hyperparams", {}),
-        "n_train":      results.get("n_train", 0),
-        "n_test":       results.get("n_test", 0),
-        "test_metrics": results.get("test_metrics", []),
-        "cv_metrics":   cv.get("metrics", []) if isinstance(cv, dict) else [],
-        "parity_charts": parity_charts,
+        "model_type":          results.get("model_type", "—"),
+        "hyperparams":         results.get("hyperparams", {}),
+        "n_train":             results.get("n_train", 0),
+        "n_test":              results.get("n_test", 0),
+        "test_metrics":        test_metrics,
+        "cv_metrics":          cv.get("per_output", []),
+        "parity_charts":       parity_charts,
+        "warnings":            results.get("warnings", []),
+        "kernel_length_scales": kernel_length_scales,
     }
 
 
@@ -189,8 +207,14 @@ def _build_al_section(al_history: list) -> Optional[dict]:
     if not al_history:
         return None
     last = al_history[-1]
+    ts_raw = last.get("timestamp", "")
+    ts = ts_raw.replace("T", " ")[:19] + " UTC" if ts_raw else "—"
     return {
         "mode":              last.get("mode", "—"),
+        "acquisition":       last.get("acquisition"),
+        "direction":         last.get("direction"),
+        "output_col":        last.get("output_col"),
+        "timestamp":         ts,
         "n_recommendations": last.get("n_recommendations", 0),
         "input_cols":        last.get("input_cols", []),
         "recommendations":   last.get("recommendations", [])[:20],

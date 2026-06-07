@@ -22,6 +22,34 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.6] — 2026-06-06
+
+### Improved — Export report: 9 quality improvements
+
+- **Auto-incrementing section numbers:** Jinja2 namespace counter replaces
+  hard-coded numbers, so sections stay numbered correctly regardless of which
+  sections are present.
+- **NRMSE (%) in test metrics:** replaced raw RMSE with NRMSE (%) column
+  matching the in-app display. Coloured badge: green < 10 %, amber < 25 %,
+  red ≥ 25 %. Falls back to raw RMSE with "(raw)" label when output range is
+  unavailable.
+- **Coercion warnings** in dataset section rendered as `.rpt-warn-list`
+  (amber left-border warning list) instead of silently dropped.
+- **Training warnings** in model section rendered as `.rpt-warn-list` before
+  the hyperparameters table.
+- **Complete CV table:** Output | CV R² mean ± std | CV RMSE mean ± std |
+  CV MAE mean — previously only R² was shown.
+- **ARD length scales (GPR):** conditional table sorted ascending per output,
+  only shown for GPR models that store kernel_length_scales.
+- **AL context line:** acquisition function, direction, output column, and
+  timestamp shown in the active learning section.
+- **Audit truncation disclosure:** "Showing last 50 of N events" note
+  rendered when the log exceeds 50 entries.
+- **Balanced parity grid:** single or odd-count parity chart uses full-width
+  single-column layout via `chart-row--single` class.
+
+---
+
 ## [3.6.5] — 2026-06-06
 
 ### Fixed — Sample panel formatting; Diversity slider hidden under Coverage

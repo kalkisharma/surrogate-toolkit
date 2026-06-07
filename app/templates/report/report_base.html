@@ -106,6 +106,7 @@
       grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
       gap: 16px;
     }
+    .chart-row--single { grid-template-columns: 1fr; }
 
     /* ── Columns list ───────────────────────────────────────────────────────── */
     .col-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
@@ -119,6 +120,21 @@
       color: #3730a3;
     }
     .col-chip--output { background: #fce7f3; color: #9d174d; }
+
+    /* ── Warnings ───────────────────────────────────────────────────────────── */
+    .rpt-warn-list {
+      list-style: none;
+      margin: 8px 0 0;
+    }
+    .rpt-warn-list li {
+      background: #fffbeb;
+      border-left: 3px solid #f59e0b;
+      padding: 6px 10px;
+      margin-bottom: 6px;
+      font-size: 0.82rem;
+      color: #78350f;
+      border-radius: 0 4px 4px 0;
+    }
 
     /* ── Audit trail ────────────────────────────────────────────────────────── */
     code { font-family: 'Courier New', monospace; font-size: 0.8rem; background: #f1f5f9; padding: 1px 5px; border-radius: 3px; }
@@ -155,10 +171,14 @@
     </div>
   </div>
 
-  {# ── Section 1: Dataset Summary ───────────────────────────────────────────── #}
+  {# ── Section counter (auto-increments only for sections that render) ───────── #}
+  {% set ns = namespace(sec=0) %}
+
+  {# ── Section: Dataset Summary ─────────────────────────────────────────────── #}
   {% if dataset %}
+  {% set ns.sec = ns.sec + 1 %}
   <div class="rpt-section">
-    <h2>1 — Dataset Summary</h2>
+    <h2>{{ ns.sec }} — Dataset Summary</h2>
     <table>
       <tr><th style="width:220px">Filename</th><td>{{ dataset.filename }}</td></tr>
       <tr><th>Rows (after cleaning)</th><td>{{ dataset.n_rows | int }}</td></tr>
@@ -194,13 +214,28 @@
       </tbody>
     </table>
     {% endif %}
+
+    {% if dataset.coercion_warnings %}
+    <h3>Data Import Warnings</h3>
+    <ul class="rpt-warn-list">
+      {% for w in dataset.coercion_warnings %}<li>{{ w }}</li>{% endfor %}
+    </ul>
+    {% endif %}
   </div>
   {% endif %}
 
-  {# ── Section 2: Model Training Results ───────────────────────────────────── #}
+  {# ── Section: Model Training Results ──────────────────────────────────────── #}
   {% if model %}
+  {% set ns.sec = ns.sec + 1 %}
   <div class="rpt-section">
-    <h2>2 — Model Training Results</h2>
+    <h2>{{ ns.sec }} — Model Training Results</h2>
+
+    {% if model.warnings %}
+    <ul class="rpt-warn-list" style="margin-bottom:16px;">
+      {% for w in model.warnings %}<li>{{ w }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
     <table style="margin-bottom:16px;">
       <tr><th style="width:220px">Model type</th><td><span class="badge">{{ model.model_type | upper }}</span></td></tr>
       <tr><th>Training samples</th><td>{{ model.n_train }}</td></tr>
@@ -213,7 +248,7 @@
     <h3>Test Set Metrics</h3>
     <table>
       <thead>
-        <tr><th>Output</th><th>R²</th><th>RMSE</th><th>MAE</th></tr>
+        <tr><th>Output</th><th>R²</th><th>NRMSE (%)</th><th>MAE</th></tr>
       </thead>
       <tbody>
         {% for m in model.test_metrics %}
@@ -224,7 +259,15 @@
               {{ "%.4f" | format(m.r2) }}
             </span>
           </td>
-          <td>{{ "%.6g" | format(m.rmse) }}</td>
+          <td>
+            {% if m.nrmse_pct is not none %}
+            <span class="badge {% if m.nrmse_pct < 10 %}badge-good{% elif m.nrmse_pct < 25 %}badge-warn{% else %}badge-bad{% endif %}">
+              {{ "%.1f" | format(m.nrmse_pct) }}%
+            </span>
+            {% else %}
+            <span class="muted">{{ "%.6g" | format(m.rmse) }} (raw)</span>
+            {% endif %}
+          </td>
           <td>{{ "%.6g" | format(m.mae) }}</td>
         </tr>
         {% endfor %}
@@ -234,22 +277,41 @@
     {% if model.cv_metrics %}
     <h3>Cross-Validation Metrics</h3>
     <table>
-      <thead><tr><th>Output</th><th>CV R² (mean)</th><th>CV R² (std)</th></tr></thead>
+      <thead>
+        <tr><th>Output</th><th>CV R² (mean ± std)</th><th>CV RMSE (mean ± std)</th><th>CV MAE (mean)</th></tr>
+      </thead>
       <tbody>
         {% for m in model.cv_metrics %}
         <tr>
           <td>{{ m.column }}</td>
-          <td>{{ "%.4f" | format(m.mean_r2) }}</td>
-          <td class="muted">± {{ "%.4f" | format(m.std_r2) }}</td>
+          <td>{{ "%.4f" | format(m.mean_r2) }} <span class="muted">± {{ "%.4f" | format(m.std_r2) }}</span></td>
+          <td>{{ "%.6g" | format(m.mean_rmse) }} <span class="muted">± {{ "%.6g" | format(m.std_rmse) }}</span></td>
+          <td>{{ "%.6g" | format(m.mean_mae) }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% endif %}
 
+    {% if model.kernel_length_scales %}
+    <h3>GPR Kernel Length Scales (ARD)</h3>
+    <p style="font-size:0.8rem;color:#6b7280;margin-bottom:8px;">Smaller value = input varies quickly relative to others (higher influence). Sorted ascending per output.</p>
+    {% for out_col, scales in model.kernel_length_scales.items() %}
+    <h3 style="margin-top:12px;">{{ out_col }}</h3>
+    <table>
+      <thead><tr><th>Input</th><th>Length scale</th></tr></thead>
+      <tbody>
+        {% for inp, val in scales.items() | sort(attribute='1') %}
+        <tr><td>{{ inp }}</td><td>{{ "%.4f" | format(val) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+    {% endif %}
+
     {% if model.parity_charts %}
     <h3>Parity Plots (Actual vs. Predicted)</h3>
-    <div class="chart-row">
+    <div class="chart-row {% if model.parity_charts | length == 1 or model.parity_charts | length % 2 == 1 %}chart-row--single{% endif %}">
       {% for chart in model.parity_charts %}
       <div class="chart-wrap" id="parity-{{ loop.index0 }}"></div>
       {% endfor %}
@@ -258,10 +320,11 @@
   </div>
   {% endif %}
 
-  {# ── Section 3: Sensitivity Analysis ─────────────────────────────────────── #}
+  {# ── Section: Sensitivity Analysis ────────────────────────────────────────── #}
   {% if sensitivity %}
+  {% set ns.sec = ns.sec + 1 %}
   <div class="rpt-section">
-    <h2>3 — Sensitivity Analysis (Sobol)</h2>
+    <h2>{{ ns.sec }} — Sensitivity Analysis (Sobol)</h2>
     {% for sens in sensitivity %}
     <h3>Output: {{ sens.output_col }} &nbsp;<span class="muted">{{ sens.method }} · {{ sens.n_evals | int }} model evaluations</span></h3>
     <table>
@@ -290,13 +353,18 @@
   </div>
   {% endif %}
 
-  {# ── Section 4: Active Learning ───────────────────────────────────────────── #}
+  {# ── Section: Active Learning ──────────────────────────────────────────────── #}
   {% if active_learning %}
+  {% set ns.sec = ns.sec + 1 %}
   <div class="rpt-section">
-    <h2>4 — Active Learning Recommendations</h2>
+    <h2>{{ ns.sec }} — Active Learning Recommendations</h2>
     <p style="font-size:0.85rem;color:#6b7280;margin-bottom:12px;">
-      Mode: <strong>{{ active_learning.mode }}</strong> &nbsp;|&nbsp;
-      {{ active_learning.n_recommendations }} recommended points
+      Mode: <strong>{{ active_learning.mode }}</strong>
+      {% if active_learning.acquisition %}&nbsp;|&nbsp; Acquisition: <strong>{{ active_learning.acquisition }}</strong>{% endif %}
+      {% if active_learning.direction %}&nbsp;|&nbsp; Direction: <strong>{{ active_learning.direction }}</strong>{% endif %}
+      {% if active_learning.output_col %}&nbsp;|&nbsp; Output: <strong>{{ active_learning.output_col }}</strong>{% endif %}
+      &nbsp;|&nbsp; {{ active_learning.n_recommendations }} recommended points
+      &nbsp;|&nbsp; <span class="muted">{{ active_learning.timestamp }}</span>
     </p>
     {% if active_learning.recommendations %}
     <table>
@@ -323,10 +391,14 @@
   </div>
   {% endif %}
 
-  {# ── Section 5: Audit Trail ───────────────────────────────────────────────── #}
+  {# ── Section: Audit Trail ─────────────────────────────────────────────────── #}
+  {% set ns.sec = ns.sec + 1 %}
   <div class="rpt-section">
-    <h2>5 — Audit Trail</h2>
+    <h2>{{ ns.sec }} — Audit Trail</h2>
     {% if audit_events %}
+    {% if audit_total > 50 %}
+    <p class="muted" style="margin-bottom:8px;">Showing last 50 of {{ audit_total }} events.</p>
+    {% endif %}
     <table>
       <thead><tr><th style="width:160px">Timestamp (UTC)</th><th>Event</th><th>Detail</th></tr></thead>
       <tbody>
