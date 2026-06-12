@@ -1944,6 +1944,12 @@ def _train_worker(worker_args: dict, result_queue) -> None:
         if model_type == "gpr" and hasattr(model, "get_kernel_info"):
             kernel_length_scales = model.get_kernel_info()
 
+        print(
+            f"[Train] model={model_type}  n_jobs={n_jobs}"
+            f"  cv={cv_time_s}s  fit={fit_time_s}s  test={test_time_s}s",
+            flush=True,
+        )
+
         result_queue.put({
             "success":              True,
             "model":                model,

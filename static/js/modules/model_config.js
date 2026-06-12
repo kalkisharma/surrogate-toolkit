@@ -828,6 +828,22 @@ export async function initModelConfig(containerEl, onTrain) {
 
         showSuccess("Model trained successfully.");
         await onTrain(trainResp.results);
+
+        // ── Diagnostics card (Cores / CV / Fit / Total) ───────────────────────
+        const r = trainResp.results;
+        let diagCard = statusDiv.querySelector("#model-diagnostics-card");
+        if (!diagCard) {
+          diagCard = el("div", { cls: "model-diagnostics-card", id: "model-diagnostics-card" });
+          statusDiv.appendChild(diagCard);
+        }
+        diagCard.innerHTML =
+          `<span class="diag-item">Cores <strong>${r.n_jobs}</strong></span>` +
+          `<span class="diag-sep">|</span>` +
+          `<span class="diag-item">CV <strong>${r.cv_time_s}s</strong></span>` +
+          `<span class="diag-sep">|</span>` +
+          `<span class="diag-item">Fit <strong>${r.fit_time_s}s</strong></span>` +
+          `<span class="diag-sep">|</span>` +
+          `<span class="diag-item">Total <strong>${r.train_time_s}s</strong></span>`;
       };
     } else {
       showError(resp.message || "Failed to save configuration.");

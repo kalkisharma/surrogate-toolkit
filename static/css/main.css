@@ -102,6 +102,22 @@ input, select, textarea { font-family: inherit; }
   flex-wrap: wrap;
 }
 
+.model-diagnostics-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+.model-diagnostics-card strong { color: var(--color-text-primary); }
+.diag-sep { color: var(--color-border); }
+
 /* ── Data cleaning section ───────────────────────────────────────────────────── */
 .cleaning-grid {
   display: grid;

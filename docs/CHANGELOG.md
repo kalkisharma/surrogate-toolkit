@@ -22,6 +22,23 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.11] — 2026-06-12
+
+### Added — Training diagnostics card
+
+- **`static/js/modules/model_config.js`** — after a successful training run, a
+  compact diagnostics card appears below the Train button showing
+  `Cores | CV Xs | Fit Xs | Total Xs`; updates in place on every subsequent
+  run so core-count comparisons are visible without opening the full report
+- **`static/css/main.css`** — added `.model-diagnostics-card`, `.diag-sep`
+  styles for the new card
+- **`app/api/model_api.py`** — `_train_worker` prints a one-line timing summary
+  to the terminal on every successful run:
+  `[Train] model=rf  n_jobs=4  cv=12.3s  fit=8.7s  test=0.1s`
+  giving a persistent log across all runs without switching to the browser
+
+---
+
 ## [3.6.10] — 2026-06-12
 
 ### Added — Training abort
