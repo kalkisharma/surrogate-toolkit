@@ -69,6 +69,19 @@ def _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns,
     return fold_model.predict(X[val_idx])
 
 
+def _fit_fold_and_notify(model, X, y, train_idx, val_idx, input_columns, output_columns,
+                          n_jobs_per_fold, n_blas_per_fold, fold_callback):
+    """Thin wrapper: run one fold then fire fold_callback (if provided)."""
+    result = _fit_fold(model, X, y, train_idx, val_idx, input_columns, output_columns,
+                       n_jobs_per_fold, n_blas_per_fold)
+    if fold_callback is not None:
+        try:
+            fold_callback()
+        except Exception:
+            pass  # never let a callback failure kill a fold
+    return result
+
+
 def run_cross_validation(
     model: BaseSurrogateModel,
     X: np.ndarray,
@@ -78,6 +91,7 @@ def run_cross_validation(
     input_columns: list,
     n_jobs: int = 1,
     n_outputs: int = 1,
+    fold_callback=None,
 ) -> dict:
     """Run k-fold cross-validation, returning per-output aggregated metrics.
 
@@ -157,9 +171,12 @@ def run_cross_validation(
 
     # prefer="threads" avoids process-spawn overhead on all platforms and works
     # correctly for sklearn models whose C extensions release the GIL.
+    # _fit_fold_and_notify fires fold_callback (if provided) after each fold so
+    # the caller can report per-fold progress without coupling to this loop.
     fold_preds = Parallel(n_jobs=effective_n_jobs, prefer="threads")(
-        delayed(_fit_fold)(model, X, y, ti, vi, input_columns, output_columns,
-                          1, n_blas_limit)
+        delayed(_fit_fold_and_notify)(
+            model, X, y, ti, vi, input_columns, output_columns, 1, n_blas_limit, fold_callback
+        )
         for ti, vi in splits
     )
 

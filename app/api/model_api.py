@@ -52,12 +52,13 @@ from config.settings import (
 
 bp = Blueprint("model", __name__)
 
-# ─── ABORT INFRASTRUCTURE ─────────────────────────────────────────────────────
+# ─── TRAINING SUBPROCESS STATE ────────────────────────────────────────────────
 # Training runs in a subprocess so it can be hard-killed via .terminate().
 # These module-level references are shared across Flask threads (threaded=True).
 _training_process: Optional[multiprocessing.Process] = None
-_result_queue: Optional[multiprocessing.Queue] = None
-_process_lock = threading.Lock()   # guards the two variables above
+_result_queue:   Optional[multiprocessing.Queue]   = None
+_progress_queue: Optional[multiprocessing.Queue]   = None   # per-fold progress events
+_process_lock = threading.Lock()   # guards the three variables above
 
 
 def _safe_json(obj):
@@ -681,17 +682,19 @@ def train():
 
     ctx  = multiprocessing.get_context("spawn")
     q    = ctx.Queue()
-    proc = ctx.Process(target=_train_worker, args=(worker_args, q), daemon=True)
+    pq   = ctx.Queue()   # progress events (per-fold, phase transitions)
+    proc = ctx.Process(target=_train_worker, args=(worker_args, q, pq), daemon=True)
 
     _wall_t0 = time.perf_counter()
 
     with _process_lock:
         _training_process = proc
         _result_queue     = q
+        _progress_queue   = pq
 
     proc.start()
 
-    # ── Poll for result — releases GIL so the abort endpoint runs in parallel ─
+    # ── Poll for result — releases GIL so the abort/progress endpoints run ───
     worker_result = None
     while True:
         try:
@@ -702,6 +705,7 @@ def train():
                 with _process_lock:
                     _training_process = None
                     _result_queue     = None
+                    _progress_queue   = None
                 return (
                     jsonify({
                         "success": False, "error_code": "TRAINING_ABORTED",
@@ -714,6 +718,7 @@ def train():
     with _process_lock:
         _training_process = None
         _result_queue     = None
+        _progress_queue   = None
     proc.join()
 
     train_time_s = round(time.perf_counter() - _wall_t0, 2)
@@ -862,8 +867,39 @@ def abort_training():
     with _process_lock:
         _training_process = None
         _result_queue     = None
+        _progress_queue   = None
 
     return jsonify({"success": True, "message": "Training aborted."}), 200
+
+
+@bp.route("/progress", methods=["GET"])
+def get_training_progress():
+    """Return the latest progress event from the active training subprocess."""
+    with _process_lock:
+        pq   = _progress_queue
+        proc = _training_process
+
+    if proc is None or not proc.is_alive():
+        return jsonify({"training": False}), 200
+
+    if pq is None:
+        return jsonify({"training": True, "phase": "starting",
+                        "fold": 0, "total_folds": 0, "elapsed_s": 0.0}), 200
+
+    # Drain all queued events; return only the latest so the browser always
+    # gets the most current state regardless of polling interval.
+    latest = None
+    while True:
+        try:
+            latest = pq.get_nowait()
+        except Exception:
+            break
+
+    if latest is None:
+        return jsonify({"training": True, "phase": "starting",
+                        "fold": 0, "total_folds": 0, "elapsed_s": 0.0}), 200
+
+    return jsonify({"training": True, **latest}), 200
 
 
 @bp.route("/results", methods=["GET"])
@@ -1884,15 +1920,17 @@ def _recommend_cores(state: dict) -> tuple:
     return 1, "No recommendation available for this model type."
 
 
-def _train_worker(worker_args: dict, result_queue) -> None:
+def _train_worker(worker_args: dict, result_queue, progress_queue) -> None:
     """
     Subprocess target for model training.
 
     Runs entirely outside Flask/STATE. Receives pre-extracted numpy arrays and
-    config, trains the model, and puts a result dict on result_queue.
+    config, puts per-fold progress events on progress_queue, then puts the final
+    result dict on result_queue.
     Called via multiprocessing.Process — terminable at any point by .terminate().
     """
     try:
+        import threading as _threading
         import time as _time
         import numpy as _np
 
@@ -1908,32 +1946,59 @@ def _train_worker(worker_args: dict, result_queue) -> None:
         y_test      = worker_args["y_test"]
         noise_train = worker_args["noise_train"]
 
+        _t0 = _time.perf_counter()
+
         model = _make_model(model_type, hyperparams, n_jobs=n_jobs)
 
         _noise_supported = model_type in ("gpr", "rf", "linear")
 
-        # Cross-validation
-        _t0 = _time.perf_counter()
+        # ── Cross-validation with per-fold progress ───────────────────────────
+        _fold_lock  = _threading.Lock()
+        _fold_count = [0]
+
+        def _fold_done():
+            with _fold_lock:
+                _fold_count[0] += 1
+                progress_queue.put({
+                    "phase":       "cv",
+                    "fold":        _fold_count[0],
+                    "total_folds": cv_folds,
+                    "elapsed_s":   round(_time.perf_counter() - _t0, 1),
+                })
+
+        progress_queue.put({
+            "phase": "cv", "fold": 0, "total_folds": cv_folds, "elapsed_s": 0.0,
+        })
+
+        _cv_t0    = _time.perf_counter()
         cv_results = run_cross_validation(
             model, X_train, y_train, output_cols, cv_folds, input_cols,
-            n_jobs=n_jobs, n_outputs=len(output_cols),
+            n_jobs=n_jobs, n_outputs=len(output_cols), fold_callback=_fold_done,
         )
-        cv_time_s = round(_time.perf_counter() - _t0, 2)
+        cv_time_s = round(_time.perf_counter() - _cv_t0, 2)
 
-        # Fit final model on full training set
-        _t1 = _time.perf_counter()
+        # ── Fit final model on full training set ──────────────────────────────
+        progress_queue.put({
+            "phase": "fit", "fold": cv_folds, "total_folds": cv_folds,
+            "elapsed_s": round(_time.perf_counter() - _t0, 1),
+        })
+        _fit_t0   = _time.perf_counter()
         model.fit(X_train, y_train, input_cols, output_cols,
                   noise_array=noise_train if _noise_supported else None)
-        fit_time_s = round(_time.perf_counter() - _t1, 2)
+        fit_time_s = round(_time.perf_counter() - _fit_t0, 2)
 
-        # Evaluate on held-out test set
-        _t2 = _time.perf_counter()
+        # ── Evaluate on held-out test set ─────────────────────────────────────
+        progress_queue.put({
+            "phase": "evaluate", "fold": cv_folds, "total_folds": cv_folds,
+            "elapsed_s": round(_time.perf_counter() - _t0, 1),
+        })
+        _test_t0     = _time.perf_counter()
         y_pred_test  = model.predict(X_test)
         test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
         for i, m in enumerate(test_metrics):
             col_range = float(y_train[:, i].max() - y_train[:, i].min())
             m["output_range"] = col_range if col_range > 0 else None
-        test_time_s = round(_time.perf_counter() - _t2, 2)
+        test_time_s = round(_time.perf_counter() - _test_t0, 2)
 
         # GPR extras
         test_stds = None

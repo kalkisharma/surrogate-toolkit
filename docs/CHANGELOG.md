@@ -22,6 +22,30 @@ See `docs/PHASES.md` for full phase definitions.
 
 ---
 
+## [3.6.12] — 2026-06-12
+
+### Added — Training progress bar + ETA
+
+- **`app/ml/validation/cross_validation.py`** — added optional `fold_callback`
+  parameter to `run_cross_validation`; added `_fit_fold_and_notify` wrapper
+  that fires the callback after each fold completes (thread-safe; never raises)
+- **`app/api/model_api.py`** — added `_progress_queue` (module-level, alongside
+  `_result_queue`); `_train_worker` now accepts `progress_queue`, reports
+  phase-transition events (`cv / fit / evaluate`) and per-fold completions via
+  a `_threading.Lock`-guarded counter; added `GET /api/model/progress` endpoint
+  that drains the queue and returns the latest state; train/abort both clear
+  `_progress_queue` on completion
+- **`static/js/modules/model_config.js`** — progress bar and phase label appear
+  below the Training/Abort row; `setInterval` polls `/api/model/progress` every
+  1s while the train request is pending; ETA computed from per-fold extrapolation
+  during CV phase; bar switches to indeterminate stripe animation during Fit;
+  bar removed on training end (success or abort)
+- **`static/css/main.css`** — added `.model-progress-container`,
+  `.model-progress-track`, `.model-progress-fill`, `.model-progress-fill.indeterminate`
+  (stripe animation), `.model-progress-meta`, `.model-progress-eta`
+
+---
+
 ## [3.6.11] — 2026-06-12
 
 ### Added — Training diagnostics card

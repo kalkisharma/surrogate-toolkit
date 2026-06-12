@@ -799,12 +799,76 @@ export async function initModelConfig(containerEl, onTrain) {
           await post("/api/model/abort", {});
         };
 
+        // ── Progress bar ───────────────────────────────────────────────────
+        const progressContainer = el("div", {
+          cls: "model-progress-container",
+          id:  "model-progress-container",
+        });
+        progressContainer.innerHTML =
+          `<div class="model-progress-track">` +
+            `<div class="model-progress-fill" id="model-progress-fill"></div>` +
+          `</div>` +
+          `<div class="model-progress-meta">` +
+            `<span id="model-progress-label">Starting…</span>` +
+            `<span id="model-progress-time"></span>` +
+          `</div>`;
+        trainRow.insertAdjacentElement("afterend", progressContainer);
+
+        const fillEl    = progressContainer.querySelector("#model-progress-fill");
+        const labelEl   = progressContainer.querySelector("#model-progress-label");
+        const timeEl    = progressContainer.querySelector("#model-progress-time");
+
+        function _updateProgress(p) {
+          if (!p || !p.training) return;
+          const { phase, fold, total_folds, elapsed_s } = p;
+          let pct         = 4;
+          let label       = "Starting…";
+          let eta         = "";
+          let indeterminate = false;
+
+          if (phase === "cv") {
+            pct   = total_folds > 0 ? Math.round((fold / total_folds) * 65) : 4;
+            label = fold === 0
+              ? `Cross-validation (${total_folds} fold${total_folds !== 1 ? "s" : ""})…`
+              : `CV fold ${fold} / ${total_folds}`;
+            if (fold > 0 && total_folds > fold) {
+              const secPerFold = elapsed_s / fold;
+              const remaining  = Math.round(secPerFold * (total_folds - fold));
+              if (remaining > 0) eta = `~${remaining}s remaining`;
+            }
+          } else if (phase === "fit") {
+            pct           = 65;
+            label         = "Fitting model…";
+            indeterminate = true;
+          } else if (phase === "evaluate") {
+            pct   = 95;
+            label = "Evaluating…";
+          }
+
+          fillEl.style.width = pct + "%";
+          fillEl.classList.toggle("indeterminate", indeterminate);
+          labelEl.innerHTML = `<strong>${label}</strong>`;
+          timeEl.textContent = [
+            elapsed_s ? `${elapsed_s}s elapsed` : "",
+            eta,
+          ].filter(Boolean).join("  •  ");
+        }
+
+        const pollTimer = setInterval(async () => {
+          try {
+            const p = await get("/api/model/progress");
+            _updateProgress(p);
+          } catch (_) { /* ignore poll errors */ }
+        }, 1000);
+
         trainBtn.textContent = "Training…";
         showSpinner(trainBtn);
         const trainResp = await post("/api/model/train", {});
+        clearInterval(pollTimer);
         hideSpinner(trainBtn);
 
-        // Restore button; remove abort button and flex wrapper
+        // Remove progress bar and restore buttons
+        progressContainer.remove();
         trainRow.parentNode.insertBefore(trainBtn, trainRow);
         trainRow.remove();
 
