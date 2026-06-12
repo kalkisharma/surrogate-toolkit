@@ -8,8 +8,8 @@ PURPOSE: Development entry point. Reads HOST/PORT/DEBUG from .env and starts
          instead and auto-opens the browser.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-07
-VERSION: 0.3.0
+LAST MODIFIED: 2026-06-12
+VERSION: 0.4.0
 ================================================================================
 """
 
@@ -17,8 +17,13 @@ VERSION: 0.3.0
 
 # load_dotenv() MUST be called before importing create_app so that any
 # environment-driven config (secret key, debug flag) is visible at import time.
+import multiprocessing
 import os
 import sys
+
+# Required for PyInstaller + Windows: allows multiprocessing.Process to spawn
+# correctly from a frozen exe without re-running the full application startup.
+multiprocessing.freeze_support()
 
 from dotenv import load_dotenv
 
@@ -54,4 +59,4 @@ if __name__ == "__main__":
         debug = os.getenv("DEBUG", "false").lower() == "true"
         print(f"  Debug: {'on' if debug else 'off'}", flush=True)
         print(f"{border}\n", flush=True)
-        app.run(host=host, port=port, debug=debug)
+        app.run(host=host, port=port, debug=debug, threaded=True)

@@ -1,6 +1,6 @@
 # Changelog
 
-**Last updated:** 2026-06-07
+**Last updated:** 2026-06-12
 
 All notable changes to the Surrogate Modeling Toolkit are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -19,6 +19,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M5** | v5.0.0 | 25–27 | Team Deployment, Auth & HPC | 🔲 Not started |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.6.10] — 2026-06-12
+
+### Added — Training abort
+
+- **`app/api/model_api.py`** — training now runs in a `multiprocessing.Process`
+  (spawned via `get_context("spawn")`) so it can be hard-killed at any point;
+  added `POST /api/model/abort` endpoint; module-level `_training_process` and
+  `_process_lock` track the active job across Flask threads
+- **`run.py`** — added `threaded=True` to `app.run()` so the abort request can
+  be handled while the train request is still blocking; added
+  `multiprocessing.freeze_support()` for correct subprocess spawning in the
+  PyInstaller exe
+- **`static/js/modules/model_config.js`** — Abort button appears next to
+  "Training…" during a training job; calls `POST /api/model/abort`; handles
+  `TRAINING_ABORTED` response gracefully with a warning toast
+- **`static/css/main.css`** — added `.btn-danger` (red) and `.model-train-row`
+  (flex wrapper for train + abort buttons)
 
 ---
 

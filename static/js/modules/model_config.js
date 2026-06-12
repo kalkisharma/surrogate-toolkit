@@ -781,15 +781,42 @@ export async function initModelConfig(containerEl, onTrain) {
           _renderTuneResultCard(tuneResp);
         }
 
+        // Wrap train button + abort button in a flex row
+        const trainRow = el("div", { cls: "model-train-row" });
+        trainBtn.parentNode.insertBefore(trainRow, trainBtn);
+        trainRow.appendChild(trainBtn);
+
+        const abortBtn = el("button", {
+          cls:  "btn btn-danger btn-sm",
+          text: "Abort",
+          id:   "model-abort-btn",
+        });
+        trainRow.appendChild(abortBtn);
+
+        abortBtn.onclick = async () => {
+          abortBtn.disabled    = true;
+          abortBtn.textContent = "Aborting…";
+          await post("/api/model/abort", {});
+        };
+
         trainBtn.textContent = "Training…";
         showSpinner(trainBtn);
         const trainResp = await post("/api/model/train", {});
         hideSpinner(trainBtn);
+
+        // Restore button; remove abort button and flex wrapper
+        trainRow.parentNode.insertBefore(trainBtn, trainRow);
+        trainRow.remove();
+
         trainBtn.disabled    = false;
         trainBtn.textContent = "Train Model →";
 
         if (!trainResp.success) {
-          showError(trainResp.message || "Training failed. Check your data and configuration.");
+          if (trainResp.error_code === "TRAINING_ABORTED") {
+            showWarning("Training was aborted.", 6000);
+          } else {
+            showError(trainResp.message || "Training failed. Check your data and configuration.");
+          }
           return;
         }
 

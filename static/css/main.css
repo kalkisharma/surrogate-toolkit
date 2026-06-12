@@ -86,6 +86,22 @@ input, select, textarea { font-family: inherit; }
   font-size: var(--text-xs);
 }
 
+.btn-danger {
+  background: #dc3545;
+  color: #fff;
+}
+.btn-danger:hover:not(:disabled) {
+  background: #b02a37;
+}
+[data-theme="dark"] .btn-danger { box-shadow: none; }
+
+.model-train-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
 /* ── Data cleaning section ───────────────────────────────────────────────────── */
 .cleaning-grid {
   display: grid;

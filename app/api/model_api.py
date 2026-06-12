@@ -6,15 +6,18 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-06
-VERSION: 3.2.7
+LAST MODIFIED: 2026-06-12
+VERSION: 3.3.0
 ================================================================================
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
 
+import multiprocessing
+import threading
 import time
 from math import comb
+from typing import Optional
 
 import numpy as np
 from flask import Blueprint, current_app, jsonify, request
@@ -48,6 +51,13 @@ from config.settings import (
 )
 
 bp = Blueprint("model", __name__)
+
+# ─── ABORT INFRASTRUCTURE ─────────────────────────────────────────────────────
+# Training runs in a subprocess so it can be hard-killed via .terminate().
+# These module-level references are shared across Flask threads (threaded=True).
+_training_process: Optional[multiprocessing.Process] = None
+_result_queue: Optional[multiprocessing.Queue] = None
+_process_lock = threading.Lock()   # guards the two variables above
 
 
 def _safe_json(obj):
@@ -575,9 +585,6 @@ def train():
         )
         noise_train = None
 
-    # ── Build model ───────────────────────────────────────────────────────────
-    model = _make_model(model_type, hyperparams, n_jobs=n_jobs)
-
     # ── Training size warnings ────────────────────────────────────────────────
     warnings = []
 
@@ -636,49 +643,109 @@ def train():
                 f"the fit may be sensitive to noise. Consider reducing order or adding data."
             )
 
-    # ── Cross-validation ──────────────────────────────────────────────────────
-    _t0 = time.perf_counter()
+    # ── Guard: reject if already training ────────────────────────────────────
+    global _training_process, _result_queue
+    with _process_lock:
+        if _training_process is not None and _training_process.is_alive():
+            return (
+                jsonify({
+                    "success": False, "error_code": "TRAINING_IN_PROGRESS",
+                    "message": "Training is already in progress. Click Abort to cancel.",
+                    "detail": "", "recoverable": True, "allowed_actions": ["abort"],
+                }),
+                409,
+            )
 
-    # Guard: k-fold requires at least n_folds samples in the training set.
+    # ── Guard: k-fold requires at least n_folds samples in the training set ──
     safe_folds = min(cv_folds, len(X_train))
     if safe_folds < cv_folds:
         warnings.append(
             f"Requested {cv_folds} CV folds but training set has only "
             f"{len(X_train)} sample(s). CV was run with {safe_folds} fold(s) instead."
         )
-    cv_results = run_cross_validation(
-        model, X_train, y_train, output_cols, safe_folds, input_cols,
-        n_jobs=n_jobs, n_outputs=len(output_cols)
-    )
-    _cv_time_s = round(time.perf_counter() - _t0, 2)
 
-    # ── Fit final model on full training set ──────────────────────────────────
+    # ── Spawn training subprocess ─────────────────────────────────────────────
+    worker_args = {
+        "model_type": model_type,
+        "hyperparams": hyperparams,
+        "n_jobs": n_jobs,
+        "input_cols": input_cols,
+        "output_cols": output_cols,
+        "cv_folds": safe_folds,
+        "X_train": X_train,
+        "X_test": X_test,
+        "y_train": y_train,
+        "y_test": y_test,
+        "noise_train": noise_train,
+    }
+
+    ctx  = multiprocessing.get_context("spawn")
+    q    = ctx.Queue()
+    proc = ctx.Process(target=_train_worker, args=(worker_args, q), daemon=True)
+
+    _wall_t0 = time.perf_counter()
+
+    with _process_lock:
+        _training_process = proc
+        _result_queue     = q
+
+    proc.start()
+
+    # ── Poll for result — releases GIL so the abort endpoint runs in parallel ─
+    worker_result = None
+    while True:
+        try:
+            worker_result = q.get(timeout=0.25)
+            break
+        except Exception:
+            if not proc.is_alive():
+                with _process_lock:
+                    _training_process = None
+                    _result_queue     = None
+                return (
+                    jsonify({
+                        "success": False, "error_code": "TRAINING_ABORTED",
+                        "message": "Training was aborted.",
+                        "detail": "", "recoverable": True, "allowed_actions": ["train"],
+                    }),
+                    200,
+                )
+
+    with _process_lock:
+        _training_process = None
+        _result_queue     = None
+    proc.join()
+
+    train_time_s = round(time.perf_counter() - _wall_t0, 2)
+
+    if not worker_result.get("success"):
+        current_app.logger.error(
+            "Training worker error: %s\n%s",
+            worker_result.get("error"), worker_result.get("tb", ""),
+        )
+        return (
+            jsonify({
+                "success": False, "error_code": "TRAINING_ERROR",
+                "message": worker_result.get("error", "Training failed."),
+                "detail": worker_result.get("tb", ""),
+                "recoverable": True, "allowed_actions": ["train"],
+            }),
+            500,
+        )
+
+    # ── Unpack worker results ─────────────────────────────────────────────────
+    model                = worker_result["model"]
+    cv_results           = worker_result["cv_results"]
+    test_metrics         = worker_result["test_metrics"]
+    _cv_time_s           = worker_result["cv_time_s"]
+    _fit_time_s          = worker_result["fit_time_s"]
+    _test_time_s         = worker_result["test_time_s"]
+    y_pred_test          = worker_result["y_pred_test"]   # already a list
+    test_stds            = worker_result["test_stds"]
+    kernel_length_scales = worker_result["kernel_length_scales"]
+    _n_restarts          = worker_result["n_restarts"]
+
     _noise_supported = model_type in ("gpr", "rf", "linear")
-    _t1 = time.perf_counter()
-    model.fit(X_train, y_train, input_cols, output_cols,
-              noise_array=noise_train if _noise_supported else None)
-    _fit_time_s = round(time.perf_counter() - _t1, 2)
-
-    # ── Evaluate on held-out test set ─────────────────────────────────────────
-    _t2 = time.perf_counter()
-    y_pred_test = model.predict(X_test)
-    test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
-    for i, m in enumerate(test_metrics):
-        col_range = float(y_train[:, i].max() - y_train[:, i].min())
-        m["output_range"] = col_range if col_range > 0 else None
-    _test_time_s = round(time.perf_counter() - _t2, 2)
-
-    train_time_s = round(time.perf_counter() - _t0, 2)
-
-    # GPR posterior std — free byproduct; None for RF/RBF/PCE/Linear.
-    test_stds = None
-    if model_type == "gpr":
-        test_stds = model.predict_std(X_test).tolist()
-
-    # GPR fitted ARD length scales — one per input per output.
-    kernel_length_scales = None
-    if model_type == "gpr" and hasattr(model, "get_kernel_info"):
-        kernel_length_scales = model.get_kernel_info()
 
     # ── PCA metadata (for predict panel reverse mapping) ─────────────────────
     _pca_state = state["surrogate_sessions"]["primary"].get("pca")
@@ -712,7 +779,7 @@ def train():
         "pca_original_input_mins":   {col: float(_orig_df[col].min())  for col in _orig_inputs} if _orig_inputs else None,
         "pca_original_input_maxs":   {col: float(_orig_df[col].max())  for col in _orig_inputs} if _orig_inputs else None,
         "n_jobs":                    n_jobs,
-        "n_restarts":                getattr(model, "_n_restarts", None),
+        "n_restarts":                _n_restarts,
         "cv_time_s":                 _cv_time_s,
         "fit_time_s":                _fit_time_s,
         "test_time_s":               _test_time_s,
@@ -721,7 +788,7 @@ def train():
         "warnings":                  warnings,
         # Raw arrays for parity and residual plots (shape: n_test × n_outputs).
         "test_actuals":              y_test.tolist(),
-        "test_predictions":          y_pred_test.tolist(),
+        "test_predictions":          y_pred_test,
         "test_inputs":               X_test.tolist(),
         "test_stds":                 test_stds,
         "kernel_length_scales":      kernel_length_scales,
@@ -771,11 +838,32 @@ def train():
     })
 
     current_app.logger.info(
-        f"Model trained — type={model_type}, n_train={len(X_train)}, "
-        f"n_test={len(X_test)}"
+        "Model trained — type=%s, n_train=%d, n_test=%d",
+        model_type, len(X_train), len(X_test),
     )
 
     return jsonify({"success": True, "results": _safe_json(results)}), 200
+
+
+@bp.route("/abort", methods=["POST"])
+def abort_training():
+    """Terminate any training subprocess that is currently running."""
+    global _training_process, _result_queue
+
+    with _process_lock:
+        proc = _training_process
+
+    if proc is None or not proc.is_alive():
+        return jsonify({"success": False, "message": "No training in progress."}), 200
+
+    proc.terminate()
+    proc.join(timeout=5)
+
+    with _process_lock:
+        _training_process = None
+        _result_queue     = None
+
+    return jsonify({"success": True, "message": "Training aborted."}), 200
 
 
 @bp.route("/results", methods=["GET"])
@@ -1794,6 +1882,89 @@ def _recommend_cores(state: dict) -> tuple:
         )
 
     return 1, "No recommendation available for this model type."
+
+
+def _train_worker(worker_args: dict, result_queue) -> None:
+    """
+    Subprocess target for model training.
+
+    Runs entirely outside Flask/STATE. Receives pre-extracted numpy arrays and
+    config, trains the model, and puts a result dict on result_queue.
+    Called via multiprocessing.Process — terminable at any point by .terminate().
+    """
+    try:
+        import time as _time
+        import numpy as _np
+
+        model_type  = worker_args["model_type"]
+        hyperparams = worker_args["hyperparams"]
+        n_jobs      = worker_args["n_jobs"]
+        input_cols  = worker_args["input_cols"]
+        output_cols = worker_args["output_cols"]
+        cv_folds    = worker_args["cv_folds"]
+        X_train     = worker_args["X_train"]
+        X_test      = worker_args["X_test"]
+        y_train     = worker_args["y_train"]
+        y_test      = worker_args["y_test"]
+        noise_train = worker_args["noise_train"]
+
+        model = _make_model(model_type, hyperparams, n_jobs=n_jobs)
+
+        _noise_supported = model_type in ("gpr", "rf", "linear")
+
+        # Cross-validation
+        _t0 = _time.perf_counter()
+        cv_results = run_cross_validation(
+            model, X_train, y_train, output_cols, cv_folds, input_cols,
+            n_jobs=n_jobs, n_outputs=len(output_cols),
+        )
+        cv_time_s = round(_time.perf_counter() - _t0, 2)
+
+        # Fit final model on full training set
+        _t1 = _time.perf_counter()
+        model.fit(X_train, y_train, input_cols, output_cols,
+                  noise_array=noise_train if _noise_supported else None)
+        fit_time_s = round(_time.perf_counter() - _t1, 2)
+
+        # Evaluate on held-out test set
+        _t2 = _time.perf_counter()
+        y_pred_test  = model.predict(X_test)
+        test_metrics = compute_metrics(y_test, y_pred_test, output_cols)
+        for i, m in enumerate(test_metrics):
+            col_range = float(y_train[:, i].max() - y_train[:, i].min())
+            m["output_range"] = col_range if col_range > 0 else None
+        test_time_s = round(_time.perf_counter() - _t2, 2)
+
+        # GPR extras
+        test_stds = None
+        if model_type == "gpr":
+            test_stds = model.predict_std(X_test).tolist()
+
+        kernel_length_scales = None
+        if model_type == "gpr" and hasattr(model, "get_kernel_info"):
+            kernel_length_scales = model.get_kernel_info()
+
+        result_queue.put({
+            "success":              True,
+            "model":                model,
+            "cv_results":           cv_results,
+            "test_metrics":         test_metrics,
+            "cv_time_s":            cv_time_s,
+            "fit_time_s":           fit_time_s,
+            "test_time_s":          test_time_s,
+            "y_pred_test":          y_pred_test.tolist(),
+            "test_stds":            test_stds,
+            "kernel_length_scales": kernel_length_scales,
+            "n_restarts":           getattr(model, "_n_restarts", None),
+        })
+
+    except Exception as exc:
+        import traceback as _tb
+        result_queue.put({
+            "success": False,
+            "error":   str(exc),
+            "tb":      _tb.format_exc(),
+        })
 
 
 def _make_model(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
