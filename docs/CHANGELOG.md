@@ -1,6 +1,6 @@
 # Changelog
 
-**Last updated:** 2026-06-12
+**Last updated:** 2026-06-13
 
 All notable changes to the Surrogate Modeling Toolkit are documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
@@ -19,6 +19,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 | **M5** | v5.0.0 | 25–27 | Team Deployment, Auth & HPC | 🔲 Not started |
 
 See `docs/PHASES.md` for full phase definitions.
+
+---
+
+## [3.6.13] — 2026-06-13
+
+### Fixed — Orphaned training subprocess detection + abort hardening
+
+- **`app/api/model_api.py`** — reduced `proc.join(timeout=5)` to `proc.join(timeout=2)`
+  in the abort endpoint; `TerminateProcess()` on Windows is instant so 5s was
+  unnecessary; 2s retains safety margin for edge cases
+- **`static/js/modules/model_config.js`** — extracted three module-level helpers:
+  `_applyProgress()` (progress → DOM update), `_buildProgressUI()` (creates the
+  progress bar DOM), `_startProgressPolling()` (1s interval, returns timer ID);
+  the train click handler now uses these shared functions; added
+  `_renderOrphanBanner()` which is called on Step 9 mount if `/api/model/progress`
+  returns `training: true` — shows an amber banner with live phase text and an
+  Abort button so the user can cancel a job left running from a closed browser
+  session without restarting the server; banner auto-removes when training stops
+- **`static/css/main.css`** — added `.model-orphan-banner` and `.orphan-banner-text`
+  styles (amber in light mode, low-opacity gold in dark mode)
 
 ---
 

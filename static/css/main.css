@@ -102,6 +102,25 @@ input, select, textarea { font-family: inherit; }
   flex-wrap: wrap;
 }
 
+.model-orphan-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  background: #fff8e1;
+  border: 1px solid #ffc107;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+[data-theme="dark"] .model-orphan-banner {
+  background: rgba(255, 193, 7, 0.12);
+  border-color: rgba(255, 193, 7, 0.35);
+}
+.orphan-banner-text { flex: 1; line-height: 1.5; }
+
 .model-progress-container {
   margin-top: var(--space-3);
   display: flex;

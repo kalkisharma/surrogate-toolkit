@@ -63,14 +63,121 @@ const MODEL_TYPES = [
  * @param {Function}    onTrain     - Called after a successful train with the
  *                                    results object from POST /api/model/train.
  */
+// ── Shared progress helpers ────────────────────────────────────────────────────
+
+function _applyProgress(p, fillEl, labelEl, timeEl) {
+  if (!p || !p.training) return;
+  const { phase, fold, total_folds, elapsed_s } = p;
+  let pct = 4, label = "Starting…", eta = "", indeterminate = false;
+
+  if (phase === "cv") {
+    pct   = total_folds > 0 ? Math.round((fold / total_folds) * 65) : 4;
+    label = fold === 0
+      ? `Cross-validation (${total_folds} fold${total_folds !== 1 ? "s" : ""})…`
+      : `CV fold ${fold} / ${total_folds}`;
+    if (fold > 0 && total_folds > fold) {
+      const secPerFold = elapsed_s / fold;
+      const remaining  = Math.round(secPerFold * (total_folds - fold));
+      if (remaining > 0) eta = `~${remaining}s remaining`;
+    }
+  } else if (phase === "fit") {
+    pct = 65; label = "Fitting model…"; indeterminate = true;
+  } else if (phase === "evaluate") {
+    pct = 95; label = "Evaluating…";
+  }
+
+  fillEl.style.width = pct + "%";
+  fillEl.classList.toggle("indeterminate", indeterminate);
+  labelEl.innerHTML  = `<strong>${label}</strong>`;
+  timeEl.textContent = [
+    elapsed_s ? `${elapsed_s}s elapsed` : "",
+    eta,
+  ].filter(Boolean).join("  •  ");
+}
+
+function _buildProgressUI(anchorEl) {
+  const container = el("div", { cls: "model-progress-container", id: "model-progress-container" });
+  container.innerHTML =
+    `<div class="model-progress-track">` +
+      `<div class="model-progress-fill" id="model-progress-fill"></div>` +
+    `</div>` +
+    `<div class="model-progress-meta">` +
+      `<span id="model-progress-label">Starting…</span>` +
+      `<span id="model-progress-time"></span>` +
+    `</div>`;
+  anchorEl.insertAdjacentElement("afterend", container);
+  return {
+    container,
+    fillEl:  container.querySelector("#model-progress-fill"),
+    labelEl: container.querySelector("#model-progress-label"),
+    timeEl:  container.querySelector("#model-progress-time"),
+  };
+}
+
+function _startProgressPolling(fillEl, labelEl, timeEl) {
+  return setInterval(async () => {
+    try {
+      const p = await get("/api/model/progress");
+      _applyProgress(p, fillEl, labelEl, timeEl);
+    } catch (_) { /* ignore poll errors */ }
+  }, 1000);
+}
+
+function _phaseLabel(p) {
+  if (!p) return "Starting…";
+  if (p.phase === "cv")       return `CV fold ${p.fold || 0}/${p.total_folds || "?"}, ${p.elapsed_s || 0}s elapsed`;
+  if (p.phase === "fit")      return `Fitting model… ${p.elapsed_s || 0}s elapsed`;
+  if (p.phase === "evaluate") return `Evaluating… ${p.elapsed_s || 0}s elapsed`;
+  return `Running… ${p.elapsed_s || 0}s elapsed`;
+}
+
+function _renderOrphanBanner(containerEl, initialProgress) {
+  const banner = el("div", { cls: "model-orphan-banner", id: "model-orphan-banner" });
+  banner.innerHTML =
+    `<div class="orphan-banner-text">` +
+      `<strong>Training job still running</strong> — a previous browser session ` +
+      `left a job active. <span id="orphan-phase"></span>` +
+    `</div>` +
+    `<button class="btn btn-danger btn-sm" id="orphan-abort-btn">Abort</button>`;
+  containerEl.insertBefore(banner, containerEl.firstChild);
+
+  const phaseEl = banner.querySelector("#orphan-phase");
+  const abortEl = banner.querySelector("#orphan-abort-btn");
+
+  phaseEl.textContent = _phaseLabel(initialProgress);
+
+  const orphanPoll = setInterval(async () => {
+    try {
+      const p = await get("/api/model/progress");
+      if (!p || !p.training) {
+        clearInterval(orphanPoll);
+        banner.remove();
+        return;
+      }
+      phaseEl.textContent = _phaseLabel(p);
+    } catch (_) {}
+  }, 1000);
+
+  abortEl.onclick = async () => {
+    abortEl.disabled    = true;
+    abortEl.textContent = "Aborting…";
+    await post("/api/model/abort", {});
+    clearInterval(orphanPoll);
+    banner.remove();
+  };
+}
+
+// ── Module entry point ─────────────────────────────────────────────────────────
+
 export async function initModelConfig(containerEl, onTrain) {
   clearEl(containerEl);
   showSpinner(containerEl);
 
-  const [configResp, datasetsResp] = await Promise.all([
+  const [configResp, datasetsResp, , progressResp] = await Promise.all([
     get("/api/model/config"),
     get("/api/data/datasets"),
     refreshState(),   // ensure _state has current metadata before rendering the cores prompt
+    get("/api/model/progress"),
   ]);
   hideSpinner(containerEl);
 
@@ -80,6 +187,13 @@ export async function initModelConfig(containerEl, onTrain) {
   }
 
   const saved = configResp.config || {};
+
+  // ── Orphaned job banner ────────────────────────────────────────────────────
+  // Shown when a training subprocess is still running from a previous browser
+  // session (e.g. the tab was closed mid-training).
+  if (progressResp && progressResp.training) {
+    _renderOrphanBanner(containerEl, progressResp);
+  }
 
   // ── Header ──────────────────────────────────────────────────────────────────
   const header = el("div", { cls: "section-header" });
@@ -800,66 +914,9 @@ export async function initModelConfig(containerEl, onTrain) {
         };
 
         // ── Progress bar ───────────────────────────────────────────────────
-        const progressContainer = el("div", {
-          cls: "model-progress-container",
-          id:  "model-progress-container",
-        });
-        progressContainer.innerHTML =
-          `<div class="model-progress-track">` +
-            `<div class="model-progress-fill" id="model-progress-fill"></div>` +
-          `</div>` +
-          `<div class="model-progress-meta">` +
-            `<span id="model-progress-label">Starting…</span>` +
-            `<span id="model-progress-time"></span>` +
-          `</div>`;
-        trainRow.insertAdjacentElement("afterend", progressContainer);
-
-        const fillEl    = progressContainer.querySelector("#model-progress-fill");
-        const labelEl   = progressContainer.querySelector("#model-progress-label");
-        const timeEl    = progressContainer.querySelector("#model-progress-time");
-
-        function _updateProgress(p) {
-          if (!p || !p.training) return;
-          const { phase, fold, total_folds, elapsed_s } = p;
-          let pct         = 4;
-          let label       = "Starting…";
-          let eta         = "";
-          let indeterminate = false;
-
-          if (phase === "cv") {
-            pct   = total_folds > 0 ? Math.round((fold / total_folds) * 65) : 4;
-            label = fold === 0
-              ? `Cross-validation (${total_folds} fold${total_folds !== 1 ? "s" : ""})…`
-              : `CV fold ${fold} / ${total_folds}`;
-            if (fold > 0 && total_folds > fold) {
-              const secPerFold = elapsed_s / fold;
-              const remaining  = Math.round(secPerFold * (total_folds - fold));
-              if (remaining > 0) eta = `~${remaining}s remaining`;
-            }
-          } else if (phase === "fit") {
-            pct           = 65;
-            label         = "Fitting model…";
-            indeterminate = true;
-          } else if (phase === "evaluate") {
-            pct   = 95;
-            label = "Evaluating…";
-          }
-
-          fillEl.style.width = pct + "%";
-          fillEl.classList.toggle("indeterminate", indeterminate);
-          labelEl.innerHTML = `<strong>${label}</strong>`;
-          timeEl.textContent = [
-            elapsed_s ? `${elapsed_s}s elapsed` : "",
-            eta,
-          ].filter(Boolean).join("  •  ");
-        }
-
-        const pollTimer = setInterval(async () => {
-          try {
-            const p = await get("/api/model/progress");
-            _updateProgress(p);
-          } catch (_) { /* ignore poll errors */ }
-        }, 1000);
+        const { container: progressContainer, fillEl, labelEl, timeEl } =
+          _buildProgressUI(trainRow);
+        const pollTimer = _startProgressPolling(fillEl, labelEl, timeEl);
 
         trainBtn.textContent = "Training…";
         showSpinner(trainBtn);

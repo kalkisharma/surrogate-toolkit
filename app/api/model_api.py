@@ -862,7 +862,7 @@ def abort_training():
         return jsonify({"success": False, "message": "No training in progress."}), 200
 
     proc.terminate()
-    proc.join(timeout=5)
+    proc.join(timeout=2)
 
     with _process_lock:
         _training_process = None
