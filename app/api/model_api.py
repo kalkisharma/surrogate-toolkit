@@ -6,8 +6,8 @@ PURPOSE: Blueprint and route handlers for /api/model/*. Manages training
          configuration, model training, results retrieval, and interpretation.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-06-12
-VERSION: 3.3.0
+LAST MODIFIED: 2026-06-14
+VERSION: 3.4.0
 ================================================================================
 """
 
@@ -18,6 +18,8 @@ import threading
 import time
 from math import comb
 from typing import Optional
+
+from joblib import Parallel, delayed
 
 import numpy as np
 from flask import Blueprint, current_app, jsonify, request
@@ -263,6 +265,14 @@ def tune():
 
     state = current_app.config["STATE"]
 
+    with _process_lock:
+        if _training_process is not None and _training_process.is_alive():
+            return jsonify({
+                "success": False, "error_code": "TRAINING_IN_PROGRESS",
+                "message": "A training subprocess is running. Abort it before tuning.",
+                "detail": "", "recoverable": True, "allowed_actions": ["abort"],
+            }), 409
+
     # ── Resolve data (same checks as /train) ─────────────────────────────────
     primary = state["datasets"]["primary"]
     _norm   = primary.get("normalized")
@@ -391,6 +401,7 @@ def interpret():
         output_col = output_cols[0]
     output_idx = output_cols.index(output_col)
     model_type = results["model_type"]
+    n_jobs     = int(state.get("session", {}).get("processor_count") or 1)
 
     primary = state["datasets"]["primary"]
     _norm   = primary.get("normalized")
@@ -399,8 +410,9 @@ def interpret():
     X_train = df[input_cols].values
     X_test  = np.array(results.get("test_inputs") or [])
 
-    sensitivity = SobolAnalyzer().analyze(model, X_train, input_cols, output_idx, n_samples)
-    oat         = OATAnalyzer().analyze(model, X_train, input_cols, output_idx)
+    sensitivity = SobolAnalyzer().analyze(model, X_train, input_cols, output_idx, n_samples,
+                                          n_jobs=n_jobs)
+    oat         = OATAnalyzer().analyze(model, X_train, input_cols, output_idx, n_jobs=n_jobs)
 
     # OAT operates on normalized X_train — denormalize x-axis and stats for display
     norm_params = state["datasets"]["primary"]["metadata"].get("normalization_params", {})
@@ -410,7 +422,8 @@ def interpret():
         curve["min"]    = _denorm_value(curve["min"],    col, norm_params)
         curve["max"]    = _denorm_value(curve["max"],    col, norm_params)
 
-    unc_method, ci_lower, ci_upper = compute_uncertainty(model, X_test, output_idx, model_type)
+    unc_method, ci_lower, ci_upper = compute_uncertainty(model, X_test, output_idx, model_type,
+                                                         n_jobs=n_jobs)
 
     uncertainty = None
     if unc_method is not None:
@@ -1275,6 +1288,7 @@ def train_ensemble():
     config     = state["surrogate_sessions"]["primary"]["config"]
     test_split = config.get("test_split") or DEFAULT_TEST_SPLIT
     cv_folds   = config.get("cv_folds") or DEFAULT_CV_FOLDS
+    n_jobs     = int(state.get("session", {}).get("processor_count") or 1)
 
     X = df[input_cols].values
     y = df[output_cols].values
@@ -1289,6 +1303,7 @@ def train_ensemble():
         strategy=strategy,
         hyperparams_per_type=hyperparams_per_type,
         cv_folds=min(cv_folds, len(X_train)),
+        n_jobs=n_jobs,
     )
     ensemble.fit(X_train, y_train, input_cols, output_cols)
 
@@ -1466,6 +1481,7 @@ def compare_models():
     config     = state["surrogate_sessions"]["primary"]["config"]
     test_split = config.get("test_split") or DEFAULT_TEST_SPLIT
     cv_folds   = min(config.get("cv_folds") or DEFAULT_CV_FOLDS, 5)
+    n_jobs     = int(state.get("session", {}).get("processor_count") or 1)
 
     X = df[input_cols].values
     y = df[output_cols].values
@@ -1473,27 +1489,27 @@ def compare_models():
         X, y, test_size=test_split, random_state=DEFAULT_RANDOM_STATE
     )
 
-    comparison = []
-    for mt in SUPPORTED_MODEL_TYPES:
+    n_model_types    = len(SUPPORTED_MODEL_TYPES)
+    n_jobs_per_model = max(1, n_jobs // n_model_types)
+
+    def _compare_one(mt):
         t0 = time.time()
         try:
-            m = _make_model(mt)
+            m = _make_model(mt, n_jobs=n_jobs_per_model)
             m.fit(X_train, y_train, input_cols, output_cols)
-            y_pred = m.predict(X_test)
+            y_pred  = m.predict(X_test)
             metrics = compute_metrics(y_test, y_pred, output_cols)
-            elapsed = round(time.time() - t0, 3)
-            comparison.append({
-                "model_type":   mt,
-                "train_time_s": elapsed,
-                "metrics":      metrics,
-                "success":      True,
-            })
+            return {"model_type": mt, "train_time_s": round(time.time() - t0, 3),
+                    "metrics": metrics, "success": True}
         except Exception as exc:
-            comparison.append({
-                "model_type": mt,
-                "success":    False,
-                "error":      str(exc),
-            })
+            return {"model_type": mt, "success": False, "error": str(exc)}
+
+    if n_jobs > 1:
+        comparison = Parallel(n_jobs=n_model_types, prefer="threads")(
+            delayed(_compare_one)(mt) for mt in SUPPORTED_MODEL_TYPES
+        )
+    else:
+        comparison = [_compare_one(mt) for mt in SUPPORTED_MODEL_TYPES]
 
     append_audit_event(state, "model_comparison_run", {"n_models": len(comparison)})
 
@@ -1544,11 +1560,20 @@ def train_multifidelity():
     state = current_app.config["STATE"]
     data  = request.get_json(silent=True) or {}
 
+    with _process_lock:
+        if _training_process is not None and _training_process.is_alive():
+            return jsonify({
+                "success": False, "error_code": "TRAINING_IN_PROGRESS",
+                "message": "A training subprocess is running. Abort it before starting multi-fidelity training.",
+                "detail": "", "recoverable": True, "allowed_actions": ["abort"],
+            }), 409
+
     lf_key          = data.get("lf_dataset_key")
     hf_key          = data.get("hf_dataset_key")
     method          = data.get("method", "bridge")
     base_model_type = data.get("base_model_type", "rf")
     cv_folds        = max(2, min(int(data.get("cv_folds", 5)), 10))
+    n_jobs          = int(state.get("session", {}).get("processor_count") or 1)
 
     # ── Validate keys ─────────────────────────────────────────────────────────
     if not lf_key or not hf_key:
@@ -1701,7 +1726,7 @@ def train_multifidelity():
     # ── Train model ───────────────────────────────────────────────────────────
     try:
         if method == "bridge":
-            mf_model = BridgeCorrectionModel(_make_model(base_model_type, {}))
+            mf_model = BridgeCorrectionModel(_make_model(base_model_type, {}, n_jobs=n_jobs))
         else:
             mf_model = KOCoKrigingModel()
         mf_model.fit_multifidelity(X_lf, y_lf, X_hf, y_hf, input_cols, output_cols)
@@ -1725,7 +1750,7 @@ def train_multifidelity():
     # ── LOO / k-fold comparison: MF vs HF-only RF ─────────────────────────────
     use_loo  = n_hf <= 30
     mf_loo   = _mf_loo_r2(X_lf, y_lf, X_hf, y_hf, input_cols, output_cols,
-                           method, base_model_type, cv_folds, use_loo)
+                           method, base_model_type, cv_folds, use_loo, n_jobs=n_jobs)
     hf_loo   = _hf_only_loo_r2(X_hf, y_hf, input_cols, output_cols,
                                 cv_folds, use_loo)
     if method == "co_kriging":
@@ -1982,9 +2007,15 @@ def _train_worker(worker_args: dict, result_queue, progress_queue) -> None:
             "phase": "fit", "fold": cv_folds, "total_folds": cv_folds,
             "elapsed_s": round(_time.perf_counter() - _t0, 1),
         })
-        _fit_t0   = _time.perf_counter()
-        model.fit(X_train, y_train, input_cols, output_cols,
-                  noise_array=noise_train if _noise_supported else None)
+        _fit_t0 = _time.perf_counter()
+        try:
+            from threadpoolctl import threadpool_limits as _tpl
+            with _tpl(limits=n_jobs):
+                model.fit(X_train, y_train, input_cols, output_cols,
+                          noise_array=noise_train if _noise_supported else None)
+        except Exception:
+            model.fit(X_train, y_train, input_cols, output_cols,
+                      noise_array=noise_train if _noise_supported else None)
         fit_time_s = round(_time.perf_counter() - _fit_t0, 2)
 
         # ── Evaluate on held-out test set ─────────────────────────────────────
@@ -2084,7 +2115,7 @@ def _make_model(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
 def _mf_loo_r2(
     X_lf, y_lf, X_hf, y_hf,
     input_cols, output_cols,
-    method, base_model_type, cv_folds, use_loo,
+    method, base_model_type, cv_folds, use_loo, n_jobs=1,
 ):
     """LOO or k-fold CV R² for the MF model evaluated on held-out HF points."""
     from sklearn.model_selection import LeaveOneOut, KFold
@@ -2114,7 +2145,7 @@ def _mf_loo_r2(
             continue
         try:
             if method == "bridge":
-                m = BridgeCorrectionModel(_make_model(base_model_type, {}))
+                m = BridgeCorrectionModel(_make_model(base_model_type, {}, n_jobs=n_jobs))
             else:
                 m = KOCoKrigingModel()
             m.fit_multifidelity(

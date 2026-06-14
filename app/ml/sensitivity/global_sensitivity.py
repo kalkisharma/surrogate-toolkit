@@ -5,8 +5,8 @@ MODULE: app/ml/sensitivity/
 PURPOSE: Sobol global sensitivity analysis
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-25
-VERSION: 1.1.1
+LAST MODIFIED: 2026-06-14
+VERSION: 1.2.0
 ================================================================================
 """
 
@@ -18,7 +18,7 @@ import numpy as np
 class SobolAnalyzer:
     """Compute Sobol first-order (S1) and total-order (ST) sensitivity indices."""
 
-    def analyze(self, model, X_train, input_cols, output_col_idx, n_samples=512):
+    def analyze(self, model, X_train, input_cols, output_col_idx, n_samples=512, n_jobs=1):
         """Return Sobol S1/ST indices for one output column.
 
         For PCEModel, returns analytical indices directly from the expansion
@@ -31,6 +31,9 @@ class SobolAnalyzer:
             input_cols:     Ordered list of input column names.
             output_col_idx: Index of the target output column.
             n_samples:      Base sample count N; total evaluations = N*(2D+2).
+            n_jobs:         Workers passed to SALib sobol.analyze() for bootstrap
+                            confidence interval computation. Silently falls back to
+                            serial if the installed SALib version does not support it.
 
         Returns:
             dict with keys: method, S1, ST, S1_conf, ST_conf, n_evaluations.
@@ -53,7 +56,11 @@ class SobolAnalyzer:
         }
         X_sample = sobol_sample.sample(problem, N=n_samples, calc_second_order=False)
         Y = model.predict(X_sample)[:, output_col_idx]
-        Si = sobol.analyze(problem, Y, calc_second_order=False, print_to_console=False)
+        try:
+            Si = sobol.analyze(problem, Y, calc_second_order=False,
+                               print_to_console=False, workers=n_jobs)
+        except TypeError:
+            Si = sobol.analyze(problem, Y, calc_second_order=False, print_to_console=False)
 
         return {
             "method":        "sobol",

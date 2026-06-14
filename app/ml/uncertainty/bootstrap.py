@@ -5,17 +5,18 @@ MODULE: app/ml/uncertainty/
 PURPOSE: Uncertainty estimation — GPR native posterior std; RF tree variance
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-11
-LAST MODIFIED: 2026-05-14
-VERSION: 1.1.0
+LAST MODIFIED: 2026-06-14
+VERSION: 1.2.0
 ================================================================================
 """
 
 # Copyright © 2026 Kalki Sharma. All rights reserved.
 
 import numpy as np
+from joblib import Parallel, delayed
 
 
-def compute_uncertainty(model, X_test, output_col_idx, model_type):
+def compute_uncertainty(model, X_test, output_col_idx, model_type, n_jobs=1):
     """Return 95% CI bounds for one output column on the test set.
 
     Args:
@@ -42,13 +43,17 @@ def compute_uncertainty(model, X_test, output_col_idx, model_type):
         )
 
     if model_type == "rf":
-        tree_preds = []
-        for tree in model._model.estimators_:
+        def _tree_pred(tree):
             pred = tree.predict(X_test)
             if pred.ndim == 1:
                 pred = pred.reshape(-1, 1)
-            tree_preds.append(pred[:, output_col_idx])
-        tree_preds = np.array(tree_preds)  # (n_trees, n_test)
+            return pred[:, output_col_idx]
+
+        tree_preds = np.array(
+            Parallel(n_jobs=n_jobs, prefer="threads")(
+                delayed(_tree_pred)(tree) for tree in model._model.estimators_
+            )
+        )  # (n_trees, n_test)
         return (
             "rf_tree_variance",
             np.percentile(tree_preds, 2.5,  axis=0).tolist(),

@@ -9,8 +9,8 @@ PURPOSE: Weighted ensemble of multiple surrogate model types.
          (predictions, sensitivity, export) work without modification.
 MAINTAINER: Kalki Sharma (kalkijsharma@gmail.com)
 CREATED: 2026-05-19
-LAST MODIFIED: 2026-05-19
-VERSION: 1.0.0
+LAST MODIFIED: 2026-06-14
+VERSION: 1.1.0
 ================================================================================
 """
 
@@ -27,7 +27,7 @@ from config.settings import DEFAULT_RANDOM_STATE
 
 # ─── FACTORY ──────────────────────────────────────────────────────────────────
 
-def _create_component(model_type: str, hyperparams: dict = None):
+def _create_component(model_type: str, hyperparams: dict = None, n_jobs: int = 1):
     """Instantiate one component model by type string.
 
     Kept here (not in model_api.py) to avoid circular imports: this module
@@ -52,6 +52,7 @@ def _create_component(model_type: str, hyperparams: dict = None):
             max_depth=hp.get("max_depth"),
             min_samples_leaf=hp.get("min_samples_leaf", 1),
             max_features=hp.get("max_features", "sqrt"),
+            n_jobs=n_jobs,
         )
     if model_type == "rbf":
         return RBFModel(
@@ -109,12 +110,14 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
         strategy: str = "cv_performance",
         hyperparams_per_type: dict = None,
         cv_folds: int = 5,
+        n_jobs: int = 1,
     ):
         super().__init__("ensemble")
         self._component_types    = list(component_types)
         self._strategy           = strategy
         self._hyperparams_per_type = hyperparams_per_type or {}
         self._cv_folds           = cv_folds
+        self._n_jobs             = n_jobs
         self._components         = []   # [(model_type, fitted_model), ...]
         self._weights            = {}   # {model_type: float}
         self._meta_models        = []   # [Ridge, ...] one per output; non-empty for stacking
@@ -300,7 +303,7 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
                     )
                     fold_r2s = []
                     for train_idx, val_idx in kf.split(X):
-                        m_fold = _create_component(mt, hp)
+                        m_fold = _create_component(mt, hp, n_jobs=self._n_jobs)
                         m_fold.fit(X[train_idx], y[train_idx], input_columns, output_columns)
                         pred    = m_fold.predict(X[val_idx])
                         avg_r2  = float(np.mean([
@@ -312,7 +315,7 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
                 else:
                     cv_r2 = 1.0  # equal weighting — all start at 1 before normalisation
 
-                m = _create_component(mt, hp)
+                m = _create_component(mt, hp, n_jobs=self._n_jobs)
                 m.fit(X, y, input_columns, output_columns)
                 self._components.append((mt, m))
                 cv_r2s[mt] = cv_r2
@@ -362,7 +365,7 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
 
             for train_idx, val_idx in kf.split(X):
                 try:
-                    m_fold = _create_component(mt, hp)
+                    m_fold = _create_component(mt, hp, n_jobs=self._n_jobs)
                     m_fold.fit(X[train_idx], y[train_idx], input_columns, output_columns)
                     pred   = m_fold.predict(X[val_idx])
                     oof_preds[val_idx, i, :] = pred
@@ -389,7 +392,7 @@ class EnsembleSurrogateModel(BaseSurrogateModel):
                 continue
             hp = self._hyperparams_per_type.get(mt, {})
             try:
-                m = _create_component(mt, hp)
+                m = _create_component(mt, hp, n_jobs=self._n_jobs)
                 m.fit(X, y, input_columns, output_columns)
                 self._components.append((mt, m))
                 oof_valid_cols.append(i)
